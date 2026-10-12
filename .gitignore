@@ -8,7 +8,8 @@ out/
 /broadcast/**/dry-run/
 
 # Docs
-docs/
+/docs/*
+!/docs/monad/
 
 # Dotenv file
 .env
