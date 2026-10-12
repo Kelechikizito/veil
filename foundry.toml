@@ -8,6 +8,10 @@ solc_version = "0.8.25"
 evm_version = "cancun"
 auto_detect_remappings = false
 
+# Monad's execution rules for local builds, tests, scripts and simulation: its gas model, opcode
+# pricing, precompiles and 128 KB code size limit. Foundry picks the hardfork on Monad testnet itself.
+network = "monad"
+
 # The optimizer is off by default in Foundry 1.x. Without it ConfidentialNative is 24,693 bytes,
 # over the 24,576-byte EIP-170 limit, and a live deploy fails with CreateContractSizeLimit.
 optimizer = true
@@ -28,11 +32,13 @@ isolate = true
 fs_permissions = [{ access = "read-write", path = "./deployments" }]
 
 [rpc_endpoints]
+monad_testnet = "${ALCHEMY_MONAD_TESTNET_RPC_URL}"
 base_sepolia = "${BASE_SEPOLIA_RPC_URL}"
 base_mainnet = "${BASE_MAINNET_RPC_URL}"
 
-# An Etherscan V2 key verifies on Basescan. It's stored as ARBISCAN_API_KEY in .env (one V2 key covers every chain).
+# One Etherscan V2 key verifies on Monadscan and Basescan.
 [etherscan]
-base_sepolia = { key = "${ARBISCAN_API_KEY}", chain = 84532 }
+monad_testnet = { key = "${ETHERSCAN_API_KEY}", chain = 10143 }
+base_sepolia = { key = "${ETHERSCAN_API_KEY}", chain = 84532 }
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

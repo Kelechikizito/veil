@@ -12,7 +12,8 @@
 
 ##@ Configuration
 
-# Veil runs on Base Sepolia only. CHAIN stays a variable so a future chain is one line.
+# Base Sepolia stays the default until the contracts run on Monad: CoFHE isn't live there yet.
+# Use CHAIN=monad_testnet for Monad.
 CHAIN       ?= base_sepolia
 ACCOUNT     ?= sepolia-acc
 SENDER      ?= $(shell grep -E '^DEPLOYER=' .env 2>/dev/null | cut -d= -f2)
@@ -23,6 +24,7 @@ DEMO_PERIOD ?= 600
 
 # Chain ids, for the deployments/<chainId>.json files
 CHAIN_ID_base_sepolia     := 84532
+CHAIN_ID_monad_testnet    := 10143
 CHAIN_ID                  := $(CHAIN_ID_$(CHAIN))
 
 # Shorthands, so the recipes below stay readable. CHAIN is an alias from foundry.toml's
@@ -31,8 +33,8 @@ DEPLOY_SCRIPT := script/deployment/DeployScript.s.sol
 BROADCAST     := --rpc-url $(CHAIN) --account $(ACCOUNT) --sender $(SENDER) --broadcast
 READONLY      := --rpc-url $(CHAIN) --sender $(SENDER)
 
-# Etherscan V2 verification on Basescan. The key is ARBISCAN_API_KEY in .env (a V2 key covers every
-# chain) and foundry.toml's [etherscan] section passes it, so --verify needs no key here.
+# Etherscan V2 verification on Monadscan or Basescan. The key is ETHERSCAN_API_KEY in .env (a V2 key
+# covers every chain) and foundry.toml's [etherscan] section passes it, so --verify needs no key here.
 VERIFY        := --verify
 
 .DEFAULT_GOAL := help
@@ -46,11 +48,11 @@ check-%:
 		exit 1; \
 	fi
 
-# Fails when CHAIN isn't one Veil deploys to. CoFHE only runs on these testnets.
+# Fails when CHAIN isn't one Veil deploys to.
 .PHONY: check-chain
 check-chain:
 	@if [ -z "$(CHAIN_ID)" ]; then \
-		echo "error: CHAIN must be base_sepolia (got '$(CHAIN)')"; \
+		echo "error: CHAIN must be monad_testnet or base_sepolia (got '$(CHAIN)')"; \
 		exit 1; \
 	fi
 
@@ -118,6 +120,7 @@ clean: ## Delete build artifacts and the fork cache
 # Runs the real deploy script against a fork, then checks deployments/<chainId>.json if it exists.
 #
 #   make test-fork                    # Base Sepolia
+#   make test-fork CHAIN=monad_testnet
 
 .PHONY: test-fork
 test-fork: check-chain ## Run the fork tests on CHAIN
@@ -148,8 +151,8 @@ check-deployer: check-SENDER ## Confirm the ACCOUNT keystore signs as SENDER (as
 	fi
 
 .PHONY: balance
-balance: check-chain check-SENDER ## Show SENDER's ETH on CHAIN (deploy needs about 0.01)
-	@echo "$(SENDER) on $(CHAIN): $$(cast balance $(SENDER) --ether --rpc-url $(CHAIN)) ETH"
+balance: check-chain check-SENDER ## Show SENDER's native balance (ETH or MON) on CHAIN
+	@echo "$(SENDER) on $(CHAIN): $$(cast balance $(SENDER) --ether --rpc-url $(CHAIN))"
 
 .PHONY: deploy-dry
 deploy-dry: check-chain check-SENDER ## Simulate the whole deploy on CHAIN, free. Writes nothing.
@@ -165,6 +168,12 @@ deploy: check-chain check-SENDER check-sizes ## Deploy, wire and verify everythi
 .PHONY: deploy-base
 deploy-base: ## Deploy to Base Sepolia (same as make deploy)
 	$(MAKE) deploy CHAIN=base_sepolia
+
+# The contracts deploy on Monad, but every encrypted call reverts there until CoFHE runs on Monad
+# or the privacy decision in CLAUDE.md replaces it. About 5.5 MON.
+.PHONY: deploy-monad
+deploy-monad: ## Deploy to Monad testnet (encrypted calls revert there for now)
+	$(MAKE) deploy CHAIN=monad_testnet
 
 # Verification runs after the transactions land, so a failure here leaves deployed but
 # unverified contracts. Nothing to redeploy, just re-run this. It reads the addresses from the
@@ -195,7 +204,7 @@ export-abis: build ## Copy ABIs and every chain's addresses into frontend/lib/co
 #   make set-policy APPROVERS="[0xabc...,0xdef...]" REQUIRED=2
 #   make status                           # read-only, no password
 #
-# Amounts are raw integers in the token's decimals. Add CHAIN=base_sepolia for Base.
+# Amounts are raw integers in the token's decimals. Add CHAIN=monad_testnet for Monad.
 
 INTERACT := script/interaction/InteractionsScript.s.sol
 USDC     ?= 10000000000

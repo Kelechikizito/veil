@@ -13,7 +13,7 @@ Veil is a port of **Dayze** (`~/hackathon-projects/dayze`, an earlier project on
 ## Status (2026-10-12)
 
 - The repo is a clone of Dayze at `068fec9`. The `dayze` remote points at the Dayze repo: **never push to it**. `origin` is the Veil repo.
-- Step 1 (rename) is done. Contracts, frontend and scripts say Veil; Dayze-era notes, `broadcast/` and `deployments/84532.json` keep the old name. All contracts still use Fhenix CoFHE.
+- Steps 1 (rename) and 3 (Monad testnet) are done. Contracts, frontend and scripts say Veil; Dayze-era notes, `broadcast/` and `deployments/84532.json` keep the old name. All contracts still use Fhenix CoFHE.
 - **Open decision: privacy on Monad.** CoFHE (all `euint64`/`FHE.*` code, `@cofhe/sdk`) supports only Ethereum Sepolia, Arbitrum Sepolia and Base Sepolia, not Monad. Options: (A) ask Fhenix about Monad support; (B) public salaries plus a ZK (Noir) income proof; (C) public payroll pitched on speed and verified humans. Ask the user before building.
 - Name collisions to address in the pitch: "Veil Protocol" (Chainlink hackathon winner, private DAO payroll) and "VeilPay" (ETHGlobal, confidential payroll). Lead with what they lack: per-second streaming, World ID-verified workers, the expiring income credential.
 
@@ -21,7 +21,7 @@ Veil is a port of **Dayze** (`~/hackathon-projects/dayze`, an earlier project on
 
 1. ~~Rename Dayze → Veil everywhere.~~ Done.
 2. Keep these in sync or registration breaks: the EIP-712 domain in `src/HumanRegistry.sol` (`"Veil HumanRegistry"`) and the attest route in `frontend/app/api/world-id/`. New World ID action `veil-register`. New Privy app, or add the new domain, with gas sponsorship on Monad if supported.
-3. Add Monad testnet (chain id 10143): `foundry.toml` rpc and etherscan entries, Makefile `CHAIN_ID_*`, frontend chain config and addresses. Env names are in `.env.example` and `frontend/.env.example` (`ALCHEMY_MONAD_TESTNET_RPC_URL`, `NEXT_PUBLIC_MONAD_TESTNET_RPC`); the code still reads the Base names.
+3. ~~Add Monad testnet (chain id 10143).~~ Done: `network = "monad"`, `CHAIN=monad_testnet` and `make deploy-monad`, WMON in the deploy script, and the frontend chain. Base Sepolia stays the default chain (Makefile `CHAIN`, frontend `defaultChain`) until the privacy decision; then switch both. The contracts deploy on Monad, but every encrypted call reverts there.
 4. Apply the privacy decision above.
 5. Deploy, fork-test, export ABIs, browser-test, README, demo video.
 

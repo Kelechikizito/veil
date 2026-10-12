@@ -1,7 +1,7 @@
 "use client";
 
 import { useAccount } from "wagmi";
-import { defaultChain } from "@/lib/chains";
+import { chainFor } from "@/lib/chains";
 import { useTxLog } from "@/lib/txLog";
 
 export type TxStage = "idle" | "encrypting" | "signing" | "confirming" | "fhe-processing" | "done" | "error";
@@ -48,20 +48,23 @@ export function TxStatus({ stage, error, txHash }: { stage: TxStage; error?: str
             ? "Done."
             : STAGES[currentIndex]?.help}
       </p>
-      {txHash && <ExplorerLink hash={txHash}>View on {defaultChain.blockExplorers.default.name} ↗</ExplorerLink>}
+      {txHash && <ExplorerLink hash={txHash} label="View on" />}
     </div>
   );
 }
 
-function ExplorerLink({ hash, children }: { hash: string; children: React.ReactNode }) {
+/** A link to the transaction on the explorer of the wallet's current chain */
+function ExplorerLink({ hash, label }: { hash: string; label?: string }) {
+  const { chainId } = useAccount();
+  const explorer = chainFor(chainId).blockExplorers.default;
   return (
     <a
-      href={`${defaultChain.blockExplorers.default.url}/tx/${hash}`}
+      href={`${explorer.url}/tx/${hash}`}
       target="_blank"
       rel="noopener noreferrer"
       className="text-caption underline underline-offset-4"
     >
-      {children}
+      {label ? `${label} ${explorer.name}` : explorer.name} ↗
     </a>
   );
 }
@@ -76,7 +79,7 @@ export function TxLinks({ scope }: { scope: string }) {
       {entries.map((e) => (
         <li key={e.hash} className="flex flex-wrap items-baseline gap-x-3">
           <span className="text-caption text-soft-charcoal">{e.label}</span>
-          <ExplorerLink hash={e.hash}>{defaultChain.blockExplorers.default.name} ↗</ExplorerLink>
+          <ExplorerLink hash={e.hash} />
         </li>
       ))}
     </ul>

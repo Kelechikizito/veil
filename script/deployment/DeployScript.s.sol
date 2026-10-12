@@ -26,7 +26,7 @@ import {JoinRequests} from "src/JoinRequests.sol";
 /**
  * @title DeployScript
  * @author Kelechi Kizito Ugwu
- * @notice Deploys and wires every Veil contract on Base Sepolia.
+ * @notice Deploys and wires every Veil contract on Monad testnet or Base Sepolia.
  * @dev Signer comes from `--account`, never from a private key in env. Writes `deployments/<chainId>.json`.
  *      Env: `ATTESTER` (required, an address), `DEMO_PERIOD` (optional, seconds; default 30 days),
  *      `WETH` (optional; defaults to the chain's canonical WETH).
@@ -37,7 +37,7 @@ contract DeployScript is Script {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Thrown on any chain but Base Sepolia, unless `WETH` is set in env
+    /// @notice Thrown on a chain with no known wrapped native token, unless `WETH` is set in env
     error DeployScript__UnknownWeth(uint256 chainId);
 
     /*//////////////////////////////////////////////////////////////
@@ -65,6 +65,9 @@ contract DeployScript is Script {
 
     /// @notice Canonical WETH on Base Sepolia (OP Stack predeploy)
     address internal constant WETH_BASE_SEPOLIA = 0x4200000000000000000000000000000000000006;
+
+    /// @notice Wrapped MON on Monad testnet
+    address internal constant WMON_MONAD_TESTNET = 0xFb8bf4c1CC7a94c73D209a149eA2AbEa852BC541;
 
     /*//////////////////////////////////////////////////////////////
                            EXTERNAL FUNCTIONS
@@ -121,10 +124,11 @@ contract DeployScript is Script {
         payroll.addToken(IFHERC20(d.ceth));
     }
 
-    /// @notice Returns the canonical WETH for a chain
+    /// @notice Returns the canonical wrapped native token for a chain (WETH, or WMON on Monad)
     /// @param chainId The chain
-    /// @return The WETH address
+    /// @return The wrapped native token's address
     function wethFor(uint256 chainId) public pure returns (address) {
+        if (chainId == 10143) return WMON_MONAD_TESTNET;
         if (chainId == 84532) return WETH_BASE_SEPOLIA;
         revert DeployScript__UnknownWeth(chainId);
     }

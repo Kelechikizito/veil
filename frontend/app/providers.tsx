@@ -7,7 +7,7 @@ import { WagmiProvider, createConfig, useSetActiveWallet } from "@privy-io/wagmi
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { http, useAccount, usePublicClient, useWalletClient } from "wagmi";
-import { defaultChain, rpcUrls, supportedChains } from "@/lib/chains";
+import { defaultChain, rpcUrls, supportedChains, type SupportedChain } from "@/lib/chains";
 import { withKernelSignatures } from "@/lib/kernelSignature";
 import { privyChains } from "@/lib/privyChains";
 
@@ -19,12 +19,14 @@ import { privyChains } from "@/lib/privyChains";
 
 const wagmiConfig = createConfig({
   chains: supportedChains,
-  transports: {
-    [supportedChains[0].id]: http(rpcUrls[supportedChains[0].id]),
-  },
+  transports: Object.fromEntries(supportedChains.map((c) => [c.id, http(rpcUrls[c.id])])) as Record<
+    SupportedChain["id"],
+    ReturnType<typeof http>
+  >,
   ssr: true,
 });
 
+// CoFHE runs on Base Sepolia only, so encryption and decryption don't work on Monad yet
 const cofheConfig = createCofheConfig({
   supportedChains: [cofheBaseSepolia],
 });
