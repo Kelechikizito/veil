@@ -2,7 +2,7 @@
 
 > Salaries stream onchain where nobody can read them, and a worker can prove "I earn at least $2,500" to one landlord without revealing the number.
 
-**Colosseum Crypto World's Fair** · Base track · Built on Fhenix CoFHE, Privy and World ID
+**Monad Metropolis** · Built on Monad, Privy and World ID
 
 [Deployed contracts](#deployments) · [Proof it ran](#proof-it-ran) · [Quick start](#quick-start)
 

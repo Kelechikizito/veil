@@ -1,7 +1,6 @@
 # Dayze — Architecture Document
 
 **Private payroll streams, with income you can prove but never reveal**
-Colosseum Hackathon (EVM / Arbitrum track — Consumer Products and Payments)
 Version 0.1 (hackathon scope)
 
 ---
@@ -35,7 +34,7 @@ Onchain payroll keeps colliding with two problems:
 | ------------------------------------------ | --------------------------------------- | --------------------------------------------------------------------- |
 | PayGate (ETHOnline 2026, Privy B2B winner) | Approval-gated stablecoin payouts       | Payouts are public transfers, and there is nothing for the worker     |
 | CipherPay                                  | FHE payroll with a SalaryProof          | No per-second streaming, and its proof is a permanent onchain boolean |
-| ShieldStream (Colosseum 2026, Solana)      | ZK-proven private streaming payroll     | No income credential for third parties, and it isn't on EVM           |
+| ShieldStream (Solana)                      | ZK-proven private streaming payroll     | No income credential for third parties, and it isn't on EVM           |
 | Hinkal                                     | Private batch payouts with viewing keys | Batch payouts, not streams, and no income proof                       |
 
 Dayze's position: the **stream is the income source the credential is built from**, and the credential expires.
