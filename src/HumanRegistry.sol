@@ -65,7 +65,7 @@ contract HumanRegistry is IHumanRegistry, EIP712, Ownable {
 
     /// @notice Sets the attester and the EIP-712 domain. The deployer becomes owner.
     /// @param attesterAddress The backend key that signs attestations
-    constructor(address attesterAddress) EIP712("Dayze HumanRegistry", "1") Ownable(msg.sender) {
+    constructor(address attesterAddress) EIP712("Veil HumanRegistry", "1") Ownable(msg.sender) {
         _setAttester(attesterAddress);
     }
 

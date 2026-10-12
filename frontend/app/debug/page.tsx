@@ -45,7 +45,7 @@ export default function DebugPage() {
       // The handle only works in the consuming contract. Without a deployment, bind it to your own address.
       const consumer = (tokens[0]?.wrapper ?? address) as Address;
       const { handle, proof } = await encryptUint64(client, BigInt(42), consumer);
-      console.log("[dayze] encrypt 42", { handle, proof });
+      console.log("[veil] encrypt 42", { handle, proof });
       return `handle ${handle.slice(0, 18)}…, proof ${proof.length / 2 - 1} bytes (full values in the console)`;
     });
 
@@ -92,7 +92,7 @@ export default function DebugPage() {
               {hasACP ? "ready" : acpStatus}
               {acpError ? ` (${acpError.message})` : ""}
             </dd>
-            <dt className="text-mid-grey">Dayze deployed</dt>
+            <dt className="text-mid-grey">Veil deployed</dt>
             <dd>{tokens.length ? "yes" : "not on this chain yet"}</dd>
           </dl>
 

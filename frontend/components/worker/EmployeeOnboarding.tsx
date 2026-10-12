@@ -7,13 +7,13 @@ import { isAddress, type Address } from "viem";
 import { OnboardingWizard, StepIcon, type WizardStep } from "@/components/OnboardingWizard";
 import type { StepStatus } from "@/components/Stepper";
 import { Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { markOnboarded } from "@/lib/routing";
 import { useOrgName, useStreamsOfPayee } from "./hooks";
 import { RequestPay, useHasRequested } from "./RequestPay";
 import { WorldIdVerify, useIsHuman } from "./WorldIdVerify";
 
-const localFlag = (account: string, name: string) => `dayze:employee:${account.toLowerCase()}:${name}`;
+const localFlag = (account: string, name: string) => `veil:employee:${account.toLowerCase()}:${name}`;
 
 function readFlag(account: string | undefined, name: string) {
   if (!account) return false;
@@ -37,7 +37,7 @@ function writeFlag(account: string | undefined, name: string) {
  */
 export function EmployeeOnboarding({ org }: { org?: string }) {
   const router = useRouter();
-  const { account } = useDayze();
+  const { account } = useVeil();
   const orgAddress = org && isAddress(org) ? (org as Address) : undefined;
   const orgName = useOrgName(orgAddress);
   const isHuman = useIsHuman();
@@ -65,7 +65,7 @@ export function EmployeeOnboarding({ org }: { org?: string }) {
     {
       key: "signin",
       title: "Sign in",
-      help: orgName ? `${orgName} invited you to get paid with Dayze.` : "You're signed in. Your wallet was created for you.",
+      help: orgName ? `${orgName} invited you to get paid with Veil.` : "You're signed in. Your wallet was created for you.",
       icon: <StepIcon name="key" />,
       status: "done",
     },

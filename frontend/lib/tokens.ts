@@ -76,7 +76,7 @@ export function toUnderlying(token: ConfidentialTokenInfo, units: bigint): bigin
   return units * token.rate;
 }
 
-/** Whether Dayze is deployed on a chain */
+/** Whether Veil is deployed on a chain */
 export function isDeployedOn(chainId: number | undefined): boolean {
   return chainId !== undefined && String(chainId) in addresses;
 }

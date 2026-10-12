@@ -9,10 +9,10 @@ import { shortAddress } from "@/components/AuthButton";
 import { scanAllStreams, StreamStatus, statusLabel, type StreamRow } from "@/components/employer/streams";
 import { Field, Input, Panel, PillPicker } from "@/components/forms";
 import { Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { useEnsureACP } from "@/hooks/useEnsureACP";
 import { shortError } from "@/hooks/useTx";
-import { AuditRegistryAbi, DayzePayrollAbi } from "@/lib/contracts/abis";
+import { AuditRegistryAbi, VeilPayrollAbi } from "@/lib/contracts/abis";
 import { isUnsetHandle, unsealUint64 } from "@/lib/fhe";
 import { formatConfidential } from "@/lib/tokens";
 
@@ -30,7 +30,7 @@ type Books = {
  * salaries, withdrawals and vaults in the browser. The CSV is built locally: this page uploads nothing.
  */
 export function AuditorView() {
-  const { account, d } = useDayze();
+  const { account, d } = useVeil();
   const publicClient = usePublicClient();
   const [typed, setTyped] = useState("");
   const [picked, setPicked] = useState<Address>();
@@ -47,7 +47,7 @@ export function AuditorView() {
         payers.map(async (payer) => {
           const [still, org] = await Promise.all([
             publicClient!.readContract({ address: d!.auditRegistry, abi: AuditRegistryAbi, functionName: "isAuditor", args: [payer, account!] }),
-            publicClient!.readContract({ address: d!.payroll, abi: DayzePayrollAbi, functionName: "orgOf", args: [payer] }),
+            publicClient!.readContract({ address: d!.payroll, abi: VeilPayrollAbi, functionName: "orgOf", args: [payer] }),
           ]);
           return still ? { payer, name: org.exists ? org.name : shortAddress(payer) } : undefined;
         }),
@@ -102,7 +102,7 @@ export function AuditorView() {
 
 /** One org's books: check access, unseal on request, export CSV */
 function OrgBooks({ payer }: { payer: Address }) {
-  const { account, d, tokens } = useDayze();
+  const { account, d, tokens } = useVeil();
   const publicClient = usePublicClient();
   const client = useCofheClient();
   const { ensureACP } = useEnsureACP();
@@ -117,19 +117,19 @@ function OrgBooks({ payer }: { payer: Address }) {
       const read = publicClient!.readContract;
       const [allowed, org, ids] = await Promise.all([
         read({ address: d!.auditRegistry, abi: AuditRegistryAbi, functionName: "isAuditor", args: [payer, account!] }),
-        read({ address: d!.payroll, abi: DayzePayrollAbi, functionName: "orgOf", args: [payer] }),
-        read({ address: d!.payroll, abi: DayzePayrollAbi, functionName: "streamsOfPayer", args: [payer] }),
+        read({ address: d!.payroll, abi: VeilPayrollAbi, functionName: "orgOf", args: [payer] }),
+        read({ address: d!.payroll, abi: VeilPayrollAbi, functionName: "streamsOfPayer", args: [payer] }),
       ]);
       const streams = await Promise.all(
         ids.map(async (id) => ({
           id,
-          ...((await read({ address: d!.payroll, abi: DayzePayrollAbi, functionName: "getStream", args: [id] })) as Omit<StreamRow, "id">),
+          ...((await read({ address: d!.payroll, abi: VeilPayrollAbi, functionName: "getStream", args: [id] })) as Omit<StreamRow, "id">),
         })),
       );
       const vaults = await Promise.all(
         tokens.map(async (t) => ({
           symbol: t.symbol,
-          handle: (await read({ address: d!.payroll, abi: DayzePayrollAbi, functionName: "vaultOf", args: [payer, t.wrapper] })) as Hex,
+          handle: (await read({ address: d!.payroll, abi: VeilPayrollAbi, functionName: "vaultOf", args: [payer, t.wrapper] })) as Hex,
         })),
       );
       return {

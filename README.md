@@ -1,8 +1,10 @@
-# Dayze
+# Veil
 
 > Salaries stream onchain where nobody can read them, and a worker can prove "I earn at least $2,500" to one landlord without revealing the number.
 
 **Monad Metropolis** · Built on Monad, Privy and World ID
+
+Veil builds on [Dayze](https://github.com/Kelechikizito/dayze), our earlier confidential payroll on Base Sepolia. The links, deployments and transactions below are still Dayze's until the Monad deploy.
 
 [Deployed contracts](#deployments) · [Proof it ran](#proof-it-ran) · [Quick start](#quick-start)
 
@@ -33,7 +35,7 @@ sequenceDiagram
     actor Acme as Acme (employer)
     actor Ada as Ada (worker)
     actor Landlord
-    participant P as DayzePayroll
+    participant P as VeilPayroll
     participant AP as ApprovalPolicy
     participant IC as IncomeCredential
     participant TN as CoFHE Threshold Network
@@ -57,9 +59,9 @@ sequenceDiagram
 
 ## What makes this different
 
-- **Against plain stablecoin payroll (Sablier, Superfluid, a USDC transfer):** those publish every salary. Dayze keeps salary, balance, budget and withdrawal amounts encrypted onchain.
-- **Against a ZK proof of income:** a SNARK would need a separate commitment to the salary, plus a proof that it matches the real payments. Dayze's check runs on the stream's own ciphertext ([`IncomeCredential.sol#L101`](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/IncomeCredential.sol#L101)), so the proof can't drift from what the worker is actually paid.
-- **Against FHE payroll that publishes a permanent "salary ≥ X" flag:** a Dayze credential goes to one verifier, expires, and can be revoked. The worker decides who learns the bit, and for how long.
+- **Against plain stablecoin payroll (Sablier, Superfluid, a USDC transfer):** those publish every salary. Veil keeps salary, balance, budget and withdrawal amounts encrypted onchain.
+- **Against a ZK proof of income:** a SNARK would need a separate commitment to the salary, plus a proof that it matches the real payments. Veil's check runs on the stream's own ciphertext ([`IncomeCredential.sol#L101`](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/IncomeCredential.sol#L101)), so the proof can't drift from what the worker is actually paid.
+- **Against FHE payroll that publishes a permanent "salary ≥ X" flag:** a Veil credential goes to one verifier, expires, and can be revoked. The worker decides who learns the bit, and for how long.
 - **Against "encrypt the salary, hope the vault holds it":** pay never outruns the money. Each period, payroll sets aside what each stream may stream, so a worker can always withdraw what they see.
 - **Against payslips:** the landlord learns one bit, plus who paid, since when, and whether the worker is a verified unique human.
 
@@ -67,7 +69,7 @@ sequenceDiagram
 
 Seven contracts, all on Base Sepolia, all source-verified. Every amount is a CoFHE `euint64` handle. Access is granted per handle with `FHE.allow`, and users decrypt with EIP-712 permits. No server holds a key that can read a salary.
 
-### DayzePayroll ([src/DayzePayroll.sol](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/DayzePayroll.sol))
+### VeilPayroll ([src/DayzePayroll.sol](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/DayzePayroll.sol))
 
 Orgs, encrypted per-token vaults and salary streams. Money flows vault → payroll run → stream → worker.
 - `createStream` ([L202–L242](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/DayzePayroll.sol#L202-L242)) stores the encrypted salary and asks `ApprovalPolicy` for the one public bit.
@@ -143,8 +145,8 @@ One full payroll cycle on Base Sepolia, from creating the org to USDC landing in
 Prerequisites: [Foundry](https://book.getfoundry.sh/getting-started/installation), Node 20+.
 
 ```bash
-git clone --recursive https://github.com/Kelechikizito/dayze.git
-cd dayze
+git clone --recursive https://github.com/Kelechikizito/veil.git
+cd veil
 make install        # submodules: forge-std, OpenZeppelin, CoFHE, Fhenix contracts
 make test           # 128 tests on CoFHE mocks
 ```

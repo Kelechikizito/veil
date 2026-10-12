@@ -11,9 +11,9 @@ import {ApprovalPolicy} from "src/ApprovalPolicy.sol";
 import {AuditRegistry} from "src/AuditRegistry.sol";
 import {ConfidentialNative} from "src/ConfidentialNative.sol";
 import {ConfidentialToken} from "src/ConfidentialToken.sol";
-import {DayzePayroll} from "src/DayzePayroll.sol";
+import {VeilPayroll} from "src/VeilPayroll.sol";
 import {HumanRegistry} from "src/HumanRegistry.sol";
-import {IDayzePayroll} from "src/interfaces/IDayzePayroll.sol";
+import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
 
 /*//////////////////////////////////////////////////////////////
                 INTERFACES, LIBRARIES, CONTRACT
@@ -22,7 +22,7 @@ import {IDayzePayroll} from "src/interfaces/IDayzePayroll.sol";
 /**
  * @title InteractionsScript
  * @author Kelechi Kizito Ugwu
- * @notice Every plaintext call into a live Dayze deployment, one function each, run with `--sig`.
+ * @notice Every plaintext call into a live Veil deployment, one function each, run with `--sig`.
  * @dev Reads addresses from `deployments/<chainId>.json`. The signer comes from `--account`.
  *      Calls that take an encrypted input (fundVault, createStream, setThreshold, withdraw) or need
  *      a decrypt (resolvePolicy) can't run from Forge on a live chain: encryption needs Fhenix's
@@ -99,7 +99,7 @@ contract InteractionsScript is Script {
     /// @param name Org name shown on credentials
     function createOrg(string calldata name) external {
         vm.startBroadcast();
-        DayzePayroll(_addr("payroll")).createOrg(name);
+        VeilPayroll(_addr("payroll")).createOrg(name);
         vm.stopBroadcast();
         console.log("Created org:", name);
     }
@@ -151,7 +151,7 @@ contract InteractionsScript is Script {
     /// @param streamId The stream to activate
     function activateApproved(uint256 streamId) external {
         vm.startBroadcast();
-        DayzePayroll(_addr("payroll")).activateApproved(streamId);
+        VeilPayroll(_addr("payroll")).activateApproved(streamId);
         vm.stopBroadcast();
         console.log("Activated stream:", streamId);
     }
@@ -160,7 +160,7 @@ contract InteractionsScript is Script {
     /// @param streamId The stream to cancel
     function cancelStream(uint256 streamId) external {
         vm.startBroadcast();
-        DayzePayroll(_addr("payroll")).cancelStream(streamId);
+        VeilPayroll(_addr("payroll")).cancelStream(streamId);
         vm.stopBroadcast();
         console.log("Cancelled stream:", streamId);
     }
@@ -173,7 +173,7 @@ contract InteractionsScript is Script {
     /// @param token The wrapper to accept
     function addToken(address token) external {
         vm.startBroadcast();
-        DayzePayroll(_addr("payroll")).addToken(IFHERC20(token));
+        VeilPayroll(_addr("payroll")).addToken(IFHERC20(token));
         vm.stopBroadcast();
         console.log("Allowlisted token:", token);
     }
@@ -182,7 +182,7 @@ contract InteractionsScript is Script {
     /// @param token The wrapper to remove
     function removeToken(address token) external {
         vm.startBroadcast();
-        DayzePayroll(_addr("payroll")).removeToken(IFHERC20(token));
+        VeilPayroll(_addr("payroll")).removeToken(IFHERC20(token));
         vm.stopBroadcast();
         console.log("Removed token:", token);
     }
@@ -203,7 +203,7 @@ contract InteractionsScript is Script {
     /// @notice Prints the deployment's wiring and an account's plaintext state. Sends nothing.
     /// @param who The account to look up
     function status(address who) external view {
-        DayzePayroll payroll = DayzePayroll(_addr("payroll"));
+        VeilPayroll payroll = VeilPayroll(_addr("payroll"));
         ApprovalPolicy policy = ApprovalPolicy(_addr("approvalPolicy"));
 
         console.log("Chain:", block.chainid);
@@ -216,7 +216,7 @@ contract InteractionsScript is Script {
         console.log("  cETH allowlisted:", payroll.s_supportedTokens(IFHERC20(_addr("ceth"))));
 
         console.log("Account:", who);
-        IDayzePayroll.Org memory org = payroll.orgOf(who);
+        IVeilPayroll.Org memory org = payroll.orgOf(who);
         console.log("  org:", org.exists ? org.name : "(none)");
         console.log("  streams as payer:", payroll.streamsOfPayer(who).length);
         console.log("  streams as payee:", payroll.streamsOfPayee(who).length);

@@ -20,7 +20,7 @@ export function worldIdEnvironment(): WorldIdEnvironment {
 }
 
 /** The Developer Portal action a worker proves uniqueness for */
-export const WORLDID_ACTION = "dayze-register";
+export const WORLDID_ACTION = "veil-register";
 
 /**
  * How long an attestation stays valid, in seconds. Long on purpose: Selfie Check is one-time per
@@ -67,7 +67,7 @@ export function worldIdErrorMessage(code: string, environment: string): string {
       return `Wrong World ID network for ${environment}. In sandbox, use the World ID (Sandbox) app; in staging, the simulator.`;
     case "nullifier_replayed":
     case "max_verifications_reached":
-      return "This person has already used their one Selfie Check for Dayze.";
+      return "This person has already used their one Selfie Check for Veil.";
     case "invalid_rp_signature":
     case "rp_signature_expired":
     case "timestamp_too_old":
@@ -96,7 +96,7 @@ export const ATTESTATION_TYPES = {
 
 /** EIP-712 domain for a deployed HumanRegistry */
 export function attestationDomain(chainId: number, humanRegistry: Address) {
-  return { name: "Dayze HumanRegistry", version: "1", chainId, verifyingContract: humanRegistry } as const;
+  return { name: "Veil HumanRegistry", version: "1", chainId, verifyingContract: humanRegistry } as const;
 }
 
 /**

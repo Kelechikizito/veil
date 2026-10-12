@@ -10,10 +10,10 @@ import type { Address, Hex } from "viem";
 export type TxLogEntry = { label: string; hash: Hex };
 
 const MAX_ENTRIES = 6;
-const EVENT = "dayze:txlog";
+const EVENT = "veil:txlog";
 const EMPTY: TxLogEntry[] = [];
 
-const storageKey = (account: Address, scope: string) => `dayze:txlog:${account.toLowerCase()}:${scope}`;
+const storageKey = (account: Address, scope: string) => `veil:txlog:${account.toLowerCase()}:${scope}`;
 
 // useSyncExternalStore needs a stable snapshot, so cache the parsed list per raw string
 const cache = new Map<string, { raw: string; entries: TxLogEntry[] }>();

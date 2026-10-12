@@ -33,7 +33,7 @@ interface IJoinRequests {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Asks `employer` to start paying the caller
-    /// @param employer An address with an org in DayzePayroll
+    /// @param employer An address with an org in VeilPayroll
     function requestToJoin(address employer) external;
 
     /// @notice Withdraws the caller's request to `employer`

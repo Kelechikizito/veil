@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { WORLDID_ACTION, worldIdEnvironment, type RpSignatureResponse } from "@/lib/worldid";
 
 /*
- * Signs a World ID proof request so World App knows it really comes from Dayze (07a, step 2).
+ * Signs a World ID proof request so World App knows it really comes from Veil (07a, step 2).
  * Server only: WORLDID_RP_SIGNING_KEY never reaches the browser.
  * Also returns the public app_id and rp_id, so the client needs no extra env vars.
  */
@@ -17,7 +17,7 @@ export async function POST() {
     return NextResponse.json({ error: "World ID is not configured" }, { status: 500 });
   }
 
-  // Only ever sign Dayze's own action, whatever the client asks for
+  // Only ever sign Veil's own action, whatever the client asks for
   const { sig, nonce, createdAt, expiresAt } = signRequest({ signingKeyHex: signingKey, action: WORLDID_ACTION });
 
   const body: RpSignatureResponse = {

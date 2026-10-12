@@ -20,4 +20,4 @@ Veil is payroll on Monad. Employers stream salaries to workers second by second,
 
 ## Status
 
-A port of Dayze (an earlier project on Base Sepolia). The contracts and frontend work there. The Monad port is not started, and how salaries stay private on Monad is still open (see `CLAUDE.md`).
+A port of Dayze (an earlier project on Base Sepolia). The contracts and frontend work there. The port has started: everything is renamed to Veil. Nothing runs on Monad yet, and how salaries stay private on Monad is still open (see `CLAUDE.md`).

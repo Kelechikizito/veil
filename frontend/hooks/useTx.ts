@@ -108,7 +108,7 @@ export function useTx(log?: string) {
           publicClient.estimateContractGas({ ...(params as object), account: address } as never).catch((e) => {
             // A revert fails the same way on-chain; sending anyway makes the wallet guess a huge gas limit
             if (e instanceof BaseError && e.walk((c) => c instanceof ContractFunctionRevertedError)) throw e;
-            console.warn("[dayze] gas estimate failed; the wallet will estimate", e);
+            console.warn("[veil] gas estimate failed; the wallet will estimate", e);
             return undefined;
           }),
           publicClient.getGasPrice().catch(() => undefined),
@@ -146,7 +146,7 @@ export function useTx(log?: string) {
         if (!opts.keepOpen) setStage("done");
         return receipt;
       } catch (e) {
-        console.error("[dayze] transaction failed", e);
+        console.error("[veil] transaction failed", e);
         setError(shortError(e));
         setStage("error");
         return undefined;

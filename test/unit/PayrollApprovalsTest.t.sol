@@ -5,8 +5,8 @@ pragma solidity 0.8.25;
                             IMPORTS
 //////////////////////////////////////////////////////////////*/
 import {FHE, ebool, euint64, externalEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
-import {DayzePayroll} from "src/DayzePayroll.sol";
-import {IDayzePayroll} from "src/interfaces/IDayzePayroll.sol";
+import {VeilPayroll} from "src/VeilPayroll.sol";
+import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
 import {PayrollTestBase} from "../utils/PayrollTestBase.sol";
 
 /*//////////////////////////////////////////////////////////////
@@ -75,7 +75,7 @@ contract PayrollApprovalsTest is PayrollTestBase {
     /// @notice Returns a stream's status
     /// @param id The stream
     /// @return The status
-    function _status(uint256 id) internal view returns (IDayzePayroll.Status) {
+    function _status(uint256 id) internal view returns (IVeilPayroll.Status) {
         return payroll.getStream(id).status;
     }
 
@@ -93,7 +93,7 @@ contract PayrollApprovalsTest is PayrollTestBase {
     function _expectWithdrawReverts(uint256 id) internal {
         (externalEuint64 h, bytes memory p) = _encrypt(aliceClient, 1);
         vm.prank(alice);
-        vm.expectRevert(DayzePayroll.DayzePayroll__NotWithdrawable.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotWithdrawable.selector);
         payroll.withdraw(id, h, p);
     }
 
@@ -104,7 +104,7 @@ contract PayrollApprovalsTest is PayrollTestBase {
     /// @notice 1. Under the threshold: AwaitingPolicy → resolve(false) → Active, starting at resolve time
     function test_underThreshold_activatesOnResolve() public {
         uint256 id = _createStream(tUsdc, LOW);
-        assertEq(uint8(_status(id)), uint8(IDayzePayroll.Status.AwaitingPolicy));
+        assertEq(uint8(_status(id)), uint8(IVeilPayroll.Status.AwaitingPolicy));
         _expectWithdrawReverts(id);
 
         vm.warp(block.timestamp + 1 hours); // decryption takes time on a live network
@@ -112,10 +112,10 @@ contract PayrollApprovalsTest is PayrollTestBase {
         assertFalse(needsApproval);
 
         vm.expectEmit(true, false, false, true, address(payroll));
-        emit IDayzePayroll.StreamActivated(id, uint64(block.timestamp));
+        emit IVeilPayroll.StreamActivated(id, uint64(block.timestamp));
         payroll.resolvePolicy(id, needsApproval, sig);
 
-        assertEq(uint8(_status(id)), uint8(IDayzePayroll.Status.Active));
+        assertEq(uint8(_status(id)), uint8(IVeilPayroll.Status.Active));
         assertEq(payroll.getStream(id).startTime, block.timestamp);
     }
 
@@ -126,25 +126,25 @@ contract PayrollApprovalsTest is PayrollTestBase {
         assertTrue(needsApproval);
 
         vm.expectEmit(true, false, false, false, address(payroll));
-        emit IDayzePayroll.StreamPending(id);
+        emit IVeilPayroll.StreamPending(id);
         payroll.resolvePolicy(id, needsApproval, sig);
-        assertEq(uint8(_status(id)), uint8(IDayzePayroll.Status.Pending));
+        assertEq(uint8(_status(id)), uint8(IVeilPayroll.Status.Pending));
         _expectWithdrawReverts(id);
 
-        vm.expectRevert(DayzePayroll.DayzePayroll__NotEnoughApprovals.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotEnoughApprovals.selector);
         payroll.activateApproved(id);
 
         vm.prank(approver1);
         policy.approve(employer, id);
-        vm.expectRevert(DayzePayroll.DayzePayroll__NotEnoughApprovals.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotEnoughApprovals.selector);
         payroll.activateApproved(id);
 
         vm.prank(approver2);
         policy.approve(employer, id);
         payroll.activateApproved(id);
-        assertEq(uint8(_status(id)), uint8(IDayzePayroll.Status.Active));
+        assertEq(uint8(_status(id)), uint8(IVeilPayroll.Status.Active));
 
-        vm.expectRevert(DayzePayroll.DayzePayroll__NotPending.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotPending.selector);
         payroll.activateApproved(id);
     }
 
@@ -177,11 +177,11 @@ contract PayrollApprovalsTest is PayrollTestBase {
 
         vm.prank(employer);
         payroll.cancelStream(id);
-        IDayzePayroll.Stream memory s = payroll.getStream(id);
-        assertEq(uint8(s.status), uint8(IDayzePayroll.Status.Cancelled));
+        IVeilPayroll.Stream memory s = payroll.getStream(id);
+        assertEq(uint8(s.status), uint8(IVeilPayroll.Status.Cancelled));
         assertEq(s.endTime, s.startTime);
 
-        vm.expectRevert(DayzePayroll.DayzePayroll__NotPending.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotPending.selector);
         payroll.activateApproved(id);
 
         vm.warp(block.timestamp + 10 * DAY);
@@ -192,7 +192,7 @@ contract PayrollApprovalsTest is PayrollTestBase {
     /// @notice 5. Only the policy bit is public; the salary is not
     function test_onlyPolicyBitIsPublic() public {
         uint256 id = _createStream(tUsdc, HIGH);
-        IDayzePayroll.Stream memory s = payroll.getStream(id);
+        IVeilPayroll.Stream memory s = payroll.getStream(id);
 
         // Anyone can decrypt the bit without a permit
         (, uint256 bit,) = bobClient.decryptForTx_withoutACP(ebool.unwrap(s.needsApproval));

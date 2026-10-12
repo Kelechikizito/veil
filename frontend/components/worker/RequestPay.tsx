@@ -4,13 +4,13 @@ import type { Address } from "viem";
 import { useReadContract } from "wagmi";
 import { TxStatus } from "@/components/TxStatus";
 import { Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
 import { JoinRequestsAbi } from "@/lib/contracts/abis";
 
 /** Whether the connected worker has a pending request to `employer` */
 export function useHasRequested(employer: Address | undefined) {
-  const { account, d } = useDayze();
+  const { account, d } = useVeil();
   const { data } = useReadContract({
     address: d?.joinRequests,
     abi: JoinRequestsAbi,
@@ -26,7 +26,7 @@ export function useHasRequested(employer: Address | undefined) {
  * employer's console.
  */
 export function RequestPay({ employer, employerName }: { employer: Address | undefined; employerName?: string }) {
-  const { d } = useDayze();
+  const { d } = useVeil();
   const requested = useHasRequested(employer);
   const tx = useTx();
   const name = employerName ?? "your employer";

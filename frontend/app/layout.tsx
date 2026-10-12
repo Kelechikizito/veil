@@ -18,7 +18,7 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Dayze — confidential payroll",
+  title: "Veil — confidential payroll",
   description:
     "Stream salaries onchain without publishing them. Salaries, balances and withdrawals stay encrypted with Fhenix CoFHE.",
 };

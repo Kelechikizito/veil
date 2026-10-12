@@ -6,7 +6,7 @@ import type { NextConfig } from "next";
  * `next dev` with Turbopack works fine. Re-test plain `next build` after upgrading Next or @cofhe/sdk.
  *
  * wagmi's Base Account connector pulls in @coinbase/cdp-sdk, which imports the optional
- * @x402/* payment packages. Dayze never uses x402, so those imports resolve to an empty module
+ * @x402/* payment packages. Veil never uses x402, so those imports resolve to an empty module
  * instead of installing five unused packages.
  */
 const unusedOptionalPeers = [

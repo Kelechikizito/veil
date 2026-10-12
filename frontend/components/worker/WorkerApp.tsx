@@ -33,7 +33,7 @@ export function WorkerApp() {
         <Badge ghost>One step first</Badge>
         <h2 className="text-heading-sm">Verify you&apos;re a human</h2>
         <p className="text-soft-charcoal">
-          Dayze pays people, not bots. Take a World ID Selfie Check once, then your pay shows here. It proves you&apos;re a
+          Veil pays people, not bots. Take a World ID Selfie Check once, then your pay shows here. It proves you&apos;re a
           unique, live person without saying who you are.
         </p>
         <WorldIdVerify />

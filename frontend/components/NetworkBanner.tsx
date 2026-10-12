@@ -5,7 +5,7 @@ import { useAccount, useSwitchChain } from "wagmi";
 import { isSupportedChainId, supportedChains } from "@/lib/chains";
 
 /**
- * Wrong-network prompt. Shows only when a logged-in user's wallet is on a chain Dayze doesn't run on.
+ * Wrong-network prompt. Shows only when a logged-in user's wallet is on a chain Veil doesn't run on.
  * An injected wallet (MetaMask) can connect to wagmi without a Privy login, so check both.
  */
 export function NetworkBanner() {
@@ -18,7 +18,7 @@ export function NetworkBanner() {
   return (
     <div className="bg-gloss-black py-3 text-caption text-gloss-white">
       <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-3 px-6">
-        <span>Your wallet is on a network Dayze doesn&apos;t support. Switch to continue.</span>
+        <span>Your wallet is on a network Veil doesn&apos;t support. Switch to continue.</span>
         <div className="flex gap-2">
           {supportedChains.map((c) => (
             <button

@@ -6,18 +6,18 @@ import { useEffect, useState } from "react";
 import type { Address, Hex } from "viem";
 import { usePublicClient, useReadContract, useReadContracts } from "wagmi";
 import type { StreamRow } from "@/components/employer/streams";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { useEnsureACP } from "@/hooks/useEnsureACP";
 import { useReducedMotion } from "@/hooks/useMotion";
-import { DayzePayrollAbi } from "@/lib/contracts/abis";
+import { VeilPayrollAbi } from "@/lib/contracts/abis";
 import { isUnsetHandle, unsealUint64 } from "@/lib/fhe";
 
 /** The connected worker's streams (as payee), newest first */
 export function useStreamsOfPayee(pollMs?: number) {
-  const { account, d } = useDayze();
+  const { account, d } = useVeil();
   const ids = useReadContract({
     address: d?.payroll,
-    abi: DayzePayrollAbi,
+    abi: VeilPayrollAbi,
     functionName: "streamsOfPayee",
     args: account ? [account] : undefined,
     query: { enabled: !!account && !!d, refetchInterval: pollMs },
@@ -26,7 +26,7 @@ export function useStreamsOfPayee(pollMs?: number) {
   const streams = useReadContracts({
     contracts: list.map((id) => ({
       address: d?.payroll,
-      abi: DayzePayrollAbi,
+      abi: VeilPayrollAbi,
       functionName: "getStream" as const,
       args: [id] as const,
     })),
@@ -41,10 +41,10 @@ export function useStreamsOfPayee(pollMs?: number) {
 
 /** An org's display name, for "Paid by Acme Labs" */
 export function useOrgName(payer: Address | undefined) {
-  const { d } = useDayze();
+  const { d } = useVeil();
   const { data } = useReadContract({
     address: d?.payroll,
-    abi: DayzePayrollAbi,
+    abi: VeilPayrollAbi,
     functionName: "orgOf",
     args: payer ? [payer] : undefined,
     query: { enabled: !!payer && !!d },
@@ -113,7 +113,7 @@ export type LivePay = {
 };
 
 /**
- * A stream's pay, ticking locally. Same maths as DayzePayroll._streamed: everything banked, plus the
+ * A stream's pay, ticking locally. Same maths as VeilPayroll._streamed: everything banked, plus the
  * live allocation streamed linearly from allocStart to allocEnd. Once the period ends the allocation
  * counts as earlier pay, and the stream waits for the next payroll run.
  * No transactions: the numbers only change on screen.

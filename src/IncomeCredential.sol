@@ -5,7 +5,7 @@ pragma solidity 0.8.25;
                             IMPORTS
 //////////////////////////////////////////////////////////////*/
 import {FHE, ebool} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
-import {IDayzePayroll} from "src/interfaces/IDayzePayroll.sol";
+import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
 import {IHumanRegistry} from "src/interfaces/IHumanRegistry.sol";
 import {IIncomeCredential} from "src/interfaces/IIncomeCredential.sol";
 
@@ -50,7 +50,7 @@ contract IncomeCredential is IIncomeCredential {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Payroll, which owns the streams and shares `monthly` with this contract
-    IDayzePayroll public immutable I_PAYROLL;
+    IVeilPayroll public immutable I_PAYROLL;
 
     /// @notice World ID registry, read at issue time for the "verified human" flag
     IHumanRegistry public immutable I_HUMAN_REGISTRY;
@@ -77,7 +77,7 @@ contract IncomeCredential is IIncomeCredential {
     constructor(address payroll, address humanRegistry) {
         if (payroll == address(0)) revert IncomeCredential__ZeroAddress();
         if (humanRegistry == address(0)) revert IncomeCredential__ZeroAddress();
-        I_PAYROLL = IDayzePayroll(payroll);
+        I_PAYROLL = IVeilPayroll(payroll);
         I_HUMAN_REGISTRY = IHumanRegistry(humanRegistry);
     }
 
@@ -94,9 +94,9 @@ contract IncomeCredential is IIncomeCredential {
         if (verifier == address(0)) revert IncomeCredential__ZeroAddress();
         // forge-lint: disable-next-line(block-timestamp)
         if (expiresAt <= block.timestamp) revert IncomeCredential__BadExpiry();
-        IDayzePayroll.Stream memory s = I_PAYROLL.getStream(streamId);
+        IVeilPayroll.Stream memory s = I_PAYROLL.getStream(streamId);
         if (s.payee != msg.sender) revert IncomeCredential__NotPayee();
-        if (s.status != IDayzePayroll.Status.Active) revert IncomeCredential__StreamNotActive();
+        if (s.status != IVeilPayroll.Status.Active) revert IncomeCredential__StreamNotActive();
 
         ebool ok = FHE.gte(s.monthly, FHE.asEuint64(threshold));
         FHE.allowThis(ok);
@@ -145,7 +145,7 @@ contract IncomeCredential is IIncomeCredential {
         if (c.payee == address(0) || c.revoked) return false;
         // forge-lint: disable-next-line(block-timestamp)
         if (block.timestamp >= c.expiresAt) return false;
-        return I_PAYROLL.getStream(c.streamId).status == IDayzePayroll.Status.Active;
+        return I_PAYROLL.getStream(c.streamId).status == IVeilPayroll.Status.Active;
     }
 
     /// @inheritdoc IIncomeCredential

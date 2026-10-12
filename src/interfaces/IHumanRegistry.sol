@@ -5,7 +5,7 @@ pragma solidity 0.8.25;
  * @title IHumanRegistry
  * @author Kelechi Kizito Ugwu
  * @notice Stores one bit per wallet: "a unique human, verified with World ID, controls this wallet".
- * @dev Dayze checks the Selfie Check proof offchain: a backend verifies it with World's API,
+ * @dev Veil checks the Selfie Check proof offchain: a backend verifies it with World's API,
  *      then signs an EIP-712 attestation that the worker submits here.
  */
 interface IHumanRegistry {
@@ -27,7 +27,7 @@ interface IHumanRegistry {
 
     /// @notice Marks the caller as a verified human
     /// @dev The attestation must name msg.sender, so a stolen signature is useless to anyone else
-    /// @param nullifier The World ID nullifier for the "dayze-register" action
+    /// @param nullifier The World ID nullifier for the "veil-register" action
     /// @param deadline Timestamp after which the attestation is no longer accepted
     /// @param signature The attester's EIP-712 signature over (msg.sender, nullifier, deadline)
     function register(uint256 nullifier, uint64 deadline, bytes calldata signature) external;

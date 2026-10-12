@@ -1,11 +1,11 @@
 import type { Address, PublicClient } from "viem";
-import { DayzePayrollAbi } from "./contracts/abis";
+import { VeilPayrollAbi } from "./contracts/abis";
 import { addresses } from "./contracts/addresses";
 
 export type Role = "employer" | "employee";
 
-const ROLE_KEY = "dayze:role";
-const onboardedKey = (role: Role) => `dayze:onboarded:${role}`;
+const ROLE_KEY = "veil:role";
+const onboardedKey = (role: Role) => `veil:onboarded:${role}`;
 
 /*
  * localStorage holds UX hints only. Losing them is fine: onboarding pages read the chain
@@ -63,7 +63,7 @@ export async function destinationAfterLogin(
       if (role === "employer") {
         const org = await publicClient.readContract({
           address: payroll,
-          abi: DayzePayrollAbi,
+          abi: VeilPayrollAbi,
           functionName: "orgOf",
           args: [account],
         });
@@ -71,7 +71,7 @@ export async function destinationAfterLogin(
       } else {
         const streams = await publicClient.readContract({
           address: payroll,
-          abi: DayzePayrollAbi,
+          abi: VeilPayrollAbi,
           functionName: "streamsOfPayee",
           args: [account],
         });

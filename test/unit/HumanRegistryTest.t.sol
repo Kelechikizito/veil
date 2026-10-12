@@ -43,7 +43,7 @@ contract HumanRegistryTest is Test {
     uint256 internal constant NULLIFIER = 0x1234;
 
     /// @notice The strings the backend must copy exactly
-    string internal constant DOMAIN_NAME = "Dayze HumanRegistry";
+    string internal constant DOMAIN_NAME = "Veil HumanRegistry";
     string internal constant DOMAIN_VERSION = "1";
     string internal constant ATTESTATION_TYPE = "Attestation(address account,uint256 nullifier,uint64 deadline)";
 

@@ -37,7 +37,7 @@ export const IncomeCredentialAbi = [
       {
         "name": "",
         "type": "address",
-        "internalType": "contract IDayzePayroll"
+        "internalType": "contract IVeilPayroll"
       }
     ],
     "stateMutability": "view"

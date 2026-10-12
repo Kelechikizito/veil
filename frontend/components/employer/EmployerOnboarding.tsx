@@ -6,7 +6,7 @@ import { OnboardingWizard, StepIcon, type WizardStep } from "@/components/Onboar
 import type { StepStatus } from "@/components/Stepper";
 import { TxLinks } from "@/components/TxStatus";
 import { Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { markOnboarded } from "@/lib/routing";
 import { AuditorsSection, useAuditors } from "./AuditorsSection";
 import { FundSection, useHasFundedVault } from "./FundSection";
@@ -16,7 +16,7 @@ import { InviteLink, inviteCopied } from "./StreamsSection";
 
 type StepKey = "org" | "fund" | "policy" | "auditor" | "invite";
 
-const skipKey = (account: string, step: StepKey) => `dayze:skipped:employer:${account.toLowerCase()}:${step}`;
+const skipKey = (account: string, step: StepKey) => `veil:skipped:employer:${account.toLowerCase()}:${step}`;
 
 function readSkipped(account: string | undefined): Set<StepKey> {
   const out = new Set<StepKey>();
@@ -29,7 +29,7 @@ function readSkipped(account: string | undefined): Set<StepKey> {
 
 /** Which optional steps the employer skipped during onboarding (UX hint, per wallet) */
 export function useSkippedSteps() {
-  const { account } = useDayze();
+  const { account } = useVeil();
   const [skipped, setSkipped] = useState(() => readSkipped(account));
   const skip = (step: StepKey) => {
     if (!account) return;
@@ -47,7 +47,7 @@ export function useSkippedSteps() {
  */
 export function EmployerOnboarding() {
   const router = useRouter();
-  const { account } = useDayze();
+  const { account } = useVeil();
   const { exists: hasOrg, isLoading } = useOrg();
   const funded = useHasFundedVault();
   const { hasPolicy } = usePolicy();
@@ -89,7 +89,7 @@ export function EmployerOnboarding() {
     {
       key: "fund",
       title: "Add funds",
-      help: "Type an amount and click once. Dayze encrypts it and moves it into your private payroll vault.",
+      help: "Type an amount and click once. Veil encrypts it and moves it into your private payroll vault.",
       bullets: ["USDC, ARB or ETH", "The deposit is public, the vault balance is encrypted", "No gas to pay"],
       icon: <StepIcon name="vault" />,
       status: statusOf("fund"),

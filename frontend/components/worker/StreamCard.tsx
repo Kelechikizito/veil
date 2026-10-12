@@ -8,9 +8,9 @@ import { HumanBadge } from "@/components/employer/StreamsSection";
 import { StreamStatus, statusLabel, type StreamRow } from "@/components/employer/streams";
 import { TxStatus } from "@/components/TxStatus";
 import { Badge, Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
-import { DayzePayrollAbi } from "@/lib/contracts/abis";
+import { VeilPayrollAbi } from "@/lib/contracts/abis";
 import { encryptUint64, unsealUint64 } from "@/lib/fhe";
 import { formatConfidential, parseConfidential } from "@/lib/tokens";
 import { useLiveBalance, useOrgName, useUnsealed } from "./hooks";
@@ -20,7 +20,7 @@ import { useLiveBalance, useOrgName, useUnsealed } from "./hooks";
  * `unlocked` means the worker has an ACP, so `monthly` and `withdrawn` can be unsealed.
  */
 export function StreamCard({ stream, unlocked }: { stream: StreamRow; unlocked: boolean }) {
-  const { tokens, d } = useDayze();
+  const { tokens, d } = useVeil();
   const org = useOrgName(stream.payer) ?? "your employer";
   const symbol = tokens.find((t) => t.wrapper.toLowerCase() === stream.token.toLowerCase())?.symbol ?? "";
   const monthly = useUnsealed(stream.monthly, unlocked);
@@ -136,7 +136,7 @@ function WithdrawForm({
   available: bigint | undefined;
   withdrawnBefore: bigint | undefined;
 }) {
-  const { d } = useDayze();
+  const { d } = useVeil();
   const cofhe = useCofheClient();
   const publicClient = usePublicClient();
   const tx = useTx();
@@ -158,7 +158,7 @@ function WithdrawForm({
     const receipt = await tx.run(
       async () => {
         const { handle, proof } = await encryptUint64(cofhe, value, d!.payroll);
-        return { address: d!.payroll, abi: DayzePayrollAbi, functionName: "withdraw", args: [stream.id, handle, proof] };
+        return { address: d!.payroll, abi: VeilPayrollAbi, functionName: "withdraw", args: [stream.id, handle, proof] };
       },
       { encrypts: true, keepOpen: true },
     );
@@ -187,7 +187,7 @@ function WithdrawForm({
     for (let i = 0; i < 10; i++) {
       const s = (await publicClient!.readContract({
         address: d!.payroll,
-        abi: DayzePayrollAbi,
+        abi: VeilPayrollAbi,
         functionName: "getStream",
         args: [id],
       })) as Omit<StreamRow, "id">;

@@ -28,8 +28,8 @@ export function deploymentFor(chainId: number | undefined): Deployment | undefin
   return (addresses as Record<string, Deployment | undefined>)[String(chainId)];
 }
 
-/** The connected account, its chain, and Dayze's deployment and tokens on that chain */
-export function useDayze(): {
+/** The connected account, its chain, and Veil's deployment and tokens on that chain */
+export function useVeil(): {
   account: Address | undefined;
   chainId: number | undefined;
   d: Deployment | undefined;

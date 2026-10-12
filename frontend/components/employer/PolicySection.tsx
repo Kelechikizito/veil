@@ -8,7 +8,7 @@ import { shortAddress } from "@/components/AuthButton";
 import { Field, Input, Panel, Stat } from "@/components/forms";
 import { TxLinks, TxStatus } from "@/components/TxStatus";
 import { Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
 import { ApprovalPolicyAbi } from "@/lib/contracts/abis";
 import { encryptUint64 } from "@/lib/fhe";
@@ -16,7 +16,7 @@ import { parseConfidential, type ConfidentialTokenInfo } from "@/lib/tokens";
 
 /** Reads the connected employer's policy */
 export function usePolicy() {
-  const { account, d } = useDayze();
+  const { account, d } = useVeil();
   const enabled = !!account && !!d;
   const base = { address: d?.approvalPolicy, abi: ApprovalPolicyAbi } as const;
   const hasPolicy = useReadContract({ ...base, functionName: "hasPolicy", args: account ? [account] : undefined, query: { enabled } });
@@ -31,7 +31,7 @@ export function usePolicy() {
 
 /** §3 Policy: k-of-n approvers, and an encrypted monthly threshold per token */
 export function PolicySection() {
-  const { d, account, tokens } = useDayze();
+  const { d, account, tokens } = useVeil();
   const { hasPolicy, approvers, required } = usePolicy();
   const thresholds = useReadContracts({
     contracts: tokens.map((t) => ({
@@ -79,7 +79,7 @@ export function PolicySection() {
 }
 
 function ApproversForm({ current, currentRequired }: { current: readonly Address[]; currentRequired: number }) {
-  const { d } = useDayze();
+  const { d } = useVeil();
   const tx = useTx("policy");
   const [text, setText] = useState(() => current.join("\n"));
   const [required, setRequired] = useState(String(currentRequired || 1));
@@ -134,7 +134,7 @@ function ApproversForm({ current, currentRequired }: { current: readonly Address
 }
 
 function ThresholdForm({ token }: { token: ConfidentialTokenInfo }) {
-  const { d } = useDayze();
+  const { d } = useVeil();
   const cofhe = useCofheClient();
   const tx = useTx("policy");
   const [value, setValue] = useState("");

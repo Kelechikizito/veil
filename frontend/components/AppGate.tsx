@@ -5,13 +5,13 @@ import { useSetActiveWallet } from "@privy-io/wagmi";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useSwitchChain } from "wagmi";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { supportedChains } from "@/lib/chains";
-import { deploymentFor } from "@/hooks/useDayze";
+import { deploymentFor } from "@/hooks/useVeil";
 import { Button } from "./ui";
 
 /**
- * Renders its children only once there's a logged-in wallet on a chain where Dayze is deployed.
+ * Renders its children only once there's a logged-in wallet on a chain where Veil is deployed.
  * Otherwise explains what's missing and offers the one action that fixes it.
  */
 export function AppGate({ children }: { children: ReactNode }) {
@@ -19,7 +19,7 @@ export function AppGate({ children }: { children: ReactNode }) {
   const { wallets } = useWallets();
   const { setActiveWallet } = useSetActiveWallet();
   const [activateError, setActivateError] = useState<string>();
-  const { account, chainId, d } = useDayze();
+  const { account, chainId, d } = useVeil();
   const { switchChain, isPending } = useSwitchChain();
 
   if (!ready) return <Notice title="Loading…" />;
@@ -65,8 +65,8 @@ export function AppGate({ children }: { children: ReactNode }) {
     const deployed = supportedChains.filter((c) => deploymentFor(c.id));
     return (
       <Notice
-        title="Dayze isn't on this network yet"
-        body={`Your wallet is on chain ${chainId}. Switch to a network where Dayze is deployed.`}
+        title="Veil isn't on this network yet"
+        body={`Your wallet is on chain ${chainId}. Switch to a network where Veil is deployed.`}
       >
         <div className="flex flex-wrap gap-2">
           {deployed.map((c) => (

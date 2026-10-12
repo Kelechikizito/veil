@@ -5,14 +5,14 @@ import { useRef, useState } from "react";
 import { useReadContract } from "wagmi";
 import { TxStatus } from "@/components/TxStatus";
 import { Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
 import { HumanRegistryAbi } from "@/lib/contracts/abis";
 import { WORLDID_ACTION, signalFor, worldIdErrorMessage, type AttestResponse, type RpSignatureResponse } from "@/lib/worldid";
 
 /** Whether the connected wallet is registered in HumanRegistry, or undefined while that's being read */
 export function useHumanStatus(): boolean | undefined {
-  const { account, d } = useDayze();
+  const { account, d } = useVeil();
   const { data } = useReadContract({
     address: d?.humanRegistry,
     abi: HumanRegistryAbi,
@@ -28,7 +28,7 @@ export function useIsHuman() {
   return useHumanStatus() ?? false;
 }
 
-const pendingKey = (chainId: number | undefined, wallet: string) => `dayze:attestation:${chainId}:${wallet.toLowerCase()}`;
+const pendingKey = (chainId: number | undefined, wallet: string) => `veil:attestation:${chainId}:${wallet.toLowerCase()}`;
 
 /** An attestation that hasn't been registered yet. Selfie Check is one-time, so never lose it. */
 function readPending(chainId: number | undefined, wallet: string | undefined): AttestResponse | undefined {
@@ -51,11 +51,11 @@ function writePending(chainId: number | undefined, wallet: string, a: AttestResp
 
 /**
  * World ID Selfie Check (07a): prove you're a unique, live human without saying who you are.
- * Done once and permanent: HumanRegistry never expires it and Dayze never asks again.
+ * Done once and permanent: HumanRegistry never expires it and Veil never asks again.
  * rp-signature → IDKit widget (selfieCheck, signal = your wallet) → attest → HumanRegistry.register.
  */
 export function WorldIdVerify() {
-  const { account, chainId, d } = useDayze();
+  const { account, chainId, d } = useVeil();
   const isHuman = useIsHuman();
   const tx = useTx();
   const [rp, setRp] = useState<RpSignatureResponse>();
@@ -154,7 +154,7 @@ export function WorldIdVerify() {
             // Our own server's reason beats `failed_by_host_app`, which only says "the app said no"
             tx.setError(hostRejection.current ?? worldIdErrorMessage(code, rp.environment));
             tx.setStage("error");
-            if (debugReport) console.error("[dayze] World ID debug report", code, debugReport);
+            if (debugReport) console.error("[veil] World ID debug report", code, debugReport);
           }}
         />
       )}

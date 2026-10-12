@@ -9,7 +9,7 @@ import { StreamStatus, type StreamRow } from "@/components/employer/streams";
 import { Field, Input, Panel, PillPicker } from "@/components/forms";
 import { TxStatus } from "@/components/TxStatus";
 import { Badge, Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
 import { IncomeCredentialAbi } from "@/lib/contracts/abis";
 import { shortLink } from "@/lib/format";
@@ -52,7 +52,7 @@ export function CredentialsSection({ streams }: { streams: StreamRow[] }) {
 }
 
 function IssueForm({ streams }: { streams: StreamRow[] }) {
-  const { d, tokens } = useDayze();
+  const { d, tokens } = useVeil();
   const tx = useTx();
   const [streamId, setStreamId] = useState(streams[0] ? String(streams[0].id) : "");
   const [verifier, setVerifier] = useState("");
@@ -164,7 +164,7 @@ function ShareLink({ id }: { id: bigint }) {
 }
 
 function MyCredentials() {
-  const { account, d, tokens } = useDayze();
+  const { account, d, tokens } = useVeil();
   const tx = useTx();
   const ids = useReadContract({
     address: d?.incomeCredential,

@@ -9,9 +9,9 @@ import { Field, Input, Panel, PillPicker } from "@/components/forms";
 import { SecretValue } from "@/components/SecretValue";
 import { TxStatus } from "@/components/TxStatus";
 import { Badge, Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
-import { DayzePayrollAbi, HumanRegistryAbi } from "@/lib/contracts/abis";
+import { VeilPayrollAbi, HumanRegistryAbi } from "@/lib/contracts/abis";
 import { encryptUint64 } from "@/lib/fhe";
 import { shortLink } from "@/lib/format";
 import { parseConfidential, type TokenKey } from "@/lib/tokens";
@@ -21,7 +21,7 @@ import { useChainNow } from "@/components/worker/hooks";
 
 /** "✓ verified human" or "not verified", from HumanRegistry (07a). A hint against ghost employees, not a block. */
 export function HumanBadge({ address }: { address: Address | undefined }) {
-  const { d } = useDayze();
+  const { d } = useVeil();
   const { data } = useReadContract({
     address: d?.humanRegistry,
     abi: HumanRegistryAbi,
@@ -39,7 +39,7 @@ export function HumanBadge({ address }: { address: Address | undefined }) {
   );
 }
 
-const inviteKey = (payer: string) => `dayze:invite-copied:${payer.toLowerCase()}`;
+const inviteKey = (payer: string) => `veil:invite-copied:${payer.toLowerCase()}`;
 
 /** Whether this employer copied their invite link before (a UX hint only) */
 export function inviteCopied(payer: string | undefined): boolean {
@@ -53,7 +53,7 @@ export function inviteCopied(payer: string | undefined): boolean {
 
 /** Copies `<app>/onboarding/employee?org=<payer>`. The link holds only the org address. */
 export function InviteLink({ onCopied }: { onCopied?: () => void }) {
-  const { account } = useDayze();
+  const { account } = useVeil();
   const [copied, setCopied] = useState(false);
   if (!account || typeof window === "undefined") return null;
   const link = `${window.location.origin}/onboarding/employee?org=${account}`;
@@ -108,7 +108,7 @@ export function StreamsSection({ initialPayee }: { initialPayee?: string }) {
 }
 
 function CreateStreamForm({ initialPayee }: { initialPayee?: string }) {
-  const { d, tokens } = useDayze();
+  const { d, tokens } = useVeil();
   const cofhe = useCofheClient();
   const tx = useTx();
   const resolve = useResolvePolicy(tx);
@@ -134,7 +134,7 @@ function CreateStreamForm({ initialPayee }: { initialPayee?: string }) {
         const { handle, proof } = await encryptUint64(cofhe, parsed!, d!.payroll);
         return {
           address: d!.payroll,
-          abi: DayzePayrollAbi,
+          abi: VeilPayrollAbi,
           functionName: "createStream",
           args: [payee.trim() as Address, token!.wrapper, handle, proof],
         };
@@ -147,7 +147,7 @@ function CreateStreamForm({ initialPayee }: { initialPayee?: string }) {
     const created = receipt.logs
       .map((log) => {
         try {
-          return decodeEventLog({ abi: DayzePayrollAbi, data: log.data, topics: log.topics });
+          return decodeEventLog({ abi: VeilPayrollAbi, data: log.data, topics: log.topics });
         } catch {
           return undefined;
         }
@@ -204,7 +204,7 @@ function CreateStreamForm({ initialPayee }: { initialPayee?: string }) {
 }
 
 function StreamsTable() {
-  const { d, tokens } = useDayze();
+  const { d, tokens } = useVeil();
   const { rows, isLoading } = useStreamsOfPayer();
   const tx = useTx();
   const resolve = useResolvePolicy(tx);
@@ -215,7 +215,7 @@ function StreamsTable() {
   if (rows.length === 0) return <p className="text-caption text-mid-grey">No streams yet.</p>;
 
   const cancel = (id: bigint) =>
-    tx.run(() => ({ address: d!.payroll, abi: DayzePayrollAbi, functionName: "cancelStream", args: [id] }));
+    tx.run(() => ({ address: d!.payroll, abi: VeilPayrollAbi, functionName: "cancelStream", args: [id] }));
 
   return (
     <div className="flex flex-col gap-4">

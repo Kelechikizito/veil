@@ -14,7 +14,7 @@ import {ConfidentialToken} from "src/ConfidentialToken.sol";
 import {ConfidentialNative} from "src/ConfidentialNative.sol";
 import {AuditRegistry} from "src/AuditRegistry.sol";
 import {ApprovalPolicy} from "src/ApprovalPolicy.sol";
-import {DayzePayroll} from "src/DayzePayroll.sol";
+import {VeilPayroll} from "src/VeilPayroll.sol";
 import {HumanRegistry} from "src/HumanRegistry.sol";
 import {IncomeCredential} from "src/IncomeCredential.sol";
 import {JoinRequests} from "src/JoinRequests.sol";
@@ -26,7 +26,7 @@ import {JoinRequests} from "src/JoinRequests.sol";
 /**
  * @title DeployScript
  * @author Kelechi Kizito Ugwu
- * @notice Deploys and wires every Dayze contract on Base Sepolia.
+ * @notice Deploys and wires every Veil contract on Base Sepolia.
  * @dev Signer comes from `--account`, never from a private key in env. Writes `deployments/<chainId>.json`.
  *      Env: `ATTESTER` (required, an address), `DEMO_PERIOD` (optional, seconds; default 30 days),
  *      `WETH` (optional; defaults to the chain's canonical WETH).
@@ -107,14 +107,14 @@ contract DeployScript is Script {
         // Core
         d.auditRegistry = address(new AuditRegistry());
         d.approvalPolicy = address(new ApprovalPolicy());
-        d.payroll = address(new DayzePayroll(d.approvalPolicy, d.auditRegistry, period));
+        d.payroll = address(new VeilPayroll(d.approvalPolicy, d.auditRegistry, period));
         d.humanRegistry = address(new HumanRegistry(attester));
         d.incomeCredential = address(new IncomeCredential(d.payroll, d.humanRegistry));
         d.joinRequests = address(new JoinRequests(d.payroll));
 
         // Wiring: one-shot setters first, so every stream gets the credential
         ApprovalPolicy(d.approvalPolicy).setPayroll(d.payroll);
-        DayzePayroll payroll = DayzePayroll(d.payroll);
+        VeilPayroll payroll = VeilPayroll(d.payroll);
         payroll.setCredential(d.incomeCredential);
         payroll.addToken(IFHERC20(d.cusdc));
         payroll.addToken(IFHERC20(d.carb));

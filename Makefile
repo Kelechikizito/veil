@@ -1,4 +1,4 @@
-# Dayze — command reference
+# Veil — command reference
 #
 # Every forge, cast and script command in this project, behind a name you can read.
 # `make help` lists them. `make ci` is what GitHub Actions runs.
@@ -12,7 +12,7 @@
 
 ##@ Configuration
 
-# Dayze runs on Base Sepolia only. CHAIN stays a variable so a future chain is one line.
+# Veil runs on Base Sepolia only. CHAIN stays a variable so a future chain is one line.
 CHAIN       ?= base_sepolia
 ACCOUNT     ?= sepolia-acc
 SENDER      ?= $(shell grep -E '^DEPLOYER=' .env 2>/dev/null | cut -d= -f2)
@@ -46,7 +46,7 @@ check-%:
 		exit 1; \
 	fi
 
-# Fails when CHAIN isn't one Dayze deploys to. CoFHE only runs on these testnets.
+# Fails when CHAIN isn't one Veil deploys to. CoFHE only runs on these testnets.
 .PHONY: check-chain
 check-chain:
 	@if [ -z "$(CHAIN_ID)" ]; then \
@@ -88,7 +88,7 @@ sizes: ## Compile and print contract sizes against the 24KB limit
 
 # foundry.toml raises code_size_limit for the CoFHE mocks, so forge never enforces EIP-170 itself.
 # This checks the contracts that actually go onchain against the real 24,576-byte limit.
-DEPLOYED := ApprovalPolicy AuditRegistry ConfidentialNative ConfidentialToken DayzePayroll ERC20ConfidentialLib \
+DEPLOYED := ApprovalPolicy AuditRegistry ConfidentialNative ConfidentialToken VeilPayroll ERC20ConfidentialLib \
             ERC20_Harness HumanRegistry IncomeCredential JoinRequests
 
 .PHONY: check-sizes

@@ -28,7 +28,7 @@ export function SiteHeader({ overlay = false }: { overlay?: boolean }) {
             href="/"
             className={`text-subheading font-medium tracking-[0.2em] uppercase ${overlay ? "text-pure-white" : ""}`}
           >
-            Dayze
+            Veil
           </Link>
           <nav className="hidden items-center gap-2 md:flex">
             <Link href="/#how" className={link}>
@@ -57,7 +57,7 @@ export function SiteFooter() {
     <footer className="mt-auto bg-gloss-black py-16 text-gloss-white">
       <Container className="flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
         <div className="flex flex-col gap-3">
-          <span className="font-classic text-heading">Dayze</span>
+          <span className="font-classic text-heading">Veil</span>
           <p className="max-w-sm text-caption text-mid-grey">
             Confidential payroll on Base Sepolia. Built with Fhenix CoFHE. Not audited; don&apos;t use
             real funds.

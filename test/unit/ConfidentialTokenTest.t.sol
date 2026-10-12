@@ -9,7 +9,7 @@ import {ERC20ConfidentialLib} from "fhenix-confidential-contracts/ERC20Confident
 import {FHERC20WrapperClaims} from "fhenix-confidential-contracts/FHERC20/utils/FHERC20WrapperClaims.sol";
 import {FHERC20NativeWrapperCore} from "fhenix-confidential-contracts/FHERC20/extensions/FHERC20NativeWrapperCore.sol";
 import {CofheClient} from "@cofhe/foundry-plugin/CofheClient.sol";
-import {DayzeTestBase} from "../utils/DayzeTestBase.sol";
+import {VeilTestBase} from "../utils/VeilTestBase.sol";
 
 /*//////////////////////////////////////////////////////////////
                 INTERFACES, LIBRARIES, CONTRACT
@@ -22,7 +22,7 @@ import {DayzeTestBase} from "../utils/DayzeTestBase.sol";
  * @dev Covers shield, decimals and dust, encrypted transfer, silent over-transfer,
  *      the unshield/claim round trip, and the claim replay guard.
  */
-contract ConfidentialTokenTest is DayzeTestBase {
+contract ConfidentialTokenTest is VeilTestBase {
     /*//////////////////////////////////////////////////////////////
                            SHIELD AND DECIMALS
     //////////////////////////////////////////////////////////////*/

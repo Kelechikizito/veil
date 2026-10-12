@@ -5,16 +5,16 @@ import { useBalance, useReadContract } from "wagmi";
 import { Field, Input, Panel } from "@/components/forms";
 import { TxStatus } from "@/components/TxStatus";
 import { Badge, Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { useGasSponsored, useTx } from "@/hooks/useTx";
-import { DayzePayrollAbi } from "@/lib/contracts/abis";
+import { VeilPayrollAbi } from "@/lib/contracts/abis";
 
 /** Reads the connected account's org */
 export function useOrg() {
-  const { account, d } = useDayze();
+  const { account, d } = useVeil();
   const { data, isLoading } = useReadContract({
     address: d?.payroll,
-    abi: DayzePayrollAbi,
+    abi: VeilPayrollAbi,
     functionName: "orgOf",
     args: account ? [account] : undefined,
     query: { enabled: !!account && !!d },
@@ -24,7 +24,7 @@ export function useOrg() {
 
 /** §1 Organisation: a name form until the org exists, then the name and a badge */
 export function OrgSection() {
-  const { account, d } = useDayze();
+  const { account, d } = useVeil();
   const { org, exists } = useOrg();
   const sponsored = useGasSponsored();
   const balance = useBalance({ address: account, query: { enabled: !!account && !exists && !sponsored } });
@@ -42,7 +42,7 @@ export function OrgSection() {
   }
 
   const create = () =>
-    tx.run(() => ({ address: d!.payroll, abi: DayzePayrollAbi, functionName: "createOrg", args: [name.trim()] }), { label: "Created the organisation" });
+    tx.run(() => ({ address: d!.payroll, abi: VeilPayrollAbi, functionName: "createOrg", args: [name.trim()] }), { label: "Created the organisation" });
 
   return (
     <Panel title="Create your organisation" help="Your org name is public. Salaries never are.">

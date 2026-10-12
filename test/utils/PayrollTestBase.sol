@@ -9,8 +9,8 @@ import {IFHERC20} from "fhenix-confidential-contracts/interfaces/IFHERC20.sol";
 import {CofheClient} from "@cofhe/foundry-plugin/CofheClient.sol";
 import {ApprovalPolicy} from "src/ApprovalPolicy.sol";
 import {AuditRegistry} from "src/AuditRegistry.sol";
-import {DayzePayroll} from "src/DayzePayroll.sol";
-import {DayzeTestBase} from "./DayzeTestBase.sol";
+import {VeilPayroll} from "src/VeilPayroll.sol";
+import {VeilTestBase} from "./VeilTestBase.sol";
 
 /*//////////////////////////////////////////////////////////////
                 INTERFACES, LIBRARIES, CONTRACT
@@ -23,13 +23,13 @@ import {DayzeTestBase} from "./DayzeTestBase.sol";
  * @dev `_period()` is virtual so each suite runs once with 30 days and once with the 600s demo period.
  *      Amounts are in 6-decimal units: 3000e6 is 3,000 cUSDC, 1e6 is 1 cETH.
  */
-abstract contract PayrollTestBase is DayzeTestBase {
+abstract contract PayrollTestBase is VeilTestBase {
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Contract under test
-    DayzePayroll internal payroll;
+    VeilPayroll internal payroll;
 
     /// @notice Approval policy payroll is wired to
     ApprovalPolicy internal policy;
@@ -55,11 +55,11 @@ abstract contract PayrollTestBase is DayzeTestBase {
 
         policy = new ApprovalPolicy();
         registry = new AuditRegistry();
-        payroll = new DayzePayroll(address(policy), address(registry), _period());
+        payroll = new VeilPayroll(address(policy), address(registry), _period());
         policy.setPayroll(address(payroll));
         vm.label(address(policy), "ApprovalPolicy");
         vm.label(address(registry), "AuditRegistry");
-        vm.label(address(payroll), "DayzePayroll");
+        vm.label(address(payroll), "VeilPayroll");
 
         tUsdc = IFHERC20(address(cusdc));
         tArb = IFHERC20(address(carb));

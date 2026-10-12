@@ -5,7 +5,7 @@ pragma solidity 0.8.25;
                             IMPORTS
 //////////////////////////////////////////////////////////////*/
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import {IDayzePayroll} from "src/interfaces/IDayzePayroll.sol";
+import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
 import {IJoinRequests} from "src/interfaces/IJoinRequests.sol";
 
 /*//////////////////////////////////////////////////////////////
@@ -16,7 +16,7 @@ import {IJoinRequests} from "src/interfaces/IJoinRequests.sol";
  * @title JoinRequests
  * @author Kelechi Kizito Ugwu
  * @notice A worker asks an employer to pay them; the employer sees the request in their console.
- * @dev Standalone: it reads DayzePayroll to check the employer has an org, and nothing else, so it can be
+ * @dev Standalone: it reads VeilPayroll to check the employer has an org, and nothing else, so it can be
  *      added to a live deployment without redeploying payroll. Each employer's pending list is capped so a
  *      flood of requests can't grow it without bound; the employer can dismiss to make room.
  */
@@ -30,7 +30,7 @@ contract JoinRequests is IJoinRequests {
     /// @notice Thrown when the payroll address is zero
     error JoinRequests__ZeroAddress();
 
-    /// @notice Thrown when the address asked has no org in DayzePayroll
+    /// @notice Thrown when the address asked has no org in VeilPayroll
     error JoinRequests__NotAnEmployer();
 
     /// @notice Thrown when a wallet asks itself
@@ -53,7 +53,7 @@ contract JoinRequests is IJoinRequests {
     uint256 public constant MAX_PENDING = 200;
 
     /// @notice Payroll, read to check the employer has an org
-    IDayzePayroll public immutable I_PAYROLL;
+    IVeilPayroll public immutable I_PAYROLL;
 
     /// @notice Workers waiting on each employer
     mapping(address employer => EnumerableSet.AddressSet employees) private s_pending;
@@ -63,10 +63,10 @@ contract JoinRequests is IJoinRequests {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Sets the payroll contract whose orgs can be asked
-    /// @param payroll DayzePayroll
+    /// @param payroll VeilPayroll
     constructor(address payroll) {
         if (payroll == address(0)) revert JoinRequests__ZeroAddress();
-        I_PAYROLL = IDayzePayroll(payroll);
+        I_PAYROLL = IVeilPayroll(payroll);
     }
 
     /*//////////////////////////////////////////////////////////////

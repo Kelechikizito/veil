@@ -7,9 +7,9 @@ import { shortAddress } from "@/components/AuthButton";
 import { Panel } from "@/components/forms";
 import { TxStatus } from "@/components/TxStatus";
 import { Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { shortError, useTx } from "@/hooks/useTx";
-import { ApprovalPolicyAbi, DayzePayrollAbi } from "@/lib/contracts/abis";
+import { ApprovalPolicyAbi, VeilPayrollAbi } from "@/lib/contracts/abis";
 import { scanAllStreams, StreamStatus, type StreamRow } from "./streams";
 
 type QueueItem = { stream: StreamRow; orgName: string; count: number; required: number; approved: boolean };
@@ -19,7 +19,7 @@ type QueueItem = { stream: StreamRow; orgName: string; count: number; required: 
  * There's no onchain index of "orgs I approve for", so it scans every stream and keeps the pending ones.
  */
 export function useApprovalQueue() {
-  const { account, d } = useDayze();
+  const { account, d } = useVeil();
   const publicClient = usePublicClient();
 
   return useQuery({
@@ -40,7 +40,7 @@ export function useApprovalQueue() {
             read("approvalCount", [s.payer, id]) as Promise<number>,
             read("required", [s.payer]) as Promise<number>,
             read("hasApproved", [s.payer, id, account]) as Promise<boolean>,
-            publicClient!.readContract({ address: d!.payroll, abi: DayzePayrollAbi, functionName: "orgOf", args: [s.payer] }),
+            publicClient!.readContract({ address: d!.payroll, abi: VeilPayrollAbi, functionName: "orgOf", args: [s.payer] }),
           ]);
           return { stream: s, orgName: org.name, count: Number(count), required: Number(required), approved };
         }),
@@ -52,7 +52,7 @@ export function useApprovalQueue() {
 
 /** §6 Approvals: approve pending streams, then activate them once they have enough approvals */
 export function ApprovalsSection() {
-  const { d, tokens } = useDayze();
+  const { d, tokens } = useVeil();
   const { data: queue, isLoading, error, refetch } = useApprovalQueue();
   const tx = useTx();
   const symbolOf = (wrapper: Address) => tokens.find((t) => t.wrapper.toLowerCase() === wrapper.toLowerCase())?.symbol ?? "?";
@@ -62,7 +62,7 @@ export function ApprovalsSection() {
     void refetch();
   };
   const activate = async (id: bigint) => {
-    await tx.run(() => ({ address: d!.payroll, abi: DayzePayrollAbi, functionName: "activateApproved", args: [id] }));
+    await tx.run(() => ({ address: d!.payroll, abi: VeilPayrollAbi, functionName: "activateApproved", args: [id] }));
     void refetch();
   };
 

@@ -9,7 +9,7 @@ import {FHE, ebool, euint64, externalEuint64, sharedEuint64} from "@fhenixprotoc
 import {ApprovalPolicy} from "src/ApprovalPolicy.sol";
 import {IApprovalPolicy} from "src/interfaces/IApprovalPolicy.sol";
 import {PayrollHarness} from "../mocks/PayrollHarness.sol";
-import {DayzeTestBase} from "../utils/DayzeTestBase.sol";
+import {VeilTestBase} from "../utils/VeilTestBase.sol";
 
 /*//////////////////////////////////////////////////////////////
                 INTERFACES, LIBRARIES, CONTRACT
@@ -19,10 +19,10 @@ import {DayzeTestBase} from "../utils/DayzeTestBase.sol";
  * @title ApprovalPolicyTest
  * @author Kelechi Kizito Ugwu
  * @notice Unit tests for `ApprovalPolicy` on CoFHE mocks.
- * @dev `PayrollHarness` stands in for payroll, so `evaluate` can be tested before `DayzePayroll` exists.
+ * @dev `PayrollHarness` stands in for payroll, so `evaluate` can be tested before `VeilPayroll` exists.
  *      Amounts are in 6-decimal units: 10_000e6 is 10,000 cUSDC, 1e6 is 1 cETH.
  */
-contract ApprovalPolicyTest is DayzeTestBase {
+contract ApprovalPolicyTest is VeilTestBase {
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/

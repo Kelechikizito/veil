@@ -6,10 +6,10 @@ pragma solidity 0.8.25;
 //////////////////////////////////////////////////////////////*/
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {FHE, ebool, externalEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
-import {DayzePayroll} from "src/DayzePayroll.sol";
+import {VeilPayroll} from "src/VeilPayroll.sol";
 import {HumanRegistry} from "src/HumanRegistry.sol";
 import {IncomeCredential} from "src/IncomeCredential.sol";
-import {IDayzePayroll} from "src/interfaces/IDayzePayroll.sol";
+import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
 import {IIncomeCredential} from "src/interfaces/IIncomeCredential.sol";
 import {PayrollTestBase} from "../utils/PayrollTestBase.sol";
 
@@ -95,7 +95,7 @@ contract IncomeCredentialTest is PayrollTestBase {
         bytes32 domainSeparator = keccak256(
             abi.encode(
                 keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256("Dayze HumanRegistry"),
+                keccak256("Veil HumanRegistry"),
                 keccak256("1"),
                 block.chainid,
                 address(humanRegistry)
@@ -200,7 +200,7 @@ contract IncomeCredentialTest is PayrollTestBase {
 
         uint256 pending = _createStream(tUsdc, MONTHLY);
         _resolve(pending);
-        assertEq(uint8(payroll.getStream(pending).status), uint8(IDayzePayroll.Status.Pending));
+        assertEq(uint8(payroll.getStream(pending).status), uint8(IVeilPayroll.Status.Pending));
 
         vm.prank(alice);
         vm.expectRevert(IncomeCredential.IncomeCredential__StreamNotActive.selector);
@@ -302,7 +302,7 @@ contract IncomeCredentialTest is PayrollTestBase {
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
         payroll.setCredential(bob);
 
-        vm.expectRevert(DayzePayroll.DayzePayroll__CredentialAlreadySet.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__CredentialAlreadySet.selector);
         payroll.setCredential(bob);
     }
 }

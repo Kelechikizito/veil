@@ -8,7 +8,7 @@ import { Field, Input, Panel, PillPicker, Stat } from "@/components/forms";
 import { SecretValue } from "@/components/SecretValue";
 import { TxStatus } from "@/components/TxStatus";
 import { Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
 import { ConfidentialTokenAbi } from "@/lib/contracts/abis";
 import { decryptForTx } from "@/lib/fhe";
@@ -18,7 +18,7 @@ type Claim = { id: Hex; to: `0x${string}`; ctHash: Hex; decryptedAmount: bigint;
 
 /** §3 Cash out: unshield a confidential balance back to USDC, ARB or ETH */
 export function CashOutSection() {
-  const { tokens } = useDayze();
+  const { tokens } = useVeil();
   const [key, setKey] = useState<TokenKey>(tokens[0]?.key ?? "cusdc");
   const token = tokens.find((t) => t.key === key) ?? tokens[0];
   if (!token) return null;
@@ -34,7 +34,7 @@ export function CashOutSection() {
 }
 
 function TokenCashOut({ token }: { token: ConfidentialTokenInfo }) {
-  const { account } = useDayze();
+  const { account } = useVeil();
   const cofhe = useCofheClient();
   const tx = useTx();
   const [amount, setAmount] = useState("");

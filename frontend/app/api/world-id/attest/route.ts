@@ -49,9 +49,9 @@ export async function POST(request: Request) {
   // 1. Which wallet and which deployment
   if (typeof wallet !== "string" || !isAddress(wallet)) return fail("Invalid wallet");
   const humanRegistry = (addresses as Record<string, { humanRegistry?: Address }>)[String(chainId)]?.humanRegistry;
-  if (!humanRegistry) return fail("Dayze isn't deployed on this chain");
+  if (!humanRegistry) return fail("Veil isn't deployed on this chain");
 
-  // 2. A proof for Dayze's action, in the expected environment
+  // 2. A proof for Veil's action, in the expected environment
   const environment = worldIdEnvironment();
   const result = idkitResponse as { action?: string; environment?: string; responses?: unknown[] } | undefined;
   if (!result || result.action !== WORLDID_ACTION) return fail("Wrong World ID action");

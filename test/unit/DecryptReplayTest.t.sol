@@ -5,7 +5,7 @@ pragma solidity 0.8.25;
                             IMPORTS
 //////////////////////////////////////////////////////////////*/
 import {externalEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
-import {DayzePayroll} from "src/DayzePayroll.sol";
+import {VeilPayroll} from "src/VeilPayroll.sol";
 import {PayrollTestBase} from "../utils/PayrollTestBase.sol";
 
 /*//////////////////////////////////////////////////////////////
@@ -56,7 +56,7 @@ contract DecryptReplayTest is PayrollTestBase {
         (bool needsApproval, bytes memory sig) = _decryptPolicyBit(id);
         payroll.resolvePolicy(id, needsApproval, sig);
 
-        vm.expectRevert(DayzePayroll.DayzePayroll__AlreadyResolved.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__AlreadyResolved.selector);
         payroll.resolvePolicy(id, needsApproval, sig);
     }
 
@@ -66,7 +66,7 @@ contract DecryptReplayTest is PayrollTestBase {
         uint256 b = _createStream(tUsdc, 4000e6); // also under the threshold: same value, different handle
         (bool needsApproval, bytes memory sigA) = _decryptPolicyBit(a);
 
-        vm.expectRevert(DayzePayroll.DayzePayroll__BadDecryptProof.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__BadDecryptProof.selector);
         payroll.resolvePolicy(b, needsApproval, sigA);
     }
 
@@ -76,7 +76,7 @@ contract DecryptReplayTest is PayrollTestBase {
         (bool needsApproval, bytes memory sig) = _decryptPolicyBit(id);
         assertTrue(needsApproval);
 
-        vm.expectRevert(DayzePayroll.DayzePayroll__BadDecryptProof.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__BadDecryptProof.selector);
         payroll.resolvePolicy(id, false, sig); // would skip approvals
     }
 
@@ -84,10 +84,10 @@ contract DecryptReplayTest is PayrollTestBase {
     function test_garbageSignature_reverts() public {
         uint256 id = _createStream(tUsdc, 3000e6);
 
-        vm.expectRevert(DayzePayroll.DayzePayroll__BadDecryptProof.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__BadDecryptProof.selector);
         payroll.resolvePolicy(id, false, hex"deadbeef");
 
-        vm.expectRevert(DayzePayroll.DayzePayroll__BadDecryptProof.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__BadDecryptProof.selector);
         payroll.resolvePolicy(id, false, new bytes(65));
     }
 
@@ -99,7 +99,7 @@ contract DecryptReplayTest is PayrollTestBase {
         vm.prank(employer);
         payroll.cancelStream(id);
 
-        vm.expectRevert(DayzePayroll.DayzePayroll__AlreadyResolved.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__AlreadyResolved.selector);
         payroll.resolvePolicy(id, needsApproval, sig);
     }
 }

@@ -4,12 +4,12 @@ import { useCofheClient } from "@cofhe/react";
 import { useCallback } from "react";
 import type { Address, Hex, PublicClient } from "viem";
 import { usePublicClient, useReadContract, useReadContracts } from "wagmi";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import type { useTx } from "@/hooks/useTx";
-import { DayzePayrollAbi } from "@/lib/contracts/abis";
+import { VeilPayrollAbi } from "@/lib/contracts/abis";
 import { decryptForTx } from "@/lib/fhe";
 
-/** Mirrors IDayzePayroll.Status */
+/** Mirrors IVeilPayroll.Status */
 export const StreamStatus = { None: 0, AwaitingPolicy: 1, Pending: 2, Active: 3, Cancelled: 4 } as const;
 
 export const statusLabel: Record<number, string> = {
@@ -40,7 +40,7 @@ export type StreamRow = {
   allocEnd: bigint;
 };
 
-/** End of the pay period containing `nowSec`. Mirrors DayzePayroll._periodEnd: fixed windows from time 0. */
+/** End of the pay period containing `nowSec`. Mirrors VeilPayroll._periodEnd: fixed windows from time 0. */
 export function periodEndOf(nowSec: bigint, period: number): bigint {
   const p = BigInt(period);
   return (nowSec / p + BigInt(1)) * p;
@@ -64,7 +64,7 @@ export async function scanAllStreams(publicClient: PublicClient, payroll: Addres
   for (let start = 1; ; start += SCAN_BATCH) {
     const ids = Array.from({ length: SCAN_BATCH }, (_, i) => BigInt(start + i));
     const batch = await publicClient.multicall({
-      contracts: ids.map((id) => ({ address: payroll, abi: DayzePayrollAbi, functionName: "getStream" as const, args: [id] as const })),
+      contracts: ids.map((id) => ({ address: payroll, abi: VeilPayrollAbi, functionName: "getStream" as const, args: [id] as const })),
       allowFailure: false,
     });
     const rows = batch.map((s, i) => ({ id: ids[i], ...(s as Omit<StreamRow, "id">) }));
@@ -80,10 +80,10 @@ export async function scanAllStreams(publicClient: PublicClient, payroll: Addres
  * Reads `streamsOfPayer` then each stream. Fine at demo scale; checkpoint 13 swaps in a subgraph.
  */
 export function useStreamsOfPayer() {
-  const { account, d } = useDayze();
+  const { account, d } = useVeil();
   const ids = useReadContract({
     address: d?.payroll,
-    abi: DayzePayrollAbi,
+    abi: VeilPayrollAbi,
     functionName: "streamsOfPayer",
     args: account ? [account] : undefined,
     query: { enabled: !!account && !!d },
@@ -92,7 +92,7 @@ export function useStreamsOfPayer() {
   const streams = useReadContracts({
     contracts: list.map((id) => ({
       address: d?.payroll,
-      abi: DayzePayrollAbi,
+      abi: VeilPayrollAbi,
       functionName: "getStream" as const,
       args: [id] as const,
     })),
@@ -111,7 +111,7 @@ export function useStreamsOfPayer() {
  * still computing the bit (it lands a few seconds after createStream).
  */
 export function useResolvePolicy(tx: ReturnType<typeof useTx>) {
-  const { d } = useDayze();
+  const { d } = useVeil();
   const cofhe = useCofheClient();
   const publicClient = usePublicClient();
 
@@ -121,7 +121,7 @@ export function useResolvePolicy(tx: ReturnType<typeof useTx>) {
       tx.setStage("fhe-processing");
       const stream = (await publicClient.readContract({
         address: d.payroll,
-        abi: DayzePayrollAbi,
+        abi: VeilPayrollAbi,
         functionName: "getStream",
         args: [id],
       })) as Omit<StreamRow, "id">;
@@ -145,7 +145,7 @@ export function useResolvePolicy(tx: ReturnType<typeof useTx>) {
       const needsApproval = result.value === BigInt(1);
       await tx.run(() => ({
         address: d.payroll,
-        abi: DayzePayrollAbi,
+        abi: VeilPayrollAbi,
         functionName: "resolvePolicy",
         args: [id, needsApproval, result.signature],
       }));

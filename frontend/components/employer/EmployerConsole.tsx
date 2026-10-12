@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { Badge, ButtonLink } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { ApprovalsSection } from "./ApprovalsSection";
 import { AuditorsSection, useAuditors } from "./AuditorsSection";
 import { useSkippedSteps } from "./EmployerOnboarding";
@@ -19,7 +19,7 @@ import { StreamsSection, inviteCopied } from "./StreamsSection";
  * @param payee From a worker's "pay me" link: pre-fills New stream and scrolls to it
  */
 export function EmployerConsole({ payee }: { payee?: string }) {
-  const { account } = useDayze();
+  const { account } = useVeil();
   const { org, exists, isLoading } = useOrg();
   const { hasPolicy } = usePolicy();
   const auditors = useAuditors();

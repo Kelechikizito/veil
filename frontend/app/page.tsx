@@ -60,7 +60,7 @@ const steps = [
 const roadmap = [
   {
     title: "Invite by email",
-    body: "Type an employee's email and Dayze sends them your invite link. The address is used once and never stored.",
+    body: "Type an employee's email and Veil sends them your invite link. The address is used once and never stored.",
   },
   {
     title: "Pay notifications",
@@ -186,7 +186,7 @@ export default function Home() {
             <Badge ghost>What&apos;s private</Badge>
             <h2 className={sectionHeading}>Honest about the edges.</h2>
             <p className="text-subheading text-soft-charcoal">
-              A chain has to show that money moved. Dayze hides how much, and says exactly what it doesn&apos;t hide.
+              A chain has to show that money moved. Veil hides how much, and says exactly what it doesn&apos;t hide.
             </p>
           </Reveal>
           <div className="grid gap-10 sm:grid-cols-2">

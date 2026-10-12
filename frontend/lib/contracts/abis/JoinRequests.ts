@@ -19,7 +19,7 @@ export const JoinRequestsAbi = [
       {
         "name": "",
         "type": "address",
-        "internalType": "contract IDayzePayroll"
+        "internalType": "contract IVeilPayroll"
       }
     ],
     "stateMutability": "view"

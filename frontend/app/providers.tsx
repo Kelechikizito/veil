@@ -32,7 +32,7 @@ const cofheConfig = createCofheConfig({
 /**
  * Makes sure wagmi has an active wallet once Privy is logged in.
  * With an injected wallet (MetaMask) present next to the embedded one, @privy-io/wagmi can leave
- * wagmi with no account. Prefer the embedded wallet: it's the one Dayze created for this user.
+ * wagmi with no account. Prefer the embedded wallet: it's the one Veil created for this user.
  */
 function ActiveWalletSync() {
   const { authenticated } = usePrivy();
@@ -44,7 +44,7 @@ function ActiveWalletSync() {
     if (!authenticated || !ready || address || wallets.length === 0) return;
     const preferred = wallets.find((w) => w.walletClientType === "privy") ?? wallets[0];
     // An injected wallet that's locked or hasn't approved this site rejects here; AppGate then offers a retry
-    setActiveWallet(preferred).catch((e) => console.warn("[dayze] couldn't activate wallet", preferred.address, e));
+    setActiveWallet(preferred).catch((e) => console.warn("[veil] couldn't activate wallet", preferred.address, e));
   }, [authenticated, ready, address, wallets, setActiveWallet]);
 
   return null;

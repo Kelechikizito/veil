@@ -8,11 +8,11 @@ import { useReadContract } from "wagmi";
 import { shortAddress } from "@/components/AuthButton";
 import { Stat } from "@/components/forms";
 import { Badge, Button } from "@/components/ui";
-import { deploymentFor, useDayze } from "@/hooks/useDayze";
+import { deploymentFor, useVeil } from "@/hooks/useVeil";
 import { useEnsureACP } from "@/hooks/useEnsureACP";
 import { shortError } from "@/hooks/useTx";
 import { defaultChain } from "@/lib/chains";
-import { DayzePayrollAbi, IncomeCredentialAbi } from "@/lib/contracts/abis";
+import { VeilPayrollAbi, IncomeCredentialAbi } from "@/lib/contracts/abis";
 import { unsealBool } from "@/lib/fhe";
 import { formatConfidential, tokensFor } from "@/lib/tokens";
 
@@ -56,7 +56,7 @@ const formatTime = (t: bigint) => new Date(Number(t) * 1000).toLocaleString();
  * with no wallet. The answer is an encrypted bit only the named verifier can decrypt.
  */
 export function CredentialView({ id }: { id: string }) {
-  // Reads go to Dayze's chain even before anyone logs in
+  // Reads go to Veil's chain even before anyone logs in
   const chainId = defaultChain.id;
   const d = deploymentFor(chainId);
   const validId = /^\d+$/.test(id);
@@ -75,13 +75,13 @@ export function CredentialView({ id }: { id: string }) {
   const org = useReadContract({
     chainId,
     address: d?.payroll,
-    abi: DayzePayrollAbi,
+    abi: VeilPayrollAbi,
     functionName: "orgOf",
     args: c ? [c.payer] : undefined,
     query: { enabled: !!c && !!d },
   });
 
-  if (!d) return <p className="text-soft-charcoal">Dayze isn&apos;t deployed on this network.</p>;
+  if (!d) return <p className="text-soft-charcoal">Veil isn&apos;t deployed on this network.</p>;
   if (!validId) return <p className="text-soft-charcoal">That isn&apos;t a credential number.</p>;
   if (cred.isLoading) return <p className="text-mid-grey">Loading credential #{id}…</p>;
   if (!c || c.payee === "0x0000000000000000000000000000000000000000") {
@@ -146,7 +146,7 @@ function StatusBanner({ status, secondsLeft }: { status: "valid" | "expired" | "
 /** Sign in as the verifier, then decrypt the one bit */
 function Reveal({ credential: c }: { credential: Credential }) {
   const { ready, authenticated, login } = usePrivy();
-  const { account, chainId } = useDayze();
+  const { account, chainId } = useVeil();
   const client = useCofheClient();
   const { ensureACP } = useEnsureACP();
   const [state, setState] = useState<{ loading?: boolean; ok?: boolean; error?: string }>({});

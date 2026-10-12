@@ -12,7 +12,7 @@ import {ERC20_Harness} from "fhenix-confidential-contracts/test/ERC20_Harness.so
 import {ApprovalPolicy} from "src/ApprovalPolicy.sol";
 import {ConfidentialNative} from "src/ConfidentialNative.sol";
 import {ConfidentialToken} from "src/ConfidentialToken.sol";
-import {DayzePayroll} from "src/DayzePayroll.sol";
+import {VeilPayroll} from "src/VeilPayroll.sol";
 import {HumanRegistry} from "src/HumanRegistry.sol";
 import {IncomeCredential} from "src/IncomeCredential.sol";
 import {JoinRequests} from "src/JoinRequests.sol";
@@ -71,7 +71,7 @@ contract LiveForkTest is Test {
 
     /// @notice Every one-shot setter and allowlist entry is wired
     function test_fork_wiring() public view {
-        DayzePayroll payroll = DayzePayroll(d.payroll);
+        VeilPayroll payroll = VeilPayroll(d.payroll);
 
         assertEq(ApprovalPolicy(d.approvalPolicy).payroll(), d.payroll);
         assertEq(payroll.credential(), d.incomeCredential);
@@ -130,7 +130,7 @@ contract LiveForkTest is Test {
 
     /// @notice Plaintext payroll paths work on the fork
     function test_fork_plaintextPayrollPaths() public {
-        DayzePayroll payroll = DayzePayroll(d.payroll);
+        VeilPayroll payroll = VeilPayroll(d.payroll);
 
         vm.prank(alice);
         payroll.createOrg("Acme");
@@ -141,7 +141,7 @@ contract LiveForkTest is Test {
         payroll.addToken(IFHERC20(d.usdc));
 
         vm.prank(alice);
-        vm.expectRevert(DayzePayroll.DayzePayroll__AlreadyResolved.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__AlreadyResolved.selector);
         payroll.resolvePolicy(1, false, "");
     }
 
@@ -163,9 +163,9 @@ contract LiveForkTest is Test {
 
         assertGt(payroll.code.length, 0);
         assertEq(ApprovalPolicy(policy).payroll(), payroll);
-        assertEq(DayzePayroll(payroll).credential(), credential);
-        assertTrue(DayzePayroll(payroll).s_supportedTokens(IFHERC20(vm.parseJsonAddress(json, ".cusdc"))));
-        assertTrue(DayzePayroll(payroll).s_supportedTokens(IFHERC20(vm.parseJsonAddress(json, ".carb"))));
-        assertTrue(DayzePayroll(payroll).s_supportedTokens(IFHERC20(vm.parseJsonAddress(json, ".ceth"))));
+        assertEq(VeilPayroll(payroll).credential(), credential);
+        assertTrue(VeilPayroll(payroll).s_supportedTokens(IFHERC20(vm.parseJsonAddress(json, ".cusdc"))));
+        assertTrue(VeilPayroll(payroll).s_supportedTokens(IFHERC20(vm.parseJsonAddress(json, ".carb"))));
+        assertTrue(VeilPayroll(payroll).s_supportedTokens(IFHERC20(vm.parseJsonAddress(json, ".ceth"))));
     }
 }

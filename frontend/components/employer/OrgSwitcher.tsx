@@ -8,9 +8,9 @@ import { parseEther, type Address } from "viem";
 import { useBalance, usePublicClient, useReadContracts, useSendTransaction } from "wagmi";
 import { PillPicker } from "@/components/forms";
 import { Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { shortError, useGasSponsored } from "@/hooks/useTx";
-import { DayzePayrollAbi } from "@/lib/contracts/abis";
+import { VeilPayrollAbi } from "@/lib/contracts/abis";
 
 /** Gas sent from the current org's wallet to a new org's wallet, when the current one can spare it */
 const GAS_TOP_UP = parseEther("0.003");
@@ -24,12 +24,12 @@ const MAX_PILLS = 3;
  * Privy gives one login several embedded wallets. Returns each wallet with its org name, if it has one.
  */
 export function useMyOrgs() {
-  const { d } = useDayze();
+  const { d } = useVeil();
   const { wallets, ready } = useWallets();
   const { data, isLoading, refetch } = useReadContracts({
     contracts: wallets.map((w) => ({
       address: d?.payroll,
-      abi: DayzePayrollAbi,
+      abi: VeilPayrollAbi,
       functionName: "orgOf",
       args: [w.address as Address],
     })),
@@ -48,7 +48,7 @@ export function useMyOrgs() {
  */
 export function OrgSwitcher() {
   const router = useRouter();
-  const { account } = useDayze();
+  const { account } = useVeil();
   const publicClient = usePublicClient();
   const { entries } = useMyOrgs();
   const { setActiveWallet } = useSetActiveWallet();
@@ -135,7 +135,7 @@ export function OrgSwitcher() {
       if (spare) void startOnboarding(spare);
       else pending.current = address;
     } catch (e) {
-      console.error("[dayze] new org failed", e);
+      console.error("[veil] new org failed", e);
       setError(shortError(e));
       setStatus(undefined);
       setBusy(false);

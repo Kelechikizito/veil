@@ -6,8 +6,8 @@ pragma solidity 0.8.25;
 //////////////////////////////////////////////////////////////*/
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {FHE, euint64, externalEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
-import {DayzePayroll} from "src/DayzePayroll.sol";
-import {IDayzePayroll} from "src/interfaces/IDayzePayroll.sol";
+import {VeilPayroll} from "src/VeilPayroll.sol";
+import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
 import {PayrollTestBase} from "../utils/PayrollTestBase.sol";
 
 /*//////////////////////////////////////////////////////////////
@@ -15,14 +15,14 @@ import {PayrollTestBase} from "../utils/PayrollTestBase.sol";
 //////////////////////////////////////////////////////////////*/
 
 /**
- * @title DayzePayrollTest
+ * @title VeilPayrollTest
  * @author Kelechi Kizito Ugwu
- * @notice Unit tests for `DayzePayroll` core on CoFHE mocks.
- * @dev Abstract: run by `DayzePayrollTest30Days` and `DayzePayrollTest600s` at the bottom of this file.
+ * @notice Unit tests for `VeilPayroll` core on CoFHE mocks.
+ * @dev Abstract: run by `VeilPayrollTest30Days` and `VeilPayrollTest600s` at the bottom of this file.
  *      Time is warped in fractions of `PERIOD`, so the same amounts hold for both periods.
  *      `DAY` is 1/30 of a period: a fully funded 3,000/month stream streams exactly 100 per `DAY`.
  */
-abstract contract DayzePayrollTest is PayrollTestBase {
+abstract contract VeilPayrollTest is PayrollTestBase {
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -50,16 +50,16 @@ abstract contract DayzePayrollTest is PayrollTestBase {
     /// @notice 1. `createOrg` stores the org; creating twice reverts
     function test_createOrg() public {
         vm.expectEmit(true, false, false, true, address(payroll));
-        emit IDayzePayroll.OrgCreated(bob, "Bob Ltd");
+        emit IVeilPayroll.OrgCreated(bob, "Bob Ltd");
         vm.prank(bob);
         payroll.createOrg("Bob Ltd");
 
-        IDayzePayroll.Org memory org = payroll.orgOf(bob);
+        IVeilPayroll.Org memory org = payroll.orgOf(bob);
         assertEq(org.name, "Bob Ltd");
         assertTrue(org.exists);
 
         vm.prank(bob);
-        vm.expectRevert(DayzePayroll.DayzePayroll__OrgExists.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__OrgExists.selector);
         payroll.createOrg("Again");
     }
 
@@ -67,7 +67,7 @@ abstract contract DayzePayrollTest is PayrollTestBase {
     function test_createStream_revertsWithoutOrg() public {
         (externalEuint64 h, bytes memory p) = _encrypt(bobClient, MONTHLY);
         vm.prank(bob);
-        vm.expectRevert(DayzePayroll.DayzePayroll__NoOrg.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NoOrg.selector);
         payroll.createStream(alice, tUsdc, h, p);
     }
 
@@ -86,15 +86,15 @@ abstract contract DayzePayrollTest is PayrollTestBase {
         payroll.removeToken(tUsdc);
 
         vm.expectEmit(true, false, false, false, address(payroll));
-        emit IDayzePayroll.TokenAdded(tArb);
+        emit IVeilPayroll.TokenAdded(tArb);
         payroll.addToken(tArb);
         assertTrue(payroll.s_supportedTokens(tArb));
 
-        vm.expectRevert(DayzePayroll.DayzePayroll__TokenAlreadySupported.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__TokenAlreadySupported.selector);
         payroll.addToken(tArb);
 
         vm.expectEmit(true, false, false, false, address(payroll));
-        emit IDayzePayroll.TokenRemoved(tArb);
+        emit IVeilPayroll.TokenRemoved(tArb);
         payroll.removeToken(tArb);
         assertFalse(payroll.s_supportedTokens(tArb));
     }
@@ -104,11 +104,11 @@ abstract contract DayzePayrollTest is PayrollTestBase {
         (externalEuint64 h, bytes memory p) = _encrypt(employerClient, 1);
 
         vm.prank(employer);
-        vm.expectRevert(DayzePayroll.DayzePayroll__UnsupportedToken.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__UnsupportedToken.selector);
         payroll.fundVault(tArb, h, p);
 
         vm.prank(employer);
-        vm.expectRevert(DayzePayroll.DayzePayroll__UnsupportedToken.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__UnsupportedToken.selector);
         payroll.createStream(alice, tArb, h, p);
     }
 
@@ -124,7 +124,7 @@ abstract contract DayzePayrollTest is PayrollTestBase {
 
         (externalEuint64 h, bytes memory p) = _encrypt(employerClient, MONTHLY);
         vm.prank(employer);
-        vm.expectRevert(DayzePayroll.DayzePayroll__UnsupportedToken.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__UnsupportedToken.selector);
         payroll.createStream(alice, tUsdc, h, p);
     }
 
@@ -136,7 +136,7 @@ abstract contract DayzePayrollTest is PayrollTestBase {
     function test_fundVault() public {
         (externalEuint64 h, bytes memory p) = _encrypt(employerClient, EMPLOYER_USDC);
         vm.expectEmit(true, true, false, true, address(payroll));
-        emit IDayzePayroll.VaultFunded(employer, tUsdc);
+        emit IVeilPayroll.VaultFunded(employer, tUsdc);
         vm.prank(employer);
         payroll.fundVault(tUsdc, h, p);
         expectPlaintext(payroll.vaultOf(employer, tUsdc), EMPLOYER_USDC);
@@ -154,13 +154,13 @@ abstract contract DayzePayrollTest is PayrollTestBase {
     function test_createStream() public {
         uint256 id = _createActiveStream(tUsdc, MONTHLY);
 
-        IDayzePayroll.Stream memory s = payroll.getStream(id);
+        IVeilPayroll.Stream memory s = payroll.getStream(id);
         expectPlaintext(s.monthly, MONTHLY);
         expectPlaintext(s.withdrawn, uint64(0));
         assertEq(s.payer, employer);
         assertEq(s.payee, alice);
         assertEq(address(s.token), address(tUsdc));
-        assertEq(uint8(s.status), uint8(IDayzePayroll.Status.Active));
+        assertEq(uint8(s.status), uint8(IVeilPayroll.Status.Active));
         assertEq(s.startTime, block.timestamp);
 
         assertEq(payroll.streamsOfPayer(employer).length, 1);
@@ -206,7 +206,7 @@ abstract contract DayzePayrollTest is PayrollTestBase {
         uint256[] memory ids = new uint256[](1);
         ids[0] = id;
         vm.prank(employer);
-        vm.expectRevert(DayzePayroll.DayzePayroll__VaultNotFunded.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__VaultNotFunded.selector);
         payroll.runPayroll(tEth, h, p, ids);
 
         vm.warp(block.timestamp + _period() / 2);
@@ -250,7 +250,7 @@ abstract contract DayzePayrollTest is PayrollTestBase {
         (externalEuint64 h, bytes memory p) = _encrypt(bobClient, 1);
 
         vm.prank(bob);
-        vm.expectRevert(DayzePayroll.DayzePayroll__NotPayee.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotPayee.selector);
         payroll.withdraw(id, h, p);
     }
 
@@ -259,7 +259,7 @@ abstract contract DayzePayrollTest is PayrollTestBase {
         (externalEuint64 h, bytes memory p) = _encrypt(aliceClient, 1);
 
         vm.prank(alice);
-        vm.expectRevert(DayzePayroll.DayzePayroll__NotPayee.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotPayee.selector);
         payroll.withdraw(42, h, p);
     }
 
@@ -274,12 +274,12 @@ abstract contract DayzePayrollTest is PayrollTestBase {
 
         vm.warp(block.timestamp + _day());
         vm.expectEmit(true, false, false, false, address(payroll));
-        emit IDayzePayroll.StreamCancelled(id);
+        emit IVeilPayroll.StreamCancelled(id);
         vm.prank(employer);
         payroll.cancelStream(id);
 
-        IDayzePayroll.Stream memory s = payroll.getStream(id);
-        assertEq(uint8(s.status), uint8(IDayzePayroll.Status.Cancelled));
+        IVeilPayroll.Stream memory s = payroll.getStream(id);
+        assertEq(uint8(s.status), uint8(IVeilPayroll.Status.Cancelled));
         assertEq(s.endTime, block.timestamp);
         expectPlaintext(s.banked, DAILY);
         expectPlaintext(payroll.vaultOf(employer, tUsdc), EMPLOYER_USDC - DAILY);
@@ -297,14 +297,14 @@ abstract contract DayzePayrollTest is PayrollTestBase {
         uint256 id = _createActiveStream(tUsdc, MONTHLY);
 
         vm.prank(bob);
-        vm.expectRevert(DayzePayroll.DayzePayroll__NotPayer.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotPayer.selector);
         payroll.cancelStream(id);
 
         vm.prank(employer);
         payroll.cancelStream(id);
 
         vm.prank(employer);
-        vm.expectRevert(DayzePayroll.DayzePayroll__NotCancellable.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotCancellable.selector);
         payroll.cancelStream(id);
     }
 
@@ -358,7 +358,7 @@ abstract contract DayzePayrollTest is PayrollTestBase {
 
         (externalEuint64 h, bytes memory p) = _encrypt(employerClient, 4000e6);
         vm.expectEmit(true, true, false, true, address(payroll));
-        emit IDayzePayroll.PayrollRun(employer, tUsdc, uint64(block.timestamp + _period()), 2);
+        emit IVeilPayroll.PayrollRun(employer, tUsdc, uint64(block.timestamp + _period()), 2);
         vm.prank(employer);
         payroll.runPayroll(tUsdc, h, p, ids);
 
@@ -430,7 +430,7 @@ abstract contract DayzePayrollTest is PayrollTestBase {
         uint256[] memory ids = new uint256[](1);
         ids[0] = first;
         vm.prank(employer);
-        vm.expectRevert(DayzePayroll.DayzePayroll__AlreadyFunded.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__AlreadyFunded.selector);
         payroll.runPayroll(tUsdc, h, p, ids);
 
         uint256 second = _createActiveStream(tUsdc, MONTHLY);
@@ -451,17 +451,17 @@ abstract contract DayzePayrollTest is PayrollTestBase {
 
         ids[0] = awaiting;
         vm.prank(employer);
-        vm.expectRevert(DayzePayroll.DayzePayroll__NotActive.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotActive.selector);
         payroll.runPayroll(tUsdc, h, p, ids);
 
         ids[0] = active;
         vm.prank(employer);
-        vm.expectRevert(DayzePayroll.DayzePayroll__WrongToken.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__WrongToken.selector);
         payroll.runPayroll(tEth, h, p, ids);
 
         (externalEuint64 hb, bytes memory pb) = _encrypt(bobClient, MONTHLY);
         vm.prank(bob);
-        vm.expectRevert(DayzePayroll.DayzePayroll__NoOrg.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NoOrg.selector);
         payroll.runPayroll(tUsdc, hb, pb, ids);
 
         vm.prank(bob);
@@ -475,7 +475,7 @@ abstract contract DayzePayrollTest is PayrollTestBase {
         payroll.fundVault(tUsdc, hf, pf);
         (hb, pb) = _encrypt(bobClient, MONTHLY);
         vm.prank(bob);
-        vm.expectRevert(DayzePayroll.DayzePayroll__NotPayer.selector);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotPayer.selector);
         payroll.runPayroll(tUsdc, hb, pb, ids);
     }
 
@@ -503,15 +503,15 @@ abstract contract DayzePayrollTest is PayrollTestBase {
     }
 }
 
-/// @notice Runs `DayzePayrollTest` with a 30-day period
-contract DayzePayrollTest30Days is DayzePayrollTest {
+/// @notice Runs `VeilPayrollTest` with a 30-day period
+contract VeilPayrollTest30Days is VeilPayrollTest {
     function _period() internal pure override returns (uint64) {
         return 30 days;
     }
 }
 
-/// @notice Runs `DayzePayrollTest` with the 600s demo period
-contract DayzePayrollTest600s is DayzePayrollTest {
+/// @notice Runs `VeilPayrollTest` with the 600s demo period
+contract VeilPayrollTest600s is VeilPayrollTest {
     function _period() internal pure override returns (uint64) {
         return 600;
     }

@@ -8,9 +8,9 @@ import { Field, Input, Panel, PillPicker, Stat } from "@/components/forms";
 import { SecretValue } from "@/components/SecretValue";
 import { TxLinks, TxStatus } from "@/components/TxStatus";
 import { Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
-import { ConfidentialNativeAbi, ConfidentialTokenAbi, DayzePayrollAbi, ERC20_HarnessAbi } from "@/lib/contracts/abis";
+import { ConfidentialNativeAbi, ConfidentialTokenAbi, VeilPayrollAbi, ERC20_HarnessAbi } from "@/lib/contracts/abis";
 import { encryptUint64 } from "@/lib/fhe";
 import { clearTxLog } from "@/lib/txLog";
 import { formatConfidential, parseConfidential, toConfidentialUnits, type ConfidentialTokenInfo, type TokenKey } from "@/lib/tokens";
@@ -19,11 +19,11 @@ const OPERATOR_FOREVER = 2 ** 48 - 1;
 
 /** Whether the connected employer has funded any vault (a non-zero handle) */
 export function useHasFundedVault() {
-  const { account, d, tokens } = useDayze();
+  const { account, d, tokens } = useVeil();
   const { data } = useReadContracts({
     contracts: tokens.map((t) => ({
       address: d?.payroll,
-      abi: DayzePayrollAbi,
+      abi: VeilPayrollAbi,
       functionName: "vaultOf" as const,
       args: [account!, t.wrapper] as const,
     })),
@@ -34,7 +34,7 @@ export function useHasFundedVault() {
 
 /** §2 Fund: one amount, one button. Shielding, allowing payroll and funding the vault run behind it. */
 export function FundSection() {
-  const { tokens } = useDayze();
+  const { tokens } = useVeil();
   const [key, setKey] = useState<TokenKey>(tokens[0]?.key ?? "cusdc");
   const token = tokens.find((t) => t.key === key) ?? tokens[0];
   if (!token) return null;
@@ -57,7 +57,7 @@ export function FundSection() {
 }
 
 function TokenFunding({ token }: { token: ConfidentialTokenInfo }) {
-  const { account, d } = useDayze();
+  const { account, d } = useVeil();
   const cofhe = useCofheClient();
   const tx = useTx("fund");
   const [amount, setAmount] = useState("");
@@ -83,7 +83,7 @@ function TokenFunding({ token }: { token: ConfidentialTokenInfo }) {
 
   const vaultHandle = useReadContract({
     address: d?.payroll,
-    abi: DayzePayrollAbi,
+    abi: VeilPayrollAbi,
     functionName: "vaultOf",
     args: account ? [account, token.wrapper] : undefined,
     query: { enabled: !!account && !!d },
@@ -145,7 +145,7 @@ function TokenFunding({ token }: { token: ConfidentialTokenInfo }) {
         tx.run(
           async () => {
             const { handle, proof } = await encryptUint64(cofhe, units, d!.payroll);
-            return { address: d!.payroll, abi: DayzePayrollAbi, functionName: "fundVault", args: [token.wrapper, handle, proof] };
+            return { address: d!.payroll, abi: VeilPayrollAbi, functionName: "fundVault", args: [token.wrapper, handle, proof] };
           },
           { encrypts: true, label: "Moved it into the vault" },
         ),

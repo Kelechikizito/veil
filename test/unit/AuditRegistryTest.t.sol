@@ -8,7 +8,7 @@ import {FHE, euint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 import {AuditRegistry} from "src/AuditRegistry.sol";
 import {IAuditRegistry} from "src/interfaces/IAuditRegistry.sol";
 import {AuditHarness} from "../mocks/AuditHarness.sol";
-import {DayzeTestBase} from "../utils/DayzeTestBase.sol";
+import {VeilTestBase} from "../utils/VeilTestBase.sol";
 
 /*//////////////////////////////////////////////////////////////
                 INTERFACES, LIBRARIES, CONTRACT
@@ -21,7 +21,7 @@ import {DayzeTestBase} from "../utils/DayzeTestBase.sol";
  * @dev Covers add/list/remove, input checks, the cap, per-payer separation,
  *      and sticky access: a removed auditor keeps old handles but not new ones.
  */
-contract AuditRegistryTest is DayzeTestBase {
+contract AuditRegistryTest is VeilTestBase {
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/

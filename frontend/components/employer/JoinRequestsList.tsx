@@ -5,7 +5,7 @@ import { useReadContract } from "wagmi";
 import { shortAddress } from "@/components/AuthButton";
 import { TxStatus } from "@/components/TxStatus";
 import { Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
 import { JoinRequestsAbi } from "@/lib/contracts/abis";
 import { HumanBadge } from "./StreamsSection";
@@ -17,7 +17,7 @@ import { StreamStatus, useStreamsOfPayer } from "./streams";
  * @param onSetSalary Pre-fills the New stream form with the worker's address
  */
 export function JoinRequestsList({ onSetSalary }: { onSetSalary: (employee: Address) => void }) {
-  const { account, d } = useDayze();
+  const { account, d } = useVeil();
   const { rows } = useStreamsOfPayer();
   const tx = useTx();
   const { data } = useReadContract({

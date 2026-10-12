@@ -7,13 +7,13 @@ import { shortAddress } from "@/components/AuthButton";
 import { Field, Input, Panel } from "@/components/forms";
 import { TxStatus } from "@/components/TxStatus";
 import { Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
 import { AuditRegistryAbi } from "@/lib/contracts/abis";
 
 /** Reads the connected employer's auditors */
 export function useAuditors() {
-  const { account, d } = useDayze();
+  const { account, d } = useVeil();
   const { data } = useReadContract({
     address: d?.auditRegistry,
     abi: AuditRegistryAbi,
@@ -26,7 +26,7 @@ export function useAuditors() {
 
 /** §4 Auditors: add and remove the addresses that can read your payroll */
 export function AuditorsSection() {
-  const { d } = useDayze();
+  const { d } = useVeil();
   const auditors = useAuditors();
   const [input, setInput] = useState("");
   const tx = useTx("auditor");

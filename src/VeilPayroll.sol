@@ -9,7 +9,7 @@ import {FHE, ebool, euint64, euint128, externalEuint64, sharedEuint64} from "@fh
 import {IFHERC20} from "fhenix-confidential-contracts/interfaces/IFHERC20.sol";
 import {IApprovalPolicy} from "src/interfaces/IApprovalPolicy.sol";
 import {IAuditRegistry} from "src/interfaces/IAuditRegistry.sol";
-import {IDayzePayroll} from "src/interfaces/IDayzePayroll.sol";
+import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
 import {AuditAccess} from "src/libraries/AuditAccess.sol";
 
 /*//////////////////////////////////////////////////////////////
@@ -17,7 +17,7 @@ import {AuditAccess} from "src/libraries/AuditAccess.sol";
 //////////////////////////////////////////////////////////////*/
 
 /**
- * @title DayzePayroll
+ * @title VeilPayroll
  * @author Kelechi Kizito Ugwu
  * @notice Encrypted salary streams paid from per-payer, per-token confidential vaults.
  * @dev Money flows vault → payroll → stream → payee. Once per period the payer runs payroll with an
@@ -29,7 +29,7 @@ import {AuditAccess} from "src/libraries/AuditAccess.sol";
  *      New streams wait in `AwaitingPolicy` until anyone posts the decrypted `needsApproval` bit.
  *      That bit is the only value ever made public: "this salary is above or below a hidden threshold".
  */
-contract DayzePayroll is IDayzePayroll, Ownable {
+contract VeilPayroll is IVeilPayroll, Ownable {
     using AuditAccess for IAuditRegistry;
 
     /*//////////////////////////////////////////////////////////////
@@ -37,61 +37,61 @@ contract DayzePayroll is IDayzePayroll, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Thrown when an address argument is zero
-    error DayzePayroll__ZeroAddress();
+    error VeilPayroll__ZeroAddress();
 
     /// @notice Thrown when `PERIOD` is 0
-    error DayzePayroll__ZeroPeriod();
+    error VeilPayroll__ZeroPeriod();
 
     /// @notice Thrown when the token is not on the allowlist
-    error DayzePayroll__UnsupportedToken();
+    error VeilPayroll__UnsupportedToken();
 
     /// @notice Thrown when adding a token that is already on the allowlist
-    error DayzePayroll__TokenAlreadySupported();
+    error VeilPayroll__TokenAlreadySupported();
 
     /// @notice Thrown when the caller already has an org
-    error DayzePayroll__OrgExists();
+    error VeilPayroll__OrgExists();
 
     /// @notice Thrown when the caller has no org
-    error DayzePayroll__NoOrg();
+    error VeilPayroll__NoOrg();
 
     /// @notice Thrown when the caller is not the stream's payee
-    error DayzePayroll__NotPayee();
+    error VeilPayroll__NotPayee();
 
     /// @notice Thrown when the caller is not the stream's payer
-    error DayzePayroll__NotPayer();
+    error VeilPayroll__NotPayer();
 
     /// @notice Thrown when withdrawing from a stream that is not Active or Cancelled
-    error DayzePayroll__NotWithdrawable();
+    error VeilPayroll__NotWithdrawable();
 
     /// @notice Thrown when cancelling a stream that is already cancelled or doesn't exist
-    error DayzePayroll__NotCancellable();
+    error VeilPayroll__NotCancellable();
 
     /// @notice Thrown when resolving a stream that is not `AwaitingPolicy`
-    error DayzePayroll__AlreadyResolved();
+    error VeilPayroll__AlreadyResolved();
 
     /// @notice Thrown when the decrypt signature doesn't match the stream's handle and result
-    error DayzePayroll__BadDecryptProof();
+    error VeilPayroll__BadDecryptProof();
 
     /// @notice Thrown when activating a stream that is not `Pending`
-    error DayzePayroll__NotPending();
+    error VeilPayroll__NotPending();
 
     /// @notice Thrown when activating a stream that has fewer approvals than the policy requires
-    error DayzePayroll__NotEnoughApprovals();
+    error VeilPayroll__NotEnoughApprovals();
 
     /// @notice Thrown when the credential contract is set a second time
-    error DayzePayroll__CredentialAlreadySet();
+    error VeilPayroll__CredentialAlreadySet();
 
     /// @notice Thrown when running payroll for a stream that isn't Active
-    error DayzePayroll__NotActive();
+    error VeilPayroll__NotActive();
 
     /// @notice Thrown when running payroll for a stream paid in another token
-    error DayzePayroll__WrongToken();
+    error VeilPayroll__WrongToken();
 
     /// @notice Thrown when running payroll for a stream already funded this period
-    error DayzePayroll__AlreadyFunded();
+    error VeilPayroll__AlreadyFunded();
 
     /// @notice Thrown when running payroll from a vault that was never funded
-    error DayzePayroll__VaultNotFunded();
+    error VeilPayroll__VaultNotFunded();
 
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
@@ -140,9 +140,9 @@ contract DayzePayroll is IDayzePayroll, Ownable {
     /// @param auditRegistry The audit registry
     /// @param period Length of one pay period in seconds
     constructor(address approvalPolicy, address auditRegistry, uint64 period) Ownable(msg.sender) {
-        if (approvalPolicy == address(0)) revert DayzePayroll__ZeroAddress();
-        if (auditRegistry == address(0)) revert DayzePayroll__ZeroAddress();
-        if (period == 0) revert DayzePayroll__ZeroPeriod();
+        if (approvalPolicy == address(0)) revert VeilPayroll__ZeroAddress();
+        if (auditRegistry == address(0)) revert VeilPayroll__ZeroAddress();
+        if (period == 0) revert VeilPayroll__ZeroPeriod();
         I_APPROVAL_POLICY = IApprovalPolicy(approvalPolicy);
         I_AUDIT_REGISTRY = IAuditRegistry(auditRegistry);
         PERIOD = period;
@@ -152,40 +152,40 @@ contract DayzePayroll is IDayzePayroll, Ownable {
                            EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     function createOrg(string calldata name) external {
-        if (s_orgs[msg.sender].exists) revert DayzePayroll__OrgExists();
+        if (s_orgs[msg.sender].exists) revert VeilPayroll__OrgExists();
         s_orgs[msg.sender] = Org({name: name, exists: true});
         emit OrgCreated(msg.sender, name);
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     function addToken(IFHERC20 token) external onlyOwner {
-        if (address(token) == address(0)) revert DayzePayroll__ZeroAddress();
-        if (s_supportedTokens[token]) revert DayzePayroll__TokenAlreadySupported();
+        if (address(token) == address(0)) revert VeilPayroll__ZeroAddress();
+        if (s_supportedTokens[token]) revert VeilPayroll__TokenAlreadySupported();
         s_supportedTokens[token] = true;
         emit TokenAdded(token);
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     function removeToken(IFHERC20 token) external onlyOwner {
-        if (!s_supportedTokens[token]) revert DayzePayroll__UnsupportedToken();
+        if (!s_supportedTokens[token]) revert VeilPayroll__UnsupportedToken();
         s_supportedTokens[token] = false;
         emit TokenRemoved(token);
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     function setCredential(address credentialAddress) external onlyOwner {
-        if (credentialAddress == address(0)) revert DayzePayroll__ZeroAddress();
-        if (s_credential != address(0)) revert DayzePayroll__CredentialAlreadySet();
+        if (credentialAddress == address(0)) revert VeilPayroll__ZeroAddress();
+        if (s_credential != address(0)) revert VeilPayroll__CredentialAlreadySet();
         s_credential = credentialAddress;
         emit CredentialSet(credentialAddress);
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     /// @dev Credits the amount the token actually moved, so a short payer is credited 0
     function fundVault(IFHERC20 token, externalEuint64 amount, bytes calldata proof) external {
-        if (!s_supportedTokens[token]) revert DayzePayroll__UnsupportedToken();
+        if (!s_supportedTokens[token]) revert VeilPayroll__UnsupportedToken();
 
         euint64 amt = FHE.asEuint64(amount, proof);
         FHE.allowThis(amt);
@@ -198,14 +198,14 @@ contract DayzePayroll is IDayzePayroll, Ownable {
         emit VaultFunded(msg.sender, token);
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     function createStream(address payee, IFHERC20 token, externalEuint64 monthly, bytes calldata proof)
         external
         returns (uint256 id)
     {
-        if (payee == address(0)) revert DayzePayroll__ZeroAddress();
-        if (!s_supportedTokens[token]) revert DayzePayroll__UnsupportedToken();
-        if (!s_orgs[msg.sender].exists) revert DayzePayroll__NoOrg();
+        if (payee == address(0)) revert VeilPayroll__ZeroAddress();
+        if (!s_supportedTokens[token]) revert VeilPayroll__UnsupportedToken();
+        if (!s_orgs[msg.sender].exists) revert VeilPayroll__NoOrg();
 
         euint64 monthlyAmt = FHE.asEuint64(monthly, proof);
         FHE.allowThis(monthlyAmt);
@@ -240,14 +240,14 @@ contract DayzePayroll is IDayzePayroll, Ownable {
         emit PolicyCheckRequested(id, ebool.unwrap(needsApproval));
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     /// @dev Permissionless: the decrypt signature proves the result.
     ///      The status check stops replays; checking against THIS stream's handle stops cross-stream reuse.
     function resolvePolicy(uint256 id, bool needsApproval, bytes calldata sig) external {
         Stream storage s = s_streams[id];
-        if (s.status != Status.AwaitingPolicy) revert DayzePayroll__AlreadyResolved();
+        if (s.status != Status.AwaitingPolicy) revert VeilPayroll__AlreadyResolved();
         if (!FHE.verifyDecryptResultSafe(s.needsApproval, needsApproval, sig)) {
-            revert DayzePayroll__BadDecryptProof();
+            revert VeilPayroll__BadDecryptProof();
         }
 
         if (needsApproval) {
@@ -258,23 +258,21 @@ contract DayzePayroll is IDayzePayroll, Ownable {
         }
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     function activateApproved(uint256 id) external {
         Stream storage s = s_streams[id];
-        if (s.status != Status.Pending) revert DayzePayroll__NotPending();
+        if (s.status != Status.Pending) revert VeilPayroll__NotPending();
         if (I_APPROVAL_POLICY.approvalCount(s.payer, id) < I_APPROVAL_POLICY.required(s.payer)) {
-            revert DayzePayroll__NotEnoughApprovals();
+            revert VeilPayroll__NotEnoughApprovals();
         }
         _activate(s, id);
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     /// @dev Nothing here reveals whether the budget or vault ran short: every stream gets an allocation,
     ///      possibly 0, and only the payee (and payer, auditors) can read theirs.
-    function runPayroll(IFHERC20 token, externalEuint64 budget, bytes calldata proof, uint256[] calldata ids)
-        external
-    {
-        if (!s_orgs[msg.sender].exists) revert DayzePayroll__NoOrg();
+    function runPayroll(IFHERC20 token, externalEuint64 budget, bytes calldata proof, uint256[] calldata ids) external {
+        if (!s_orgs[msg.sender].exists) revert VeilPayroll__NoOrg();
 
         // forge-lint: disable-next-line(unsafe-typecast)
         uint64 nowTs = uint64(block.timestamp);
@@ -282,16 +280,16 @@ contract DayzePayroll is IDayzePayroll, Ownable {
         euint64 vault = s_vaults[msg.sender][token];
         // Leaks nothing: `VaultFunded` already shows who funded which token. It also keeps `withdraw`'s
         // "never funded" check true: only funding initializes a vault.
-        if (!FHE.isInitialized(vault)) revert DayzePayroll__VaultNotFunded();
+        if (!FHE.isInitialized(vault)) revert VeilPayroll__VaultNotFunded();
         euint64 pot = FHE.min(FHE.asEuint64(budget, proof), vault);
         euint64 spent = FHE.asEuint64(0);
 
         for (uint256 i; i < ids.length; ++i) {
             Stream storage s = s_streams[ids[i]];
-            if (s.payer != msg.sender) revert DayzePayroll__NotPayer();
-            if (s.token != token) revert DayzePayroll__WrongToken();
-            if (s.status != Status.Active) revert DayzePayroll__NotActive();
-            if (s.allocEnd == end) revert DayzePayroll__AlreadyFunded();
+            if (s.payer != msg.sender) revert VeilPayroll__NotPayer();
+            if (s.token != token) revert VeilPayroll__WrongToken();
+            if (s.status != Status.Active) revert VeilPayroll__NotActive();
+            if (s.allocEnd == end) revert VeilPayroll__AlreadyFunded();
 
             // The last allocation's period is over, so all of it was earned
             if (s.allocEnd != 0) _setBanked(s, FHE.add(s.banked, s.allocated));
@@ -310,12 +308,12 @@ contract DayzePayroll is IDayzePayroll, Ownable {
         emit PayrollRun(msg.sender, token, end, ids.length);
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     /// @dev No vault check: what a stream streams was already set aside out of the vault
     function withdraw(uint256 id, externalEuint64 amount, bytes calldata proof) external {
         Stream storage s = s_streams[id];
-        if (msg.sender != s.payee) revert DayzePayroll__NotPayee();
-        if (s.status != Status.Active && s.status != Status.Cancelled) revert DayzePayroll__NotWithdrawable();
+        if (msg.sender != s.payee) revert VeilPayroll__NotPayee();
+        if (s.status != Status.Active && s.status != Status.Cancelled) revert VeilPayroll__NotWithdrawable();
 
         euint64 req = FHE.asEuint64(amount, proof);
         euint64 available = FHE.sub(_streamed(s), s.withdrawn); // withdrawn <= streamed always
@@ -337,11 +335,11 @@ contract DayzePayroll is IDayzePayroll, Ownable {
         s.token.confidentialTransfer(s.payee, FHE.shareEuint64(pay, address(s.token)));
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     function cancelStream(uint256 id) external {
         Stream storage s = s_streams[id];
-        if (msg.sender != s.payer) revert DayzePayroll__NotPayer();
-        if (s.status == Status.Cancelled) revert DayzePayroll__NotCancellable();
+        if (msg.sender != s.payer) revert VeilPayroll__NotPayer();
+        if (s.status == Status.Cancelled) revert VeilPayroll__NotCancellable();
 
         // Bank what the allocation streamed so far; the rest goes back to the vault
         if (s.allocEnd != 0) {
@@ -463,37 +461,37 @@ contract DayzePayroll is IDayzePayroll, Ownable {
                       EXTERNAL VIEW/PURE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     function credential() external view returns (address) {
         return s_credential;
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     function orgOf(address payer) external view returns (Org memory) {
         return s_orgs[payer];
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     function getStream(uint256 id) external view returns (Stream memory) {
         return s_streams[id];
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     function streamsOfPayer(address payer) external view returns (uint256[] memory) {
         return s_payerStreams[payer];
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     function streamsOfPayee(address payee) external view returns (uint256[] memory) {
         return s_payeeStreams[payee];
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     function vaultOf(address payer, IFHERC20 token) external view returns (euint64) {
         return s_vaults[payer][token];
     }
 
-    /// @inheritdoc IDayzePayroll
+    /// @inheritdoc IVeilPayroll
     function periodEnd(uint64 timestamp) external view returns (uint64) {
         return _periodEnd(timestamp);
     }

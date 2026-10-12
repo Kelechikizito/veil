@@ -7,9 +7,9 @@ import { Field, Input, Panel, PillPicker } from "@/components/forms";
 import { TxLinks, TxStatus } from "@/components/TxStatus";
 import { Button } from "@/components/ui";
 import { useChainNow } from "@/components/worker/hooks";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
-import { DayzePayrollAbi } from "@/lib/contracts/abis";
+import { VeilPayrollAbi } from "@/lib/contracts/abis";
 import { encryptUint64, isUnsetHandle } from "@/lib/fhe";
 import { parseConfidential, type TokenKey } from "@/lib/tokens";
 import { fundedThisPeriod, periodEndOf, StreamStatus, useStreamsOfPayer } from "./streams";
@@ -20,7 +20,7 @@ import { fundedThisPeriod, periodEndOf, StreamStatus, useStreamsOfPayer } from "
  * Employees stream only what was set aside, so pay never outruns the money.
  */
 export function RunPayrollSection() {
-  const { d, tokens } = useDayze();
+  const { d, tokens } = useVeil();
   const cofhe = useCofheClient();
   const tx = useTx("payroll");
   const now = useChainNow();
@@ -28,11 +28,11 @@ export function RunPayrollSection() {
   const [key, setKey] = useState<TokenKey>(tokens[0]?.key ?? "cusdc");
   const [budget, setBudget] = useState("");
   const token = tokens.find((t) => t.key === key) ?? tokens[0];
-  const { account } = useDayze();
+  const { account } = useVeil();
 
   const vault = useReadContract({
     address: d?.payroll,
-    abi: DayzePayrollAbi,
+    abi: VeilPayrollAbi,
     functionName: "vaultOf",
     args: account && token ? [account, token.wrapper] : undefined,
     query: { enabled: !!account && !!d && !!token },
@@ -57,7 +57,7 @@ export function RunPayrollSection() {
     const done = await tx.run(
       async () => {
         const { handle, proof } = await encryptUint64(cofhe, parsed!, d.payroll);
-        return { address: d.payroll, abi: DayzePayrollAbi, functionName: "runPayroll", args: [token.wrapper, handle, proof, ids] };
+        return { address: d.payroll, abi: VeilPayrollAbi, functionName: "runPayroll", args: [token.wrapper, handle, proof, ids] };
       },
       { encrypts: true, label: `Ran payroll for ${ids.length} stream${ids.length === 1 ? "" : "s"} (${token.symbol})` },
     );

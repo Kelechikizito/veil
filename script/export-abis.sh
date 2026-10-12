@@ -12,7 +12,7 @@ OUT="$ROOT/frontend/lib/contracts"
 mkdir -p "$OUT/abis"
 
 CONTRACTS=(
-  DayzePayroll
+  VeilPayroll
   ApprovalPolicy
   AuditRegistry
   HumanRegistry

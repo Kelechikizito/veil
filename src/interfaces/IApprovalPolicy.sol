@@ -48,7 +48,7 @@ interface IApprovalPolicy {
     /// @param proof Proof that verifies `threshold`
     function setThreshold(address token, externalEuint64 threshold, bytes calldata proof) external;
 
-    /// @notice Checks whether a monthly amount needs approval. Only callable by DayzePayroll.
+    /// @notice Checks whether a monthly amount needs approval. Only callable by VeilPayroll.
     /// @param payer The payer whose policy applies
     /// @param token The confidential wrapper the stream pays in
     /// @param monthly The monthly amount, shared by payroll

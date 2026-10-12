@@ -6,7 +6,7 @@ import QRCode from "react-qr-code";
 import { useReadContract } from "wagmi";
 import { Panel } from "@/components/forms";
 import { Button } from "@/components/ui";
-import { useDayze } from "@/hooks/useDayze";
+import { useVeil } from "@/hooks/useVeil";
 import { IncomeCredentialAbi } from "@/lib/contracts/abis";
 
 /**
@@ -14,7 +14,7 @@ import { IncomeCredentialAbi } from "@/lib/contracts/abis";
  * and the income proofs already sent to it.
  */
 export function VerifierHome() {
-  const { account, d } = useDayze();
+  const { account, d } = useVeil();
   const [copied, setCopied] = useState(false);
   const ids = useReadContract({
     address: d?.incomeCredential,

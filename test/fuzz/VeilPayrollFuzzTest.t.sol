@@ -11,14 +11,14 @@ import {PayrollTestBase} from "../utils/PayrollTestBase.sol";
 //////////////////////////////////////////////////////////////*/
 
 /**
- * @title DayzePayrollFuzzTest
+ * @title VeilPayrollFuzzTest
  * @author Kelechi Kizito Ugwu
  * @notice Fuzzes payroll runs and `withdraw`: a payee is never paid more than streamed, and a stream
  *         never streams more than its salary, the budget or the vault.
- * @dev Abstract: run by `DayzePayrollFuzzTest30Days` and `DayzePayrollFuzzTest600s` below.
+ * @dev Abstract: run by `VeilPayrollFuzzTest30Days` and `VeilPayrollFuzzTest600s` below.
  *      The stream is funded at the start of a period, so its allocation is min(salary, budget, vault).
  */
-abstract contract DayzePayrollFuzzTest is PayrollTestBase {
+abstract contract VeilPayrollFuzzTest is PayrollTestBase {
     /// @notice A withdraw pays `req` if it fits what streamed, else 0. Streaming stops at the allocation.
     /// @param monthly Monthly salary
     /// @param budget Payroll budget for the period
@@ -67,15 +67,15 @@ abstract contract DayzePayrollFuzzTest is PayrollTestBase {
     }
 }
 
-/// @notice Runs `DayzePayrollFuzzTest` with a 30-day period
-contract DayzePayrollFuzzTest30Days is DayzePayrollFuzzTest {
+/// @notice Runs `VeilPayrollFuzzTest` with a 30-day period
+contract VeilPayrollFuzzTest30Days is VeilPayrollFuzzTest {
     function _period() internal pure override returns (uint64) {
         return 30 days;
     }
 }
 
-/// @notice Runs `DayzePayrollFuzzTest` with the 600s demo period
-contract DayzePayrollFuzzTest600s is DayzePayrollFuzzTest {
+/// @notice Runs `VeilPayrollFuzzTest` with the 600s demo period
+contract VeilPayrollFuzzTest600s is VeilPayrollFuzzTest {
     function _period() internal pure override returns (uint64) {
         return 600;
     }

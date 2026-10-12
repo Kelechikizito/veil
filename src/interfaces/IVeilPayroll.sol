@@ -5,14 +5,14 @@ import {ebool, euint64, externalEuint64} from "@fhenixprotocol/cofhe-contracts/F
 import {IFHERC20} from "fhenix-confidential-contracts/interfaces/IFHERC20.sol";
 
 /**
- * @title IDayzePayroll
+ * @title IVeilPayroll
  * @author Kelechi Kizito Ugwu
  * @notice Encrypted salary streams paid from per-payer, per-token confidential vaults.
  * @dev Salaries, vaults, payroll budgets and withdrawals are encrypted. Who pays whom, in which token, is public.
  *      Money flows vault → payroll (once per period, `runPayroll`) → each stream's allocation → the payee.
  *      A stream only ever streams what was set aside for it, so pay can't outrun the money.
  */
-interface IDayzePayroll {
+interface IVeilPayroll {
     /*//////////////////////////////////////////////////////////////
                            TYPE DECLARATIONS
     //////////////////////////////////////////////////////////////*/

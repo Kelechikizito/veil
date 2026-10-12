@@ -10,15 +10,15 @@ import {ConfidentialNative} from "../../src/ConfidentialNative.sol";
 import {ERC20_Harness, WETH_Harness} from "fhenix-confidential-contracts/test/ERC20_Harness.sol";
 
 /**
- * @title DayzeTestBase
+ * @title VeilTestBase
  * @author Kelechi Kizito Ugwu
- * @notice Shared setup for every Dayze test: CoFHE mocks, tokens, wrappers and actors.
+ * @notice Shared setup for every Veil test: CoFHE mocks, tokens, wrappers and actors.
  * @dev Each actor is a `CofheClient` (signs encrypted inputs, decrypts) plus a cached address.
  *      Use the cached address in `vm.prank` calls. Calling `client.account()` inside a pranked
  *      call's arguments would use up the prank on the `account()` call itself.
  *      The private keys are test-only. Never put a real key here.
  */
-abstract contract DayzeTestBase is CofheTest {
+abstract contract VeilTestBase is CofheTest {
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
