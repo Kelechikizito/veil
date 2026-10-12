@@ -1,5 +1,20 @@
 {
   "mcpServers": {
+    "monad-docs": {
+      "type": "http",
+      "url": "https://docs.monad.xyz/mcp"
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
     "world-docs": {
       "type": "http",
       "url": "https://docs.world.org/mcp"
