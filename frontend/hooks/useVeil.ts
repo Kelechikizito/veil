@@ -10,7 +10,8 @@ export type Deployment = {
   payroll: Address;
   approvalPolicy: Address;
   auditRegistry: Address;
-  humanRegistry: Address;
+  /** Optional so a deployment from before EmployeeRegistry still loads */
+  employeeRegistry?: Address;
   incomeCredential: Address;
   /** Optional so an older deployment file without it still loads */
   joinRequests?: Address;

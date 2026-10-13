@@ -3,12 +3,12 @@
 import type { Address } from "viem";
 import { useReadContract } from "wagmi";
 import { shortAddress } from "@/components/AuthButton";
+import { EmployeeBadge } from "@/components/Employment";
 import { TxStatus } from "@/components/TxStatus";
 import { Button } from "@/components/ui";
 import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
 import { JoinRequestsAbi } from "@/lib/contracts/abis";
-import { HumanBadge } from "./StreamsSection";
 import { StreamStatus, useStreamsOfPayer } from "./streams";
 
 /**
@@ -48,7 +48,7 @@ export function JoinRequestsList({ onSetSalary }: { onSetSalary: (employee: Addr
               <span className="font-mono text-caption" title={employee}>
                 {shortAddress(employee)}
               </span>
-              <HumanBadge address={employee} />
+              <EmployeeBadge worker={employee} employer={account} viewer="employer" />
             </div>
             <div className="flex gap-2">
               <Button onClick={() => onSetSalary(employee)} className="!px-4 !py-1.5 text-caption">

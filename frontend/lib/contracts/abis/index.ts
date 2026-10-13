@@ -2,7 +2,7 @@
 export { VeilPayrollAbi } from "./VeilPayroll";
 export { ApprovalPolicyAbi } from "./ApprovalPolicy";
 export { AuditRegistryAbi } from "./AuditRegistry";
-export { HumanRegistryAbi } from "./HumanRegistry";
+export { EmployeeRegistryAbi } from "./EmployeeRegistry";
 export { IncomeCredentialAbi } from "./IncomeCredential";
 export { JoinRequestsAbi } from "./JoinRequests";
 export { ConfidentialTokenAbi } from "./ConfidentialToken";

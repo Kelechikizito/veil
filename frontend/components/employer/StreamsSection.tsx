@@ -3,41 +3,21 @@
 import { useCofheClient } from "@cofhe/react";
 import { useState } from "react";
 import { decodeEventLog, isAddress, type Address } from "viem";
-import { useReadContract } from "wagmi";
 import { shortAddress } from "@/components/AuthButton";
+import { EmployeeBadge, VouchButton } from "@/components/Employment";
 import { Field, Input, Panel, PillPicker } from "@/components/forms";
 import { SecretValue } from "@/components/SecretValue";
 import { TxStatus } from "@/components/TxStatus";
 import { Badge, Button } from "@/components/ui";
 import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
-import { VeilPayrollAbi, HumanRegistryAbi } from "@/lib/contracts/abis";
+import { VeilPayrollAbi } from "@/lib/contracts/abis";
 import { encryptUint64 } from "@/lib/fhe";
 import { shortLink } from "@/lib/format";
 import { parseConfidential, type TokenKey } from "@/lib/tokens";
 import { JoinRequestsList } from "./JoinRequestsList";
 import { fundedThisPeriod, StreamStatus, statusLabel, useResolvePolicy, useStreamsOfPayer } from "./streams";
 import { useChainNow } from "@/components/worker/hooks";
-
-/** "✓ verified human" or "not verified", from HumanRegistry (07a). A hint against ghost employees, not a block. */
-export function HumanBadge({ address }: { address: Address | undefined }) {
-  const { d } = useVeil();
-  const { data } = useReadContract({
-    address: d?.humanRegistry,
-    abi: HumanRegistryAbi,
-    functionName: "isHuman",
-    args: address ? [address] : undefined,
-    query: { enabled: !!address && !!d },
-  });
-  if (data === undefined) return null;
-  return data ? (
-    <span className="rounded-lg bg-gloss-black px-2 py-0.5 text-caption text-gloss-white">✓ verified human</span>
-  ) : (
-    <span className="rounded-lg border-[1.5px] border-gloss-black/20 px-2 py-0.5 text-caption text-soft-charcoal">
-      not verified
-    </span>
-  );
-}
 
 const inviteKey = (payer: string) => `veil:invite-copied:${payer.toLowerCase()}`;
 
@@ -108,7 +88,7 @@ export function StreamsSection({ initialPayee }: { initialPayee?: string }) {
 }
 
 function CreateStreamForm({ initialPayee }: { initialPayee?: string }) {
-  const { d, tokens } = useVeil();
+  const { account, d, tokens } = useVeil();
   const cofhe = useCofheClient();
   const tx = useTx();
   const resolve = useResolvePolicy(tx);
@@ -181,7 +161,7 @@ function CreateStreamForm({ initialPayee }: { initialPayee?: string }) {
     >
       <h3 className="text-body">New stream</h3>
       <div className="grid gap-4 md:grid-cols-[1.4fr_auto_1fr]">
-        <Field label="Employee wallet" hint={payeeOk ? <HumanBadge address={payee.trim() as Address} /> : "They send it to you after signing up."}>
+        <Field label="Employee wallet" hint={payeeOk ? <EmployeeBadge worker={payee.trim() as Address} employer={account} viewer="employer" /> : "They send it to you after signing up."}>
           <Input value={payee} onChange={(e) => setPayee(e.target.value)} placeholder="0x…" spellCheck={false} />
         </Field>
         <Field label="Token">
@@ -204,7 +184,7 @@ function CreateStreamForm({ initialPayee }: { initialPayee?: string }) {
 }
 
 function StreamsTable() {
-  const { d, tokens } = useVeil();
+  const { account, d, tokens } = useVeil();
   const { rows, isLoading } = useStreamsOfPayer();
   const tx = useTx();
   const resolve = useResolvePolicy(tx);
@@ -239,7 +219,8 @@ function StreamsTable() {
                     <span className="font-mono" title={s.payee}>
                       {shortAddress(s.payee)}
                     </span>
-                    <HumanBadge address={s.payee} />
+                    <EmployeeBadge worker={s.payee} employer={account} viewer="employer" />
+                    {s.status !== StreamStatus.Cancelled && <VouchButton worker={s.payee} />}
                   </div>
                 </td>
                 <td className="py-3">{symbolOf(s.token)}</td>

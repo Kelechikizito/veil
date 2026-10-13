@@ -9,7 +9,7 @@ export const IncomeCredentialAbi = [
         "internalType": "address"
       },
       {
-        "name": "humanRegistry",
+        "name": "employeeRegistry",
         "type": "address",
         "internalType": "address"
       }
@@ -18,13 +18,13 @@ export const IncomeCredentialAbi = [
   },
   {
     "type": "function",
-    "name": "I_HUMAN_REGISTRY",
+    "name": "I_EMPLOYEE_REGISTRY",
     "inputs": [],
     "outputs": [
       {
         "name": "",
         "type": "address",
-        "internalType": "contract IHumanRegistry"
+        "internalType": "contract IEmployeeRegistry"
       }
     ],
     "stateMutability": "view"
@@ -147,7 +147,7 @@ export const IncomeCredentialAbi = [
             "internalType": "bool"
           },
           {
-            "name": "payeeIsHuman",
+            "name": "employeeVerified",
             "type": "bool",
             "internalType": "bool"
           },

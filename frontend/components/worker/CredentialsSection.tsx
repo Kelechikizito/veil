@@ -34,7 +34,7 @@ type Credential = {
   expiresAt: bigint;
   streamActiveSince: bigint;
   revoked: boolean;
-  payeeIsHuman: boolean;
+  employeeVerified: boolean;
   ok: `0x${string}`;
 };
 

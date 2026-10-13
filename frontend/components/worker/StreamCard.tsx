@@ -4,7 +4,7 @@ import { useCofheClient } from "@cofhe/react";
 import { useState } from "react";
 import { usePublicClient } from "wagmi";
 import { Field, Input } from "@/components/forms";
-import { HumanBadge } from "@/components/employer/StreamsSection";
+import { ConfirmEmployer, EmployeeBadge, useEmployment } from "@/components/Employment";
 import { StreamStatus, statusLabel, type StreamRow } from "@/components/employer/streams";
 import { TxStatus } from "@/components/TxStatus";
 import { Badge, Button } from "@/components/ui";
@@ -22,6 +22,7 @@ import { useLiveBalance, useOrgName, useUnsealed } from "./hooks";
 export function StreamCard({ stream, unlocked }: { stream: StreamRow; unlocked: boolean }) {
   const { tokens, d } = useVeil();
   const org = useOrgName(stream.payer) ?? "your employer";
+  const employment = useEmployment(stream.payee, stream.payer);
   const symbol = tokens.find((t) => t.wrapper.toLowerCase() === stream.token.toLowerCase())?.symbol ?? "";
   const monthly = useUnsealed(stream.monthly, unlocked);
   const withdrawn = useUnsealed(stream.withdrawn, unlocked);
@@ -44,7 +45,7 @@ export function StreamCard({ stream, unlocked }: { stream: StreamRow; unlocked: 
         <div className="flex items-center gap-3">
           {active && funded && <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-gloss-black" />}
           <span>Paid by {org}</span>
-          <HumanBadge address={stream.payee} />
+          <EmployeeBadge worker={stream.payee} employer={stream.payer} viewer="worker" />
         </div>
         <Badge>{statusLabel[stream.status]}</Badge>
       </header>
@@ -120,6 +121,17 @@ export function StreamCard({ stream, unlocked }: { stream: StreamRow; unlocked: 
 
       {unlocked && (stream.status === StreamStatus.Active || stream.status === StreamStatus.Cancelled) && (
         <WithdrawForm stream={stream} symbol={symbol} available={available} withdrawnBefore={withdrawn.data} />
+      )}
+
+      {stream.status !== StreamStatus.Cancelled && !employment.loading && employment.available && !employment.confirmed && (
+        <div className="flex flex-col gap-3 rounded-2xl bg-gloss-white p-6">
+          <span className="text-subheading">Confirm you work for {org}</span>
+          <span className="text-caption text-soft-charcoal">
+            One tap with Face ID, your fingerprint or your PIN. With {org}&apos;s vouch, your income proofs say
+            &ldquo;verified employee of {org}&rdquo;.
+          </span>
+          <ConfirmEmployer employer={stream.payer} employerName={org} />
+        </div>
       )}
     </article>
   );

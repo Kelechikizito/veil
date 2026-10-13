@@ -5,13 +5,13 @@ import { useEffect, useState } from "react";
 import QRCode from "react-qr-code";
 import { isAddress, type Address } from "viem";
 import { OnboardingWizard, StepIcon, type WizardStep } from "@/components/OnboardingWizard";
+import { ConfirmEmployer, useEmployment } from "@/components/Employment";
 import type { StepStatus } from "@/components/Stepper";
 import { Button } from "@/components/ui";
 import { useVeil } from "@/hooks/useVeil";
 import { markOnboarded } from "@/lib/routing";
 import { useOrgName, useStreamsOfPayee } from "./hooks";
 import { RequestPay, useHasRequested } from "./RequestPay";
-import { WorldIdVerify, useIsHuman } from "./WorldIdVerify";
 
 const localFlag = (account: string, name: string) => `veil:employee:${account.toLowerCase()}:${name}`;
 
@@ -40,7 +40,7 @@ export function EmployeeOnboarding({ org }: { org?: string }) {
   const { account } = useVeil();
   const orgAddress = org && isAddress(org) ? (org as Address) : undefined;
   const orgName = useOrgName(orgAddress);
-  const isHuman = useIsHuman();
+  const employment = useEmployment(account, orgAddress);
   const requested = useHasRequested(orgAddress);
   const { count } = useStreamsOfPayee(10_000);
   const [shared, setShared] = useState(() => readFlag(account, "shared-address"));
@@ -54,11 +54,11 @@ export function EmployeeOnboarding({ org }: { org?: string }) {
   }, [count, router]);
 
   // Decrypting needs a one-time signature; the worker app asks for it when it's first needed, not here
-  const done = { human: isHuman, address: requested || shared };
-  const order = ["human", "address", "wait"] as const;
-  // The Selfie Check is required: nothing after it opens until the wallet is a verified human
+  const done = { confirm: employment.confirmed, address: requested || shared };
+  // Confirming needs the employer's address, so it's a step only when the invite link names them
+  const order = orgAddress ? (["confirm", "address", "wait"] as const) : (["address", "wait"] as const);
   const activeKey = order.find((k) => (k === "wait" ? true : !done[k]));
-  const statusOf = (k: (typeof order)[number]): StepStatus =>
+  const statusOf = (k: "confirm" | "address" | "wait"): StepStatus =>
     k !== "wait" && done[k] ? "done" : k === activeKey ? "active" : "todo";
 
   const steps: WizardStep[] = [
@@ -69,20 +69,24 @@ export function EmployeeOnboarding({ org }: { org?: string }) {
       icon: <StepIcon name="key" />,
       status: "done",
     },
-    {
-      key: "human",
-      title: "Verify you're human",
-      help: "Required. A quick World ID Selfie Check proves you're a real person without sharing who you are. Your employer and landlords see the ✓ human badge.",
-      bullets: ["Selfie Check in World App, no Orb needed", "Once, and permanent: no repeat checks", "Your face and name never leave World App"],
-      icon: <StepIcon name="human" />,
-      status: statusOf("human"),
-      content: <WorldIdVerify />,
-    },
+    ...(orgAddress
+      ? [
+          {
+            key: "confirm",
+            title: orgName ? `Confirm you work for ${orgName}` : "Confirm your employer",
+            help: "One tap with a passkey. Once your employer vouches for you too, landlords see you're a verified employee.",
+            bullets: ["Face ID, your fingerprint or your PIN", "Your passkey stays on your device", "Lose your phone and your confirmations stay"],
+            icon: <StepIcon name="human" />,
+            status: statusOf("confirm"),
+            content: <ConfirmEmployer employer={orgAddress} employerName={orgName} />,
+          },
+        ]
+      : []),
     {
       key: "address",
       title: orgName ? `Ask ${orgName} to pay you` : "Ask your employer to pay you",
       help: "One tap puts you in your employer's console. They set your salary there. No addresses to copy.",
-      bullets: ["Your employer sees your wallet and your ✓ human badge", "They set your salary from their console"],
+      bullets: ["Your employer sees your wallet and whether you confirmed", "They set your salary from their console"],
       icon: <StepIcon name="wallet" />,
       status: statusOf("address"),
       content: account && (

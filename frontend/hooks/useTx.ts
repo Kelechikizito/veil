@@ -39,10 +39,13 @@ export function shortError(e: unknown): string {
   if (/insufficient funds/i.test(text)) {
     return "Your wallet has no ETH for gas. Send it a little testnet ETH (0.005 is plenty), then try again.";
   }
-  // Privy's embedded wallet signs only with a live login session; it expires during long detours (World App, idle tabs)
   if (/FHERC20ZeroBalance/.test(text)) {
     return "This wallet has none of that confidential token yet. Withdraw your salary first, then cash out.";
   }
+  if (/EmployeeRegistry__BadPasskeySignature/.test(text)) {
+    return "That passkey didn't check out. Try again, and use the passkey you made for Veil.";
+  }
+  // Privy's embedded wallet signs only with a live login session; it expires during long detours and idle tabs
   if (/invalid auth token|session.*expired|not authenticated/i.test(text)) {
     return "Your login session expired. Log out, log back in with the same account, then try again.";
   }

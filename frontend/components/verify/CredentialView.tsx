@@ -27,7 +27,7 @@ type Credential = {
   expiresAt: bigint;
   streamActiveSince: bigint;
   revoked: boolean;
-  payeeIsHuman: boolean;
+  employeeVerified: boolean;
   ok: Hex;
 };
 
@@ -112,7 +112,11 @@ export function CredentialView({ id }: { id: string }) {
         <Stat label="Expires">{formatTime(c.expiresAt)}</Stat>
         <Stat label="Issued to">{shortAddress(c.verifier)}</Stat>
         <Stat label="Issuer">
-          {c.payeeIsHuman ? "✓ Issued by a verified human (World ID)" : <span className="text-soft-charcoal">Issuer not verified as a unique human</span>}
+          {c.employeeVerified ? (
+            `✓ Verified employee of ${orgName ?? shortAddress(c.payer)}`
+          ) : (
+            <span className="text-soft-charcoal">Employment not verified by both sides</span>
+          )}
         </Stat>
       </div>
 
