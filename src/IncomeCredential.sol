@@ -6,7 +6,7 @@ pragma solidity 0.8.25;
 //////////////////////////////////////////////////////////////*/
 import {FHE, ebool} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
-import {IHumanRegistry} from "src/interfaces/IHumanRegistry.sol";
+import {IEmployeeRegistry} from "src/interfaces/IEmployeeRegistry.sol";
 import {IIncomeCredential} from "src/interfaces/IIncomeCredential.sol";
 
 /*//////////////////////////////////////////////////////////////
@@ -52,8 +52,8 @@ contract IncomeCredential is IIncomeCredential {
     /// @notice Payroll, which owns the streams and shares `monthly` with this contract
     IVeilPayroll public immutable I_PAYROLL;
 
-    /// @notice World ID registry, read at issue time for the "verified human" flag
-    IHumanRegistry public immutable I_HUMAN_REGISTRY;
+    /// @notice Employee registry, read at issue time for the "verified employee" flag
+    IEmployeeRegistry public immutable I_EMPLOYEE_REGISTRY;
 
     /// @notice Credentials by id; ids start at 1
     mapping(uint256 id => Credential credential) private s_credentials;
@@ -73,12 +73,12 @@ contract IncomeCredential is IIncomeCredential {
 
     /// @notice Sets payroll and the human registry
     /// @param payroll The payroll contract
-    /// @param humanRegistry The World ID registry
-    constructor(address payroll, address humanRegistry) {
+    /// @param employeeRegistry The employee registry
+    constructor(address payroll, address employeeRegistry) {
         if (payroll == address(0)) revert IncomeCredential__ZeroAddress();
-        if (humanRegistry == address(0)) revert IncomeCredential__ZeroAddress();
+        if (employeeRegistry == address(0)) revert IncomeCredential__ZeroAddress();
         I_PAYROLL = IVeilPayroll(payroll);
-        I_HUMAN_REGISTRY = IHumanRegistry(humanRegistry);
+        I_EMPLOYEE_REGISTRY = IEmployeeRegistry(employeeRegistry);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -115,7 +115,7 @@ contract IncomeCredential is IIncomeCredential {
             expiresAt: expiresAt,
             streamActiveSince: s.startTime,
             revoked: false,
-            payeeIsHuman: I_HUMAN_REGISTRY.isHuman(msg.sender),
+            employeeVerified: I_EMPLOYEE_REGISTRY.isVerified(msg.sender, s.payer),
             ok: ok
         });
         s_payeeCredentials[msg.sender].push(id);

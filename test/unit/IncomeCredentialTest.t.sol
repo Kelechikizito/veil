@@ -7,10 +7,12 @@ pragma solidity 0.8.25;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {FHE, ebool, externalEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 import {VeilPayroll} from "src/VeilPayroll.sol";
-import {HumanRegistry} from "src/HumanRegistry.sol";
+import {EmployeeRegistry} from "src/EmployeeRegistry.sol";
 import {IncomeCredential} from "src/IncomeCredential.sol";
 import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
 import {IIncomeCredential} from "src/interfaces/IIncomeCredential.sol";
+import {WebAuthn} from "src/libraries/WebAuthn.sol";
+import {Passkeys} from "../utils/Passkeys.sol";
 import {PayrollTestBase} from "../utils/PayrollTestBase.sol";
 
 /*//////////////////////////////////////////////////////////////
@@ -31,11 +33,11 @@ contract IncomeCredentialTest is PayrollTestBase {
     /// @notice Contract under test
     IncomeCredential internal credential;
 
-    /// @notice World ID registry the credential reads
-    HumanRegistry internal humanRegistry;
+    /// @notice Employee registry the credential reads
+    EmployeeRegistry internal employeeRegistry;
 
-    /// @notice Test-only attester key for `humanRegistry`
-    uint256 internal constant ATTESTER_PKEY = 0xA77E57;
+    /// @notice Alice's passkey
+    uint256 internal constant ALICE_PASSKEY = 0xA11CE;
 
     /// @notice The address alice issues credentials to
     address internal verifier;
@@ -50,15 +52,15 @@ contract IncomeCredentialTest is PayrollTestBase {
                                  SETUP
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deploys the human registry and the credential, wires it into payroll, and starts alice's stream
+    /// @notice Deploys the employee registry and the credential, wires it into payroll, and starts alice's stream
     function setUp() public override {
         super.setUp();
         verifier = makeAddr("verifier");
 
-        humanRegistry = new HumanRegistry(vm.addr(ATTESTER_PKEY));
-        credential = new IncomeCredential(address(payroll), address(humanRegistry));
+        employeeRegistry = new EmployeeRegistry();
+        credential = new IncomeCredential(address(payroll), address(employeeRegistry));
         payroll.setCredential(address(credential));
-        vm.label(address(humanRegistry), "HumanRegistry");
+        vm.label(address(employeeRegistry), "EmployeeRegistry");
         vm.label(address(credential), "IncomeCredential");
 
         streamId = _createActiveStream(tUsdc, MONTHLY);
@@ -89,25 +91,14 @@ contract IncomeCredentialTest is PayrollTestBase {
         return credential.get(id).ok;
     }
 
-    /// @notice Registers alice in the human registry with a signed attestation
-    function _registerAliceAsHuman() internal {
-        uint64 deadline = uint64(block.timestamp + 10 minutes);
-        bytes32 domainSeparator = keccak256(
-            abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256("Veil HumanRegistry"),
-                keccak256("1"),
-                block.chainid,
-                address(humanRegistry)
-            )
-        );
-        bytes32 structHash = keccak256(
-            abi.encode(keccak256("Attestation(address account,uint256 nullifier,uint64 deadline)"), alice, 1, deadline)
-        );
-        (uint8 v, bytes32 r, bytes32 s) =
-            vm.sign(ATTESTER_PKEY, keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash)));
+    /// @notice Alice confirms `employer` with her passkey
+    /// @param employer The employer
+    function _confirmAlice(address employer) internal {
+        // Build the assertion before the prank: its sha256 calls would use the prank up
+        WebAuthn.Assertion memory assertion =
+            Passkeys.sign(ALICE_PASSKEY, employeeRegistry.challengeOf(alice, employer));
         vm.prank(alice);
-        humanRegistry.register(1, deadline, abi.encodePacked(r, s, v));
+        employeeRegistry.confirm(employer, Passkeys.publicKey(ALICE_PASSKEY), assertion);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -275,18 +266,29 @@ contract IncomeCredentialTest is PayrollTestBase {
     }
 
     /*//////////////////////////////////////////////////////////////
-                              WORLD ID
+                           VERIFIED EMPLOYEE
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice 9. `payeeIsHuman` reflects the registry at issue time; unregistered payees can still issue
-    function test_issue_payeeIsHuman() public {
+    /// @notice 9. `employeeVerified` needs the stream's payer to vouch and alice to confirm, read at issue time
+    function test_issue_employeeVerified() public {
         uint256 before = _issue(streamId, 2500e6);
-        assertFalse(credential.get(before).payeeIsHuman);
+        assertFalse(credential.get(before).employeeVerified);
 
-        _registerAliceAsHuman();
-        uint256 afterRegister = _issue(streamId, 2500e6);
-        assertTrue(credential.get(afterRegister).payeeIsHuman);
-        assertFalse(credential.get(before).payeeIsHuman); // stored at issue time
+        // A vouch from someone who doesn't pay alice doesn't count
+        address stranger = makeAddr("stranger");
+        vm.prank(stranger);
+        employeeRegistry.vouch(alice);
+        _confirmAlice(stranger);
+        assertFalse(credential.get(_issue(streamId, 2500e6)).employeeVerified);
+
+        vm.prank(employer);
+        employeeRegistry.vouch(alice);
+        assertFalse(credential.get(_issue(streamId, 2500e6)).employeeVerified);
+
+        _confirmAlice(employer);
+        uint256 verified = _issue(streamId, 2500e6);
+        assertTrue(credential.get(verified).employeeVerified);
+        assertFalse(credential.get(before).employeeVerified); // stored at issue time
     }
 
     /*//////////////////////////////////////////////////////////////

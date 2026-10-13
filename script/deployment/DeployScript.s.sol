@@ -15,7 +15,7 @@ import {ConfidentialNative} from "src/ConfidentialNative.sol";
 import {AuditRegistry} from "src/AuditRegistry.sol";
 import {ApprovalPolicy} from "src/ApprovalPolicy.sol";
 import {VeilPayroll} from "src/VeilPayroll.sol";
-import {HumanRegistry} from "src/HumanRegistry.sol";
+import {EmployeeRegistry} from "src/EmployeeRegistry.sol";
 import {IncomeCredential} from "src/IncomeCredential.sol";
 import {JoinRequests} from "src/JoinRequests.sol";
 
@@ -28,7 +28,7 @@ import {JoinRequests} from "src/JoinRequests.sol";
  * @author Kelechi Kizito Ugwu
  * @notice Deploys and wires every Veil contract on Monad testnet or Base Sepolia.
  * @dev Signer comes from `--account`, never from a private key in env. Writes `deployments/<chainId>.json`.
- *      Env: `ATTESTER` (required, an address), `DEMO_PERIOD` (optional, seconds; default 30 days),
+ *      Env: `DEMO_PERIOD` (optional, seconds; default 30 days),
  *      `WETH` (optional; defaults to the chain's canonical WETH).
  *      `deploy` is public so fork tests can run the exact same wiring without broadcasting.
  */
@@ -54,7 +54,7 @@ contract DeployScript is Script {
         address auditRegistry;
         address approvalPolicy;
         address payroll;
-        address humanRegistry;
+        address employeeRegistry;
         address incomeCredential;
         address joinRequests;
     }
@@ -78,11 +78,10 @@ contract DeployScript is Script {
     /// @return d The deployed addresses
     function run() external returns (Deployment memory d) {
         uint64 period = uint64(vm.envOr("DEMO_PERIOD", uint256(30 days)));
-        address attester = vm.envAddress("ATTESTER");
         address weth = vm.envOr("WETH", wethFor(block.chainid));
 
         vm.startBroadcast();
-        d = deploy(period, attester, weth);
+        d = deploy(period, weth);
         vm.stopBroadcast();
 
         if (vm.isContext(VmSafe.ForgeContext.ScriptBroadcast)) _write(d, period);
@@ -94,10 +93,9 @@ contract DeployScript is Script {
 
     /// @notice Deploys and wires everything. The caller (broadcaster or test) becomes the owner.
     /// @param period Length of one pay period in seconds
-    /// @param attester Address of the World ID backend attester key
     /// @param weth The chain's WETH, wrapped by cETH
     /// @return d The deployed addresses
-    function deploy(uint64 period, address attester, address weth) public returns (Deployment memory d) {
+    function deploy(uint64 period, address weth) public returns (Deployment memory d) {
         // Demo tokens anyone can mint
         d.usdc = address(new ERC20_Harness("USD Coin", "USDC", 6));
         d.arb = address(new ERC20_Harness("Arbitrum", "ARB", 18));
@@ -111,8 +109,8 @@ contract DeployScript is Script {
         d.auditRegistry = address(new AuditRegistry());
         d.approvalPolicy = address(new ApprovalPolicy());
         d.payroll = address(new VeilPayroll(d.approvalPolicy, d.auditRegistry, period));
-        d.humanRegistry = address(new HumanRegistry(attester));
-        d.incomeCredential = address(new IncomeCredential(d.payroll, d.humanRegistry));
+        d.employeeRegistry = address(new EmployeeRegistry());
+        d.incomeCredential = address(new IncomeCredential(d.payroll, d.employeeRegistry));
         d.joinRequests = address(new JoinRequests(d.payroll));
 
         // Wiring: one-shot setters first, so every stream gets the credential
@@ -153,7 +151,7 @@ contract DeployScript is Script {
         vm.serializeAddress(k, "auditRegistry", d.auditRegistry);
         vm.serializeAddress(k, "approvalPolicy", d.approvalPolicy);
         vm.serializeAddress(k, "payroll", d.payroll);
-        vm.serializeAddress(k, "humanRegistry", d.humanRegistry);
+        vm.serializeAddress(k, "employeeRegistry", d.employeeRegistry);
         vm.serializeAddress(k, "incomeCredential", d.incomeCredential);
         string memory json = vm.serializeAddress(k, "joinRequests", d.joinRequests);
         vm.writeJson(json, string.concat("deployments/", vm.toString(block.chainid), ".json"));

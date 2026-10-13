@@ -12,7 +12,7 @@ import {AuditRegistry} from "src/AuditRegistry.sol";
 import {ConfidentialNative} from "src/ConfidentialNative.sol";
 import {ConfidentialToken} from "src/ConfidentialToken.sol";
 import {VeilPayroll} from "src/VeilPayroll.sol";
-import {HumanRegistry} from "src/HumanRegistry.sol";
+import {EmployeeRegistry} from "src/EmployeeRegistry.sol";
 import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
 
 /*//////////////////////////////////////////////////////////////
@@ -187,13 +187,13 @@ contract InteractionsScript is Script {
         console.log("Removed token:", token);
     }
 
-    /// @notice Rotates the World ID attester key. HumanRegistry owner only.
-    /// @param attester The new attester address
-    function setAttester(address attester) external {
+    /// @notice Vouches that `worker` works for you. They confirm with a passkey in the app.
+    /// @param worker The worker's wallet
+    function vouch(address worker) external {
         vm.startBroadcast();
-        HumanRegistry(_addr("humanRegistry")).setAttester(attester);
+        EmployeeRegistry(_addr("employeeRegistry")).vouch(worker);
         vm.stopBroadcast();
-        console.log("Attester set:", attester);
+        console.log("Vouched for:", worker);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -222,7 +222,7 @@ contract InteractionsScript is Script {
         console.log("  streams as payee:", payroll.streamsOfPayee(who).length);
         console.log("  has policy:", policy.hasPolicy(who));
         console.log("  auditors:", AuditRegistry(_addr("auditRegistry")).auditorCount(who));
-        console.log("  verified human:", HumanRegistry(_addr("humanRegistry")).isHuman(who));
+        console.log("  passkey set:", EmployeeRegistry(_addr("employeeRegistry")).passkeyOf(who).x != bytes32(0));
         console.log("  USDC (6 dp):", ERC20_Harness(_addr("usdc")).balanceOf(who));
         console.log("  ARB (18 dp):", ERC20_Harness(_addr("arb")).balanceOf(who));
     }

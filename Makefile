@@ -91,7 +91,7 @@ sizes: ## Compile and print contract sizes against the 24KB limit
 # foundry.toml raises code_size_limit for the CoFHE mocks, so forge never enforces EIP-170 itself.
 # This checks the contracts that actually go onchain against the real 24,576-byte limit.
 DEPLOYED := ApprovalPolicy AuditRegistry ConfidentialNative ConfidentialToken VeilPayroll ERC20ConfidentialLib \
-            ERC20_Harness HumanRegistry IncomeCredential JoinRequests
+            ERC20_Harness EmployeeRegistry IncomeCredential JoinRequests
 
 .PHONY: check-sizes
 check-sizes: ## Fail if any deployed contract is over the 24,576-byte EIP-170 limit
@@ -137,9 +137,6 @@ test-fork: check-chain ## Run the fork tests on CHAIN
 #   make deploy                       # same as make deploy-base
 #   make export-abis
 #   make test-fork
-#
-# ATTESTER (07a) is read from .env and is immutable until
-# setAttester, so check it before deploying.
 
 .PHONY: check-deployer
 check-deployer: check-SENDER ## Confirm the ACCOUNT keystore signs as SENDER (asks for the password)
@@ -268,9 +265,9 @@ add-token: check-chain check-SENDER check-TOKEN ## Allowlist another wrapper, ow
 remove-token: check-chain check-SENDER check-TOKEN ## Remove a wrapper from the allowlist, owner only (TOKEN=0x...)
 	forge script $(INTERACT) --sig "removeToken(address)" $(TOKEN) $(BROADCAST)
 
-.PHONY: set-attester
-set-attester: check-chain check-SENDER check-NEW_ATTESTER ## Rotate the World ID attester, owner only (NEW_ATTESTER=0x...)
-	forge script $(INTERACT) --sig "setAttester(address)" $(NEW_ATTESTER) $(BROADCAST)
+.PHONY: vouch
+vouch: check-chain check-SENDER check-WORKER ## Vouch that a worker works for you (WORKER=0x...)
+	forge script $(INTERACT) --sig "vouch(address)" $(WORKER) $(BROADCAST)
 
 .PHONY: status
 status: check-chain check-WHO ## Print the deployment's wiring and an account's state (WHO=0x..., default you)

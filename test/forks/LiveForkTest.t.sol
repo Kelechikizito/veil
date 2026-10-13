@@ -13,7 +13,6 @@ import {ApprovalPolicy} from "src/ApprovalPolicy.sol";
 import {ConfidentialNative} from "src/ConfidentialNative.sol";
 import {ConfidentialToken} from "src/ConfidentialToken.sol";
 import {VeilPayroll} from "src/VeilPayroll.sol";
-import {HumanRegistry} from "src/HumanRegistry.sol";
 import {IncomeCredential} from "src/IncomeCredential.sol";
 import {JoinRequests} from "src/JoinRequests.sol";
 import {DeployScript} from "script/deployment/DeployScript.s.sol";
@@ -45,9 +44,6 @@ contract LiveForkTest is Test {
     /// @notice Pay period for the fresh deployment
     uint64 internal constant PERIOD = 600;
 
-    /// @notice Stand-in attester
-    address internal attester = makeAddr("attester");
-
     /// @notice A worker
     address internal alice = makeAddr("alice");
 
@@ -62,7 +58,7 @@ contract LiveForkTest is Test {
             return;
         }
         deployer = new DeployScript();
-        d = deployer.deploy(PERIOD, attester, deployer.wethFor(block.chainid));
+        d = deployer.deploy(PERIOD, deployer.wethFor(block.chainid));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -82,14 +78,12 @@ contract LiveForkTest is Test {
         assertTrue(payroll.s_supportedTokens(IFHERC20(d.carb)));
         assertTrue(payroll.s_supportedTokens(IFHERC20(d.ceth)));
 
-        assertEq(HumanRegistry(d.humanRegistry).attester(), attester);
         assertEq(address(IncomeCredential(d.incomeCredential).I_PAYROLL()), d.payroll);
-        assertEq(address(IncomeCredential(d.incomeCredential).I_HUMAN_REGISTRY()), d.humanRegistry);
+        assertEq(address(IncomeCredential(d.incomeCredential).I_EMPLOYEE_REGISTRY()), d.employeeRegistry);
         assertEq(address(JoinRequests(d.joinRequests).I_PAYROLL()), d.payroll);
 
         assertEq(Ownable(d.payroll).owner(), address(deployer));
         assertEq(Ownable(d.approvalPolicy).owner(), address(deployer));
-        assertEq(Ownable(d.humanRegistry).owner(), address(deployer));
     }
 
     /// @notice Wrapper decimals match the 6-decimal confidential units

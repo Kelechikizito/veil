@@ -26,7 +26,7 @@ interface IIncomeCredential {
         uint64 expiresAt;
         uint64 streamActiveSince;
         bool revoked;
-        bool payeeIsHuman; // HumanRegistry.isHuman(payee) at issue time (07a)
+        bool employeeVerified; // EmployeeRegistry.isVerified(payee, payer) at issue time
         ebool ok; // encrypted `monthly >= threshold`; only the verifier can decrypt it
     }
 

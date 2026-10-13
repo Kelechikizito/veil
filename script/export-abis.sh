@@ -15,7 +15,7 @@ CONTRACTS=(
   VeilPayroll
   ApprovalPolicy
   AuditRegistry
-  HumanRegistry
+  EmployeeRegistry
   IncomeCredential
   JoinRequests
   ConfidentialToken
