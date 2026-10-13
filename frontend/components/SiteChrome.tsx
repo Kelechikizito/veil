@@ -1,85 +1,135 @@
 import Link from "next/link";
 import { AuthButton } from "./AuthButton";
+import { SoundToggle } from "./SoundToggle";
+import { Ribbon, Sticker } from "./Stickers";
 import { Container } from "./ui";
 
-/** Top strip: the one place we state the network status */
-export function AnnouncementBar() {
+const MARQUEE = [
+  "Payroll by the second",
+  "Testnet demo on Monad",
+  "Paid to one-time addresses",
+  "Withdraw without gas",
+  "Income proofs that expire",
+];
+
+/** Black strip at the very top: the one place we state the network status. Scrolls on a loop. */
+export function Marquee() {
+  // Two identical halves so the -50% loop is seamless
+  const items = [...MARQUEE, ...MARQUEE];
   return (
-    <div className="bg-gloss-black py-3 text-center text-caption text-gloss-white">
-      Testnet demo on Monad ·{" "}
-      <a href="#private" className="underline underline-offset-4">
-        What stays private →
-      </a>
+    <div className="overflow-hidden bg-carbon text-paper-white" aria-label="Testnet demo on Monad">
+      <div aria-hidden className="marquee-track flex w-max">
+        {items.map((m, i) => (
+          <span key={i} className="label-type flex items-center gap-6 py-2 pr-6 text-caption whitespace-nowrap uppercase">
+            {m}
+            <span>✦</span>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
 
-/**
- * Minimal top bar: wordmark and links left, auth right.
- * @param overlay Transparent with white text, floating over the hero video
- */
-export function SiteHeader({ overlay = false }: { overlay?: boolean }) {
-  const link = overlay ? "px-2 text-pure-white/90 hover:text-pure-white" : "px-2 hover:text-soft-charcoal";
+const NAV = [
+  { href: "/#how", label: "How it works" },
+  { href: "/#roles", label: "Who it's for" },
+  { href: "/audit", label: "Auditors" },
+  { href: "/#roadmap", label: "Roadmap" },
+];
+
+/** Logo mark: a round outlined "V" badge */
+function LogoMark() {
   return (
-    <header className={overlay ? "absolute inset-x-0 top-0 z-20" : "bg-pure-white"}>
-      <Container className="flex h-20 items-center justify-between">
-        <div className="flex items-center gap-8">
-          <Link
-            href="/"
-            className={`text-subheading font-medium tracking-[0.2em] uppercase ${overlay ? "text-pure-white" : ""}`}
-          >
-            Veil
-          </Link>
-          <nav className="hidden items-center gap-2 md:flex">
-            <Link href="/#how" className={link}>
-              How it works
-            </Link>
-            <Link href="/#roles" className={link}>
-              Who it&apos;s for
-            </Link>
-            <Link href="/audit" className={link}>
-              Auditors
-            </Link>
-            <Link href="/#roadmap" className={link}>
-              Roadmap
-            </Link>
-          </nav>
-        </div>
-        <AuthButton onDark={overlay} />
-      </Container>
-    </header>
+    <Link
+      href="/"
+      aria-label="Veil home"
+      data-cuelume-navigate=""
+      className="flex h-11 w-11 items-center justify-center rounded-nav border border-carbon bg-paper-white font-lateral text-[22px] leading-none hover:bg-soft-mist"
+    >
+      V
+    </Link>
   );
 }
 
-/** Ink footer */
+/** Top bar: logo left, pill nav center, auth right. Sits on whatever band is below it. */
+export function SiteHeader({ className = "bg-sky-wash" }: { className?: string }) {
+  return (
+    <>
+      <Marquee />
+      <header className={className}>
+        <Container className="flex h-20 items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <LogoMark />
+            <Link href="/" className="label-type hidden text-[14px] uppercase sm:inline">
+              Veil
+            </Link>
+          </div>
+          <nav className="hidden items-center gap-1 md:flex">
+            {NAV.map((n) => (
+              <Link
+                key={n.href}
+                href={n.href}
+                data-cuelume-navigate=""
+                className="label-type rounded-nav border border-carbon bg-paper-white px-3 py-[13px] text-[13px] leading-none uppercase hover:bg-soft-mist"
+              >
+                {n.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="flex items-center gap-2">
+            <SoundToggle />
+            <AuthButton />
+          </div>
+        </Container>
+      </header>
+    </>
+  );
+}
+
+/** Black footer: links, then the wordmark at poster size with a ribbon looping under it */
 export function SiteFooter() {
   return (
-    <footer className="mt-auto bg-gloss-black py-16 text-gloss-white">
-      <Container className="flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
-        <div className="flex flex-col gap-3">
-          <span className="font-classic text-heading">Veil</span>
-          <p className="max-w-sm text-caption text-mid-grey">
-            Payroll on Monad testnet. Not audited; don&apos;t use real funds.
-          </p>
-        </div>
-        <nav className="flex flex-wrap gap-x-8 gap-y-3 text-caption">
-          <Link href="/employer" className="hover:text-pure-white/70">
-            Employer console
-          </Link>
-          <Link href="/worker" className="hover:text-pure-white/70">
-            Worker app
-          </Link>
-          <Link href="/approvals" className="hover:text-pure-white/70">
-            Approvals
-          </Link>
-          <Link href="/audit" className="hover:text-pure-white/70">
-            Auditor view
-          </Link>
-          <a href="https://docs.monad.xyz" className="hover:text-pure-white/70">
-            Monad
+    <footer className="relative mt-auto overflow-hidden bg-carbon pt-16 text-paper-white">
+      <Container className="relative z-10 flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
+        <p className="max-w-sm text-caption text-paper-white/70">
+          Payroll on Monad testnet. Not audited; don&apos;t use real funds.
+        </p>
+        <nav className="flex flex-wrap gap-2">
+          {[
+            ["/employer", "Employer console"],
+            ["/worker", "Worker app"],
+            ["/approvals", "Approvals"],
+            ["/audit", "Auditor view"],
+          ].map(([href, label]) => (
+            <Link
+              key={href}
+              href={href}
+              data-cuelume-navigate=""
+              className="label-type rounded-nav border border-paper-white px-3 py-2.5 text-caption uppercase hover:bg-paper-white/10"
+            >
+              {label}
+            </Link>
+          ))}
+          <a
+            href="https://docs.monad.xyz"
+            data-cuelume-navigate=""
+            className="label-type rounded-nav border border-paper-white px-3 py-2.5 text-caption uppercase hover:bg-paper-white/10"
+          >
+            Monad ↗
           </a>
         </nav>
       </Container>
+      <div className="relative mt-12 h-[44vw] max-h-[420px] min-h-[160px]">
+        <Ribbon variant="loop" className="opacity-90" />
+        <span
+          aria-hidden
+          className="display-type absolute inset-x-0 bottom-[-0.12em] z-10 text-center text-[38vw] text-paper-white xl:text-display-lg"
+        >
+          Veil
+        </span>
+        <Sticker kind="coin" size={96} rotate={-14} className="absolute top-4 left-[8%] z-20" />
+        <Sticker kind="lock" size={80} rotate={12} className="absolute top-10 right-[10%] z-20" />
+      </div>
     </footer>
   );
 }

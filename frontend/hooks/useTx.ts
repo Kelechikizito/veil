@@ -6,7 +6,9 @@ import { useCallback, useState } from "react";
 import { BaseError, ContractFunctionRevertedError, encodeFunctionData, type Hex, type TransactionReceipt } from "viem";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 import type { TxStage } from "@/components/TxStatus";
+import { cue } from "@/lib/sound";
 import { addTx } from "@/lib/txLog";
+import { isEmbeddedWallet } from "@/lib/wallets";
 
 // wagmi's un-narrowed param type has `value: undefined`; replace it so payable calls type-check
 type WriteParams = Omit<Parameters<ReturnType<typeof useWriteContract>["writeContractAsync"]>[0], "value"> & {
@@ -25,7 +27,7 @@ export function useGasSponsored(): boolean {
   const { wallets } = useWallets();
   return (
     SPONSOR_GAS &&
-    wallets.some((w) => w.walletClientType === "privy" && w.address.toLowerCase() === address?.toLowerCase())
+    wallets.some((w) => isEmbeddedWallet(w) && w.address.toLowerCase() === address?.toLowerCase())
   );
 }
 
@@ -78,6 +80,7 @@ function fullText(e: unknown): string {
  * signing → confirming → done | error.
  * On success, every contract read is refetched so the UI shows the new state.
  * With a `log` scope, each confirmed transaction is kept for TxLinks (lib/txLog).
+ * Plays the success or error cue when it settles.
  */
 export function useTx(log?: string) {
   const { address, chainId } = useAccount();
@@ -146,11 +149,13 @@ export function useTx(log?: string) {
         if (log) addTx(address, log, { label: opts.label ?? "Transaction", hash: txHash });
 
         await queryClient.invalidateQueries();
+        cue("success", "strong");
         if (!opts.keepOpen) setStage("done");
         return receipt;
       } catch (e) {
         console.error("[veil] transaction failed", e);
         setError(shortError(e));
+        cue("error");
         setStage("error");
         return undefined;
       }

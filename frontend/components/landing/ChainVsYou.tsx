@@ -18,22 +18,26 @@ const TXS: { action: string; from: string; to?: string; amount: string; age: str
 
 function Ledger({ title, caption, revealed, shown }: { title: string; caption: string; revealed: boolean; shown: number }) {
   return (
-    <div className={`flex flex-col gap-6 rounded-2xl p-6 md:p-8 ${revealed ? "bg-gloss-white" : "bg-gloss-black text-gloss-white"}`}>
+    <div
+      className={`flex flex-col gap-6 rounded-cards-elevated border border-carbon p-6 md:p-8 ${
+        revealed ? "bg-lavender" : "bg-carbon text-paper-white"
+      }`}
+    >
       <div className="flex flex-col gap-1">
-        <span className={`text-caption uppercase tracking-[0.063em] text-mid-grey`}>{caption}</span>
-        <h3 className="text-heading-sm">{title}</h3>
+        <span className={`label-type text-caption uppercase ${revealed ? "" : "text-paper-white/60"}`}>{caption}</span>
+        <h3 className="text-heading-sm font-bold">{title}</h3>
       </div>
       <ul className="flex flex-col">
         {TXS.map((tx, i) => (
           <li
             key={i}
-            className={`grid grid-cols-[1fr_auto] items-baseline gap-x-4 gap-y-1 border-t-[1.5px] py-4 transition-all duration-500 ${
-              revealed ? "border-gloss-black" : "border-gloss-white/20"
+            className={`grid grid-cols-[1fr_auto] items-baseline gap-x-4 gap-y-1 border-t py-4 transition-all duration-500 ${
+              revealed ? "border-carbon" : "border-paper-white/30"
             } ${i < shown ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"}`}
           >
             <span className="font-mono text-caption">{tx.action}</span>
-            <span className="text-caption text-mid-grey">{tx.age} ago</span>
-            <span className={`text-caption ${revealed ? "text-soft-charcoal" : "text-gloss-white/70"}`}>
+            <span className={`text-caption ${revealed ? "text-carbon/55" : "text-paper-white/60"}`}>{tx.age} ago</span>
+            <span className={`text-caption ${revealed ? "text-carbon/70" : "text-paper-white/70"}`}>
               {tx.from}
               {tx.to && (
                 <>

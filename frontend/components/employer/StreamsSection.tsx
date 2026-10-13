@@ -48,8 +48,8 @@ export function InviteLink({ onCopied }: { onCopied?: () => void }) {
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg bg-gloss-white p-5">
-      <span className="text-caption text-mid-grey">Invite link: no salary, no secret, just your org</span>
+    <div className="flex flex-col gap-3 rounded-cards border border-carbon bg-lavender p-5">
+      <span className="text-caption text-carbon/55">Invite link: no salary, no secret, just your org</span>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <code className="flex-1 font-mono text-caption" title={link}>
           {shortLink(link)}
@@ -154,7 +154,7 @@ function CreateStreamForm({ initialPayee }: { initialPayee?: string }) {
   return (
     <form
       id="new-stream"
-      className="flex flex-col gap-4 border-t-[1.5px] border-gloss-black pt-6"
+      className="flex flex-col gap-4 border-t border-carbon pt-6"
       onSubmit={(e) => {
         e.preventDefault();
         if (valid) void create();
@@ -212,8 +212,8 @@ function StreamsTable() {
   const symbolOf = (address: Address) => tokenOf(address)?.symbol ?? "?";
   const amount = (units: bigint, address: Address) => `${formatAmount(units, tokenOf(address)?.decimals)} ${symbolOf(address)}`;
 
-  if (isLoading) return <p className="text-caption text-mid-grey">Loading streams…</p>;
-  if (rows.length === 0) return <p className="text-caption text-mid-grey">No streams yet.</p>;
+  if (isLoading) return <p className="text-caption text-carbon/55">Loading streams…</p>;
+  if (rows.length === 0) return <p className="text-caption text-carbon/55">No streams yet.</p>;
 
   const cancel = (id: bigint) =>
     tx.run(() => ({ address: d!.payroll, abi: VeilPayrollAbi, functionName: "cancelStream", args: [id] }));
@@ -222,7 +222,7 @@ function StreamsTable() {
     <div className="flex flex-col gap-4">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-caption">
-          <thead className="text-mid-grey">
+          <thead className="text-carbon/55">
             <tr>
               {["#", "Employee", "Token", "Status", "Monthly", "This period", "Started", ""].map((h) => (
                 <th key={h} className="pb-3 font-medium">
@@ -233,7 +233,7 @@ function StreamsTable() {
           </thead>
           <tbody>
             {rows.map((s) => (
-              <tr key={String(s.id)} className="border-t-[1.5px] border-gloss-black/10">
+              <tr key={String(s.id)} className="border-t border-carbon/10">
                 <td className="py-3">{String(s.id)}</td>
                 <td className="py-3">
                   <div className="flex flex-col gap-1">
@@ -251,10 +251,10 @@ function StreamsTable() {
                 </td>
                 <td className="py-3">
                   {s.status !== StreamStatus.Active ? (
-                    <span className="text-soft-charcoal">—</span>
+                    <span className="text-carbon/70">—</span>
                   ) : d && fundedThisPeriod(s, now, d.period) ? (
                     <span className="flex flex-col gap-1">
-                      <span className="text-soft-charcoal">set aside</span>
+                      <span className="text-carbon/70">set aside</span>
                       <span className="tabular-nums">{amount(s.allocated, s.token)}</span>
                     </span>
                   ) : (
@@ -268,7 +268,7 @@ function StreamsTable() {
                     new Date(Number(s.startTime) * 1000).toLocaleString()
                   ) : (
                     // Pay starts at activation, not at creation
-                    <span className="text-soft-charcoal">{s.status === StreamStatus.Pending ? "once approved" : s.status === StreamStatus.Cancelled ? "never" : "not yet"}</span>
+                    <span className="text-carbon/70">{s.status === StreamStatus.Pending ? "once approved" : s.status === StreamStatus.Cancelled ? "never" : "not yet"}</span>
                   )}
                 </td>
                 <td className="py-3 text-right">
@@ -305,7 +305,7 @@ function PayeeCell({ payee }: { payee: Address }) {
       <span className="font-mono" title={worker}>
         {shortAddress(worker)}
       </span>
-      <span className="text-mid-grey" title={`Paid at the one-time address ${payee}`}>
+      <span className="text-carbon/55" title={`Paid at the one-time address ${payee}`}>
         private · {shortAddress(payee)}
       </span>
     </span>

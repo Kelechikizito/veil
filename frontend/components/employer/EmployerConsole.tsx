@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { Badge, ButtonLink } from "@/components/ui";
+import { Badge, ButtonLink, PageTitle } from "@/components/ui";
 import { useVeil } from "@/hooks/useVeil";
 import { ApprovalsSection } from "./ApprovalsSection";
 import { AuditorsSection, useAuditors } from "./AuditorsSection";
@@ -32,13 +32,13 @@ export function EmployerConsole({ payee }: { payee?: string }) {
     if (payee && exists) document.getElementById("streams")?.scrollIntoView({ behavior: "smooth" });
   }, [payee, exists]);
 
-  if (isLoading) return <p className="py-10 text-mid-grey">Loading your organisation…</p>;
+  if (isLoading) return <p className="py-10 text-carbon/55">Loading your organisation…</p>;
 
   if (!exists) {
     return (
       <div className="flex max-w-xl flex-col gap-4 py-10">
         <h2 className="text-heading-sm">{otherOrgs ? "No organisation in this wallet" : "No organisation yet"}</h2>
-        <p className="text-soft-charcoal">
+        <p className="text-carbon/70">
           {otherOrgs
             ? "Pick one of your organisations, or finish setting up a new one."
             : "Set up your payroll first. It takes a few minutes."}
@@ -63,18 +63,18 @@ export function EmployerConsole({ payee }: { payee?: string }) {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-3">
           <Badge ghost>Employer console</Badge>
-          <h1 className="text-[44px] leading-[0.97] tracking-[-0.03em] md:text-heading-lg">{org?.name}</h1>
+          <PageTitle stickers={["wallet", "star"]}>{org?.name}</PageTitle>
         </div>
         <OrgSwitcher />
       </header>
 
       {todo.length > 0 && (
-        <div className="flex flex-col gap-3 rounded-2xl border-[1.5px] border-gloss-black p-6">
+        <div className="flex flex-col gap-3 rounded-cards border border-carbon p-6">
           <h2 className="text-subheading">Finish setup</h2>
           <ul className="flex flex-wrap gap-3">
             {todo.map((t) => (
               <li key={t.label}>
-                <Link href={t.href} className="inline-flex rounded-pill border-[1.5px] border-gloss-black px-4 py-2 text-caption hover:bg-gloss-white">
+                <Link href={t.href} className="inline-flex rounded-pills border border-carbon px-4 py-2 text-caption hover:bg-soft-mist">
                   {t.label}
                   {t.skipped ? " (skipped)" : ""} →
                 </Link>

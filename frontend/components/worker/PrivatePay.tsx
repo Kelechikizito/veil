@@ -43,7 +43,7 @@ export function PrivatePaySetup() {
   if (setup.registered && !keys) {
     return (
       <div className="flex flex-col gap-3">
-        <p className="text-soft-charcoal">Private pay is on. Sign once to find the salaries paid to your one-time addresses.</p>
+        <p className="text-carbon/70">Private pay is on. Sign once to find the salaries paid to your one-time addresses.</p>
         <div>
           <Button onClick={() => void unlock().catch(() => undefined)} disabled={unlocking}>
             {unlocking ? "Waiting for signature…" : "Show private pay"}

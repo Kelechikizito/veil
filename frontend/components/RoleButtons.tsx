@@ -44,11 +44,11 @@ export function RoleButtons({ onDark = false }: { onDark?: boolean }) {
     <div className="flex flex-wrap gap-3">
       {onDark ? (
         <>
-          <Button variant="light" onClick={() => choose("employee")}>
-            I&apos;m an employee
-          </Button>
-          <Button variant="yellow" onClick={() => choose("employer")}>
+          <Button variant="light" onClick={() => choose("employer")}>
             I&apos;m an employer
+          </Button>
+          <Button variant="outline-light" onClick={() => choose("employee")}>
+            I&apos;m an employee
           </Button>
         </>
       ) : (

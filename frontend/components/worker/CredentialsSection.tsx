@@ -78,7 +78,7 @@ function IssueForm({ streams }: { streams: StreamRow[] }) {
   const valid = !!stream && isAddress(verifier.trim()) && parsed !== undefined;
 
   if (streams.length === 0) {
-    return <p className="text-caption text-mid-grey">You need an active stream to issue an income proof.</p>;
+    return <p className="text-caption text-carbon/55">You need an active stream to issue an income proof.</p>;
   }
 
   const issue = async () => {
@@ -163,7 +163,7 @@ function IssueForm({ streams }: { streams: StreamRow[] }) {
           </Button>
         </div>
         {stream?.stealthKey && (
-          <p className="text-caption text-soft-charcoal">
+          <p className="text-caption text-carbon/70">
             This salary is paid privately. Issuing a proof shows the verifier which stream is yours, and how much it pays.
           </p>
         )}
@@ -179,12 +179,12 @@ function ShareLink({ id }: { id: bigint }) {
   const [copied, setCopied] = useState(false);
   const link = typeof window === "undefined" ? "" : `${window.location.origin}/verify/${id}`;
   return (
-    <div className="flex flex-col gap-4 rounded-2xl bg-gloss-white p-6 md:flex-row md:items-center">
-      <div className="rounded-lg bg-pure-white p-3">
-        <QRCode value={link} size={120} fgColor="#17150e" />
+    <div className="flex flex-col gap-4 rounded-cards border border-carbon bg-voltage-violet p-6 text-paper-white md:flex-row md:items-center">
+      <div className="rounded-wallet-icon border border-carbon bg-paper-white p-3">
+        <QRCode value={link} size={120} fgColor="#000000" />
       </div>
       <div className="flex flex-1 flex-col gap-3">
-        <span className="text-caption text-mid-grey">Proof #{String(id)} issued. Send this link to the verifier.</span>
+        <span className="label-type text-caption uppercase">Proof #{String(id)} issued. Send this link to the verifier.</span>
         <code className="font-mono text-caption" title={link}>
           {shortLink(link)}
         </code>
@@ -261,7 +261,7 @@ function MyCredentials({ streams }: { streams: StreamRow[] }) {
   };
 
   return (
-    <div className="flex flex-col gap-3 border-t-[1.5px] border-gloss-black pt-6">
+    <div className="flex flex-col gap-3 border-t border-carbon pt-6">
       <h3 className="text-body">My proofs</h3>
       <ul className="flex flex-col">
         {list.map((id, i) => {
@@ -271,13 +271,13 @@ function MyCredentials({ streams }: { streams: StreamRow[] }) {
           const left = Number(c.expiresAt) - (now + offset);
           const status = c.revoked ? "Revoked" : left <= 0 ? "Expired" : valid === false ? "Stream ended" : "Valid";
           return (
-            <li key={String(id)} className="flex flex-wrap items-center justify-between gap-3 border-t-[1.5px] border-gloss-black/10 py-3 text-caption">
+            <li key={String(id)} className="flex flex-wrap items-center justify-between gap-3 border-t border-carbon/10 py-3 text-caption">
               <span>
                 #{String(id)} · ≥ {formatAmount(c.threshold)} {symbolOf(c.token)}/month · to {shortAddress(c.verifier)}
               </span>
               <span className="flex items-center gap-3">
                 <Badge>{status}</Badge>
-                {status === "Valid" && <span className="tabular-nums text-soft-charcoal">{countdown(left)}</span>}
+                {status === "Valid" && <span className="tabular-nums text-carbon/70">{countdown(left)}</span>}
                 {status === "Valid" && (
                   <Button variant="outline" disabled={tx.busy} onClick={() => void revoke(id, c.payee)} className="!px-3 !py-1 text-caption">
                     Revoke

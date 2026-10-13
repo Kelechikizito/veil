@@ -34,14 +34,14 @@ export function StreamCard({ stream }: { stream: StreamRow }) {
   const note = d && total !== undefined ? fundingNote(stream, d.period, stream.monthly, total, org, symbol) : undefined;
 
   return (
-    <article className="flex flex-col gap-8 rounded-3xl bg-pure-white p-6 md:p-10">
+    <article className="flex flex-col gap-8 rounded-cards-elevated border border-carbon bg-paper-white p-6 md:p-10">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          {active && funded && <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-gloss-black" />}
+          {active && funded && <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-carbon" />}
           <span>Paid by {org}</span>
           {stream.stealthKey ? (
             <span
-              className="rounded-lg border-[1.5px] border-gloss-black/20 px-2 py-0.5 text-caption text-soft-charcoal"
+              className="rounded-pills border border-carbon px-2 py-0.5 text-caption text-carbon/70"
               title="Paid to a one-time address. Nobody else can tell this salary is yours."
             >
               private
@@ -54,14 +54,14 @@ export function StreamCard({ stream }: { stream: StreamRow }) {
       </header>
 
       <div className="flex flex-col gap-2">
-        <span className="text-caption text-mid-grey">Your salary this period</span>
-        <div className="flex flex-wrap items-baseline gap-3 font-classic text-[56px] leading-none tracking-[-0.03em] md:text-display">
+        <span className="text-caption text-carbon/55">Your salary this period</span>
+        <div className="flex flex-wrap items-baseline gap-3 display-type text-[34px] sm:text-[48px] md:text-display-70 lg:text-display-110">
           <span className="tabular-nums">
             {whole}
-            <span className="text-mid-grey">.{fraction}</span>
+            <span className="text-carbon/55">.{fraction}</span>
           </span>
           {total !== undefined && (
-            <span className="font-grotesk text-subheading">
+            <span className="font-aeonik-pro text-subheading">
               of {formatAmount(total)} {symbol}
             </span>
           )}
@@ -73,45 +73,45 @@ export function StreamCard({ stream }: { stream: StreamRow }) {
             aria-valuenow={Math.round(progress)}
             aria-valuemin={0}
             aria-valuemax={100}
-            className="h-1.5 max-w-xl rounded-pill bg-gloss-black/10"
+            className="h-1.5 max-w-xl rounded-pills bg-carbon/10"
           >
-            <div className="h-full rounded-pill bg-gloss-black" style={{ width: `${progress}%` }} />
+            <div className="h-full rounded-pills bg-carbon" style={{ width: `${progress}%` }} />
           </div>
         )}
         {active && funded && (
-          <span className="text-caption text-soft-charcoal">Updating live. 0 transactions.</span>
+          <span className="text-caption text-carbon/70">Updating live. 0 transactions.</span>
         )}
-        {note && <span className="text-caption text-soft-charcoal">{note}</span>}
+        {note && <span className="text-caption text-carbon/70">{note}</span>}
         {active && !funded && (
-          <span className="text-caption text-soft-charcoal">
+          <span className="text-caption text-carbon/70">
             Waiting for {org} to run payroll for this period. Your pay starts streaming as soon as they do.
           </span>
         )}
         {pay.unclaimedEarlier > BigInt(0) && (
           <span className="pt-2">
-            <span className="text-caption text-mid-grey">Unclaimed from earlier periods </span>
+            <span className="text-caption text-carbon/55">Unclaimed from earlier periods </span>
             <span className="tabular-nums">
               {formatSixDp(pay.unclaimedEarlier)} {symbol}
             </span>
           </span>
         )}
         {stream.status === StreamStatus.Pending && (
-          <span className="text-caption text-soft-charcoal">Waiting for your employer&apos;s approvers. Pay starts when they approve.</span>
+          <span className="text-caption text-carbon/70">Waiting for your employer&apos;s approvers. Pay starts when they approve.</span>
         )}
       </div>
 
-      <dl className="grid grid-cols-2 gap-4 border-t-[1.5px] border-gloss-black pt-5 md:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-4 border-t border-carbon pt-5 md:grid-cols-3">
         <div className="flex flex-col gap-1">
-          <dt className="text-caption text-mid-grey">Monthly salary</dt>
+          <dt className="text-caption text-carbon/55">Monthly salary</dt>
           <dd>{`${formatAmount(stream.monthly)} ${symbol}`}</dd>
-          {d && demoMonth(d.period) && <dd className="text-caption text-soft-charcoal">{demoMonth(d.period)}</dd>}
+          {d && demoMonth(d.period) && <dd className="text-caption text-carbon/70">{demoMonth(d.period)}</dd>}
         </div>
         <div className="flex flex-col gap-1">
-          <dt className="text-caption text-mid-grey">Withdrawn so far</dt>
+          <dt className="text-caption text-carbon/55">Withdrawn so far</dt>
           <dd>{`${formatAmount(stream.withdrawn)} ${symbol}`}</dd>
         </div>
         <div className="flex flex-col gap-1">
-          <dt className="text-caption text-mid-grey">Started</dt>
+          <dt className="text-caption text-carbon/55">Started</dt>
           <dd>{stream.startTime > BigInt(0) ? new Date(Number(stream.startTime) * 1000).toLocaleString() : "—"}</dd>
         </div>
       </dl>
@@ -121,9 +121,9 @@ export function StreamCard({ stream }: { stream: StreamRow }) {
       )}
 
       {!stream.stealthKey && stream.status !== StreamStatus.Cancelled && !employment.loading && employment.available && !employment.confirmed && (
-        <div className="flex flex-col gap-3 rounded-2xl bg-gloss-white p-6">
-          <span className="text-subheading">Confirm you work for {org}</span>
-          <span className="text-caption text-soft-charcoal">
+        <div className="flex flex-col gap-3 rounded-cards border border-carbon bg-lavender p-6">
+          <span className="text-subheading font-bold">Confirm you work for {org}</span>
+          <span className="text-caption text-carbon/70">
             One tap with Face ID, your fingerprint or your PIN. With {org}&apos;s vouch, your income proofs say
             &ldquo;verified employee of {org}&rdquo;.
           </span>

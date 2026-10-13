@@ -5,7 +5,7 @@ import type { Address } from "viem";
 import { useReadContract } from "wagmi";
 import { shortAddress } from "@/components/AuthButton";
 import { Stat } from "@/components/forms";
-import { Badge } from "@/components/ui";
+import { Badge, PageTitle } from "@/components/ui";
 import { deploymentFor } from "@/hooks/useVeil";
 import { defaultChain } from "@/lib/chains";
 import { VeilPayrollAbi, IncomeCredentialAbi } from "@/lib/contracts/abis";
@@ -75,11 +75,11 @@ export function CredentialView({ id }: { id: string }) {
     query: { enabled: !!c && !!d },
   });
 
-  if (!d) return <p className="text-soft-charcoal">Veil isn&apos;t deployed on this network.</p>;
-  if (!validId) return <p className="text-soft-charcoal">That isn&apos;t a credential number.</p>;
-  if (cred.isLoading) return <p className="text-mid-grey">Loading credential #{id}…</p>;
+  if (!d) return <p className="text-carbon/70">Veil isn&apos;t deployed on this network.</p>;
+  if (!validId) return <p className="text-carbon/70">That isn&apos;t a credential number.</p>;
+  if (cred.isLoading) return <p className="text-carbon/55">Loading credential #{id}…</p>;
   if (!c || c.payee === "0x0000000000000000000000000000000000000000") {
-    return <p className="text-soft-charcoal">Credential #{id} doesn&apos;t exist.</p>;
+    return <p className="text-carbon/70">Credential #{id} doesn&apos;t exist.</p>;
   }
 
   const token = tokensFor(chainId).find((t) => t.address.toLowerCase() === c.token.toLowerCase());
@@ -92,9 +92,9 @@ export function CredentialView({ id }: { id: string }) {
     <div className="flex max-w-3xl flex-col gap-8">
       <div className="flex flex-col gap-4">
         <Badge ghost>Income credential #{id}</Badge>
-        <h1 className="text-[44px] leading-[0.97] tracking-[-0.03em] md:text-heading-lg">
+        <PageTitle stickers={["check", "lock"]}>
           Earns at least {formatAmount(c.threshold)} {unit} a month?
-        </h1>
+        </PageTitle>
       </div>
 
       <StatusBanner status={status} secondsLeft={Number(c.expiresAt) - now} />
@@ -109,7 +109,7 @@ export function CredentialView({ id }: { id: string }) {
           {c.employeeVerified ? (
             `✓ Verified employee of ${orgName ?? shortAddress(c.payer)}`
           ) : (
-            <span className="text-soft-charcoal">Employment not verified by both sides</span>
+            <span className="text-carbon/70">Employment not verified by both sides</span>
           )}
         </Stat>
       </div>
@@ -121,9 +121,9 @@ export function CredentialView({ id }: { id: string }) {
 
 function StatusBanner({ status, secondsLeft }: { status: "valid" | "expired" | "revoked"; secondsLeft: number }) {
   const styles = {
-    valid: "bg-gloss-black text-gloss-white",
-    expired: "border-[1.5px] border-gloss-black text-gloss-black",
-    revoked: "border-[1.5px] border-gloss-black text-gloss-black",
+    valid: "bg-carbon text-paper-white",
+    expired: "border border-carbon text-carbon",
+    revoked: "border border-carbon text-carbon",
   };
   const text = {
     valid: `Valid · expires in ${formatCountdown(secondsLeft)}`,
@@ -131,7 +131,7 @@ function StatusBanner({ status, secondsLeft }: { status: "valid" | "expired" | "
     revoked: "Revoked by the person who issued it.",
   };
   return (
-    <div className={`rounded-2xl px-6 py-5 text-subheading ${styles[status]}`} role="status" aria-live="polite">
+    <div className={`rounded-cards px-6 py-5 text-subheading ${styles[status]}`} role="status" aria-live="polite">
       {text[status]}
     </div>
   );
@@ -140,7 +140,7 @@ function StatusBanner({ status, secondsLeft }: { status: "valid" | "expired" | "
 /** The answer, checked onchain against the salary stream when the credential was issued */
 function Answer({ ok }: { ok: boolean }) {
   return (
-    <div className="flex items-center gap-6 rounded-2xl bg-pure-white p-8">
+    <div className="flex items-center gap-6 rounded-cards bg-paper-white p-8">
       <span className="text-[80px] leading-none">{ok ? "✅" : "❌"}</span>
       <p className="text-heading-sm">{ok ? "Yes, it meets the threshold." : "No, it's below the threshold."}</p>
     </div>

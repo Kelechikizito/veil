@@ -30,8 +30,8 @@ export function VerifierHome() {
     <div className="flex flex-col gap-8">
       <Panel title="Your address" help="Send this to the person whose income you want to check. They issue the proof to it.">
         <div className="flex flex-col gap-6 md:flex-row md:items-center">
-          <div className="w-fit rounded-2xl bg-pure-white p-4">
-            <QRCode value={account} size={140} fgColor="#17150e" />
+          <div className="w-fit rounded-wallet-icon border border-carbon bg-paper-white p-4">
+            <QRCode value={account} size={140} fgColor="#000000" />
           </div>
           <div className="flex flex-col gap-3">
             <code className="font-mono text-caption break-all">{account}</code>
@@ -45,11 +45,11 @@ export function VerifierHome() {
       </Panel>
       <Panel title="Proofs sent to you" help="Open one to see whether the income meets your threshold.">
         {list.length === 0 ? (
-          <p className="text-caption text-mid-grey">None yet. They appear here once issued to your address.</p>
+          <p className="text-caption text-carbon/55">None yet. They appear here once issued to your address.</p>
         ) : (
           <ul className="flex flex-col">
             {list.map((id) => (
-              <li key={String(id)} className="border-t-[1.5px] border-gloss-black/10 py-3">
+              <li key={String(id)} className="border-t border-carbon/10 py-3">
                 <Link href={`/verify/${id}`} className="underline underline-offset-4">
                   Income proof #{String(id)} →
                 </Link>

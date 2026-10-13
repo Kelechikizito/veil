@@ -57,7 +57,7 @@ export function PolicySection() {
                 {set && value !== undefined ? (
                   `${formatAmount(value, t.decimals)} ${t.symbol} a month`
                 ) : (
-                  <span className="text-soft-charcoal">not set: every {t.symbol} salary needs approval</span>
+                  <span className="text-carbon/70">not set: every {t.symbol} salary needs approval</span>
                 )}
               </Stat>
             );
@@ -112,12 +112,13 @@ function ApproversForm({ current, currentRequired }: { current: readonly Address
           hint={invalid.length > 0 ? `Not an address: ${invalid[0]}` : "Saving replaces the list and clears approvals in progress."}
         >
           <textarea
+            data-cuelume-type=""
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={3}
             spellCheck={false}
             placeholder={"0x…\n0x…"}
-            className="w-full rounded-input border-[1.5px] border-gloss-black/20 px-4 py-3 font-mono text-caption outline-none focus:border-gloss-black"
+            className="w-full rounded-cards border border-carbon bg-paper-white px-4 py-3 font-mono text-caption outline-none focus:border-carbon"
           />
         </Field>
         <Field label="Required approvals">
@@ -153,7 +154,7 @@ function ThresholdForm({ token }: { token: TokenInfo }) {
 
   return (
     <form
-      className="flex flex-col gap-3 border-t-[1.5px] border-gloss-black pt-4"
+      className="flex flex-col gap-3 border-t border-carbon pt-4"
       onSubmit={(e) => {
         e.preventDefault();
         if (parsed !== undefined) void save().then((r) => r && setValue(""));
@@ -177,10 +178,11 @@ function ApproverLink() {
   const [copied, setCopied] = useState(false);
   const link = typeof window === "undefined" ? "/approvals" : `${window.location.origin}/approvals`;
   return (
-    <p className="text-caption text-soft-charcoal">
+    <p className="text-caption text-carbon/70">
       Approvers approve at{" "}
       <button
         type="button"
+        data-cuelume-tap=""
         className="font-mono underline underline-offset-4"
         onClick={() => void navigator.clipboard.writeText(link).then(() => setCopied(true))}
       >

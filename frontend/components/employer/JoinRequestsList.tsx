@@ -36,14 +36,14 @@ export function JoinRequestsList({ onSetSalary }: { onSetSalary: (employee: Addr
     tx.run(() => ({ address: d.joinRequests!, abi: JoinRequestsAbi, functionName: "dismiss", args: [employee] }));
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border-[1.5px] border-gloss-black p-5">
+    <div className="flex flex-col gap-3 rounded-cards border border-carbon p-5">
       <div className="flex items-center justify-between">
         <h3 className="text-body">Join requests</h3>
-        <span className="rounded-lg bg-gloss-black px-2 py-0.5 text-caption text-gloss-white">{pending.length}</span>
+        <span className="rounded-pills bg-carbon px-2 py-0.5 text-caption text-paper-white">{pending.length}</span>
       </div>
       <ul className="flex flex-col">
         {pending.map((employee) => (
-          <li key={employee} className="flex flex-wrap items-center justify-between gap-3 border-t-[1.5px] border-gloss-black/10 py-3">
+          <li key={employee} className="flex flex-wrap items-center justify-between gap-3 border-t border-carbon/10 py-3">
             <div className="flex items-center gap-3">
               <span className="font-mono text-caption" title={employee}>
                 {shortAddress(employee)}

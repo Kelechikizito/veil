@@ -9,7 +9,7 @@ export default async function EmployerPage(props: PageProps<"/employer">) {
   return (
     <>
       <SiteHeader />
-      <Section tone="tint" className="flex-1 !py-12 md:!py-16">
+      <Section tone="sky" className="flex-1 !py-12 md:!py-16">
         <AppGate>
           <EmployerConsole payee={typeof payee === "string" ? payee : undefined} />
         </AppGate>

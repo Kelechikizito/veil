@@ -57,11 +57,11 @@ export function AuditorView() {
     <div className="flex flex-col gap-8">
       <Panel title="Organisations you audit" help="An employer adds you as their auditor. You can read their payroll from that moment on.">
         {appointed.isLoading ? (
-          <p className="text-caption text-mid-grey">Looking for organisations…</p>
+          <p className="text-caption text-carbon/55">Looking for organisations…</p>
         ) : appointed.error ? (
-          <p className="text-caption text-soft-charcoal">Couldn&apos;t look for organisations: {shortError(appointed.error)}</p>
+          <p className="text-caption text-carbon/70">Couldn&apos;t look for organisations: {shortError(appointed.error)}</p>
         ) : orgs.length === 0 ? (
-          <p className="text-caption text-mid-grey">
+          <p className="text-caption text-carbon/55">
             No employer with salary streams has named you yet. Send them your address: {account}. If they have no streams
             yet, enter their address below.
           </p>
@@ -131,10 +131,10 @@ function OrgBooks({ payer }: { payer: Address }) {
   });
 
   const b = books.data;
-  if (books.isLoading) return <p className="text-caption text-mid-grey">Reading {shortAddress(payer)}&apos;s payroll…</p>;
+  if (books.isLoading) return <p className="text-caption text-carbon/55">Reading {shortAddress(payer)}&apos;s payroll…</p>;
   if (!b) {
     return (
-      <p className="text-caption text-soft-charcoal">
+      <p className="text-caption text-carbon/70">
         Couldn&apos;t read this payroll{books.error ? `: ${shortError(books.error)}` : "."}
       </p>
     );
@@ -142,7 +142,7 @@ function OrgBooks({ payer }: { payer: Address }) {
   if (!b.allowed) {
     return (
       <Panel title={b.orgName} help="">
-        <p className="text-soft-charcoal">You aren&apos;t an auditor for this organisation.</p>
+        <p className="text-carbon/70">You aren&apos;t an auditor for this organisation.</p>
       </Panel>
     );
   }
@@ -181,11 +181,11 @@ function OrgBooks({ payer }: { payer: Address }) {
           Export CSV
         </Button>
       </div>
-      <p className="text-caption text-soft-charcoal">The CSV is made on your computer. Nothing is uploaded.</p>
+      <p className="text-caption text-carbon/70">The CSV is made on your computer. Nothing is uploaded.</p>
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-left">
-          <thead className="text-caption text-mid-grey">
+          <thead className="text-caption text-carbon/55">
             <tr>
               <th className="py-2 font-normal">#</th>
               <th className="py-2 font-normal">Employee</th>
@@ -199,13 +199,13 @@ function OrgBooks({ payer }: { payer: Address }) {
           <tbody>
             {b.streams.length === 0 ? (
               <tr>
-                <td colSpan={7} className="border-t-[1.5px] border-gloss-black/10 py-4 text-caption text-mid-grey">
+                <td colSpan={7} className="border-t border-carbon/10 py-4 text-caption text-carbon/55">
                   No salary streams yet.
                 </td>
               </tr>
             ) : (
               b.streams.map((s) => (
-                <tr key={String(s.id)} className="border-t-[1.5px] border-gloss-black/10">
+                <tr key={String(s.id)} className="border-t border-carbon/10">
                   <td className="py-3">{String(s.id)}</td>
                   <td className="py-3 font-mono text-caption">{shortAddress(s.payee)}</td>
                   <td className="py-3">{symbolOf(s.token)}</td>

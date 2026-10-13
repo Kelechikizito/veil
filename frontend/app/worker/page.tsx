@@ -7,7 +7,7 @@ export default function WorkerPage() {
   return (
     <>
       <SiteHeader />
-      <Section tone="tint" className="flex-1 !py-12 md:!py-16">
+      <Section tone="sky" className="flex-1 !py-12 md:!py-16">
         <AppGate>
           <WorkerApp />
         </AppGate>

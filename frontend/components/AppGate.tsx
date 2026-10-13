@@ -8,6 +8,7 @@ import { useSwitchChain } from "wagmi";
 import { useVeil } from "@/hooks/useVeil";
 import { supportedChains } from "@/lib/chains";
 import { deploymentFor } from "@/hooks/useVeil";
+import { isEmbeddedWallet } from "@/lib/wallets";
 import { Button } from "./ui";
 
 /**
@@ -50,13 +51,13 @@ export function AppGate({ children }: { children: ReactNode }) {
                   .catch((e: unknown) => setActivateError(e instanceof Error ? e.message : String(e)))
               }
             >
-              Use {w.walletClientType === "privy" ? "embedded wallet" : w.walletClientType} {w.address.slice(0, 6)}…
+              Use {isEmbeddedWallet(w) ? "embedded wallet" : w.walletClientType} {w.address.slice(0, 6)}…
               {w.address.slice(-4)}
             </Button>
           ))}
           <Button onClick={() => connectWallet()}>Connect a wallet</Button>
         </div>
-        {activateError && <p className="text-caption text-soft-charcoal">Couldn&apos;t switch: {activateError}</p>}
+        {activateError && <p className="text-caption text-carbon/70">Couldn&apos;t switch: {activateError}</p>}
       </Notice>
     );
   }
@@ -86,7 +87,7 @@ function Notice({ title, body, children }: { title: string; body?: string; child
   return (
     <div className="flex max-w-xl flex-col gap-4 py-10">
       <h2 className="text-heading-sm">{title}</h2>
-      {body && <p className="text-soft-charcoal">{body}</p>}
+      {body && <p className="text-carbon/70">{body}</p>}
       {children}
     </div>
   );

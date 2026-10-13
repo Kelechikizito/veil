@@ -73,20 +73,20 @@ export function ApprovalsSection() {
       help="Salaries above an org's threshold, where you're one of the approvers."
     >
       {isLoading ? (
-        <p className="text-caption text-mid-grey">Looking for pending streams…</p>
+        <p className="text-caption text-carbon/55">Looking for pending streams…</p>
       ) : error ? (
-        <p className="text-caption text-soft-charcoal">Couldn&apos;t load pending streams: {shortError(error)}</p>
+        <p className="text-caption text-carbon/70">Couldn&apos;t load pending streams: {shortError(error)}</p>
       ) : !queue || queue.length === 0 ? (
-        <p className="text-caption text-mid-grey">Nothing waiting for your approval.</p>
+        <p className="text-caption text-carbon/55">Nothing waiting for your approval.</p>
       ) : (
         <ul className="flex flex-col">
           {queue.map(({ stream: s, orgName, count, required, approved }) => (
-            <li key={String(s.id)} className="flex flex-wrap items-center justify-between gap-4 border-t-[1.5px] border-gloss-black/10 py-4">
+            <li key={String(s.id)} className="flex flex-wrap items-center justify-between gap-4 border-t border-carbon/10 py-4">
               <div className="flex flex-col gap-1">
                 <span>
                   {orgName} · stream #{String(s.id)} · {formatAmount(s.monthly)} {symbolOf(s.token)} a month
                 </span>
-                <span className="text-caption text-soft-charcoal">
+                <span className="text-caption text-carbon/70">
                   {shortAddress(s.payer)} → {shortAddress(s.payee)}
                 </span>
               </div>
@@ -99,7 +99,7 @@ export function ApprovalsSection() {
                     Activate
                   </Button>
                 ) : approved ? (
-                  <span className="text-caption text-mid-grey">✓ You approved</span>
+                  <span className="text-caption text-carbon/55">✓ You approved</span>
                 ) : (
                   <Button variant="outline" disabled={tx.busy} onClick={() => void approve(s.payer, s.id)}>
                     Approve

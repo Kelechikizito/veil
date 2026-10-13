@@ -137,9 +137,9 @@ export function EmployerOnboarding() {
       steps={steps}
       footer={
         finished && (
-        <div className="flex flex-col gap-4 rounded-2xl bg-gloss-black p-8 text-gloss-white">
+        <div className="flex flex-col gap-4 rounded-cards-elevated border border-carbon bg-carbon p-8 text-paper-white">
           <h2 className="text-heading-sm">Your payroll is set up.</h2>
-          <p className="text-gloss-white/80">Create your first salary stream from the console.</p>
+          <p className="text-paper-white/80">Create your first salary stream from the console.</p>
           <div>
             <Button
               variant="light"

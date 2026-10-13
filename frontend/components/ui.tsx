@@ -1,45 +1,44 @@
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
+import { StickerCluster, type StickerKind } from "./Stickers";
 
 /*
- * Primitives from DESIGN.md. Buttons are always full pills; cards and badges are 8px.
- * Borders are 1.5px ink, never 1px. No shadows anywhere.
+ * Primitives from DESIGN.md. Buttons and tags are pills; cards are 20px or more.
+ * Every control has a 1px black outline. No shadows, no gradients.
  */
 
-type ButtonVariant = "dark" | "light" | "yellow" | "outline" | "outline-light";
+type ButtonVariant = "dark" | "light" | "outline" | "outline-light";
 
 const buttonBase =
-  "inline-flex items-center justify-center gap-2 rounded-pill px-6 py-3 text-body font-medium transition-colors duration-150";
+  "label-type inline-flex items-center justify-center gap-2 rounded-buttons border px-5 py-3 text-[14px] leading-none transition-colors duration-150 disabled:cursor-not-allowed";
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  // Highest emphasis on light surfaces
-  dark: "bg-gloss-black text-gloss-white hover:bg-soft-charcoal",
-  // Highest emphasis on dark surfaces and video
-  light: "bg-pure-white text-gloss-black hover:bg-gloss-white",
-  // Hero CTA only: at most one per page
-  yellow: "bg-solar-yellow text-gloss-black hover:bg-[#bdbd1f]",
-  // Secondary action on light surfaces
-  outline: "border-[1.5px] border-gloss-black text-gloss-black hover:bg-gloss-white",
-  // Secondary action on ink surfaces
-  "outline-light": "border-[1.5px] border-pure-white text-pure-white hover:bg-pure-white/10",
+  // The one highest-priority action per screen
+  dark: "border-carbon bg-carbon text-paper-white hover:bg-carbon/80",
+  // Highest emphasis on dark surfaces
+  light: "border-carbon bg-paper-white text-carbon hover:bg-soft-mist",
+  // Secondary action, beside or below the filled one
+  outline: "border-carbon bg-paper-white text-carbon hover:bg-soft-mist",
+  // Secondary action on black surfaces
+  "outline-light": "border-paper-white text-paper-white hover:bg-paper-white/10",
 };
 
-/** A pill-shaped link styled as a button */
+/** A pill-shaped link styled as a button. Plays the navigate cue. */
 export function ButtonLink({
   variant = "dark",
   className = "",
   ...props
 }: ComponentProps<typeof Link> & { variant?: ButtonVariant }) {
-  return <Link className={`${buttonBase} ${buttonVariants[variant]} ${className}`} {...props} />;
+  return <Link data-cuelume-navigate="" className={`${buttonBase} ${buttonVariants[variant]} ${className}`} {...props} />;
 }
 
-/** A pill-shaped button */
+/** A pill-shaped button. Plays the tap cue; pass data-cuelume-* to pick another. */
 export function Button({
   variant = "dark",
   className = "",
   ...props
 }: ComponentProps<"button"> & { variant?: ButtonVariant }) {
-  return <button className={`${buttonBase} ${buttonVariants[variant]} ${className}`} {...props} />;
+  return <button data-cuelume-tap="" className={`${buttonBase} ${buttonVariants[variant]} ${className}`} {...props} />;
 }
 
 /** Status tags and counts (filled) or eyebrow labels (ghost) */
@@ -48,8 +47,8 @@ export function Badge({ children, ghost = false }: { children: ReactNode; ghost?
     <span
       className={
         ghost
-          ? "inline-flex w-fit items-center rounded-lg border-[1.5px] border-gloss-black px-3 py-1 text-caption font-medium tracking-[0.063em] uppercase"
-          : "inline-flex w-fit items-center rounded-lg bg-gloss-white px-3 py-1 text-caption font-medium"
+          ? "label-type inline-flex w-fit items-center rounded-pills border border-carbon bg-paper-white px-3 py-1.5 text-caption uppercase"
+          : "inline-flex w-fit items-center rounded-pills border border-carbon bg-lavender px-3 py-1 text-caption"
       }
     >
       {children}
@@ -59,10 +58,12 @@ export function Badge({ children, ghost = false }: { children: ReactNode; ghost?
 
 /** The 1200px content frame */
 export function Container({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`mx-auto w-full max-w-[1200px] px-6 ${className}`}>{children}</div>;
+  return <div className={`mx-auto w-full max-w-[1440px] px-6 ${className}`}>{children}</div>;
 }
 
-/** A full-width section on one of the two alternating surfaces */
+const tones = { sky: "bg-sky-wash", white: "bg-paper-white", gray: "bg-concrete-gray" } as const;
+
+/** A full-bleed color band. Alternate sky → white → gray down the page. */
 export function Section({
   children,
   tone = "white",
@@ -70,13 +71,23 @@ export function Section({
   id,
 }: {
   children: ReactNode;
-  tone?: "white" | "tint";
+  tone?: keyof typeof tones;
   className?: string;
   id?: string;
 }) {
   return (
-    <section id={id} className={`${tone === "tint" ? "bg-gloss-white" : "bg-pure-white"} py-20 md:py-28 ${className}`}>
+    <section id={id} className={`${tones[tone]} py-20 md:py-28 ${className}`}>
       <Container>{children}</Container>
     </section>
+  );
+}
+
+/** A page's display headline, always paired with a sticker cluster (DESIGN.md: display type never stands alone) */
+export function PageTitle({ children, stickers }: { children: ReactNode; stickers: [StickerKind, StickerKind] }) {
+  return (
+    <div className="flex items-end gap-4">
+      <h1 className="display-type text-[36px] sm:text-[48px] md:text-display-70">{children}</h1>
+      <StickerCluster kinds={stickers} className="hidden sm:inline-block" />
+    </div>
   );
 }

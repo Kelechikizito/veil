@@ -9,11 +9,11 @@ export default async function EmployeeOnboardingPage(props: PageProps<"/onboardi
   return (
     <>
       <SiteHeader />
-      <Section tone="tint" className="flex-1 !py-12 md:!py-16">
+      <Section tone="sky" className="flex-1 !py-12 md:!py-16">
         <div className="flex flex-col gap-12">
           <div className="flex max-w-3xl flex-col gap-4">
             <Badge ghost>Get paid privately</Badge>
-            <p className="text-subheading text-soft-charcoal">
+            <p className="text-subheading text-carbon/70">
               A few steps and your salary starts streaming to you, every second, with the amount kept private.
             </p>
           </div>

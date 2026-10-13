@@ -22,7 +22,7 @@ export function TxStatus({ stage, error, txHash }: { stage: TxStage; error?: str
   const finished = stage === "done";
 
   return (
-    <div role="status" aria-live="polite" className="flex flex-col gap-4 rounded-lg bg-gloss-white p-6">
+    <div role="status" aria-live="polite" className="flex flex-col gap-4 rounded-cards border border-carbon bg-paper-white p-6">
       <ol className="grid grid-cols-2 gap-2">
         {STAGES.map((s, i) => {
           const done = finished || (currentIndex !== -1 && i < currentIndex);
@@ -30,11 +30,11 @@ export function TxStatus({ stage, error, txHash }: { stage: TxStage; error?: str
           return (
             <li key={s.stage} className="flex flex-col gap-2">
               <span
-                className={`h-1.5 rounded-pill ${
-                  done ? "bg-gloss-black" : current ? "animate-pulse bg-gloss-black/60" : "bg-gloss-black/10"
+                className={`h-1.5 rounded-pills ${
+                  done ? "bg-carbon" : current ? "animate-pulse bg-carbon/60" : "bg-carbon/10"
                 }`}
               />
-              <span className={`text-caption ${done || current ? "" : "text-mid-grey"}`}>{s.label}</span>
+              <span className={`text-caption ${done || current ? "" : "text-carbon/55"}`}>{s.label}</span>
             </li>
           );
         })}
@@ -76,7 +76,7 @@ export function TxLinks({ scope }: { scope: string }) {
     <ul className="flex flex-col gap-1">
       {entries.map((e) => (
         <li key={e.hash} className="flex flex-wrap items-baseline gap-x-3">
-          <span className="text-caption text-soft-charcoal">{e.label}</span>
+          <span className="text-caption text-carbon/70">{e.label}</span>
           <ExplorerLink hash={e.hash} />
         </li>
       ))}

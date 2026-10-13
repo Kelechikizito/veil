@@ -47,7 +47,7 @@ export function AuditorsSection() {
       {auditors.length > 0 && (
         <ul className="flex flex-col">
           {auditors.map((a) => (
-            <li key={a} className="flex items-center justify-between border-t-[1.5px] border-gloss-black/10 py-3">
+            <li key={a} className="flex items-center justify-between border-t border-carbon/10 py-3">
               <span className="font-mono text-caption" title={a}>
                 {shortAddress(a)}
               </span>
@@ -105,8 +105,8 @@ export function PayeeListDownload() {
   };
 
   return (
-    <div className="flex flex-col gap-2 border-t-[1.5px] border-gloss-black/10 pt-4">
-      <span className="text-caption text-soft-charcoal">
+    <div className="flex flex-col gap-2 border-t border-carbon/10 pt-4">
+      <span className="text-caption text-carbon/70">
         {known.length} private salar{known.length === 1 ? "y" : "ies"} created in this browser.
       </span>
       <div>

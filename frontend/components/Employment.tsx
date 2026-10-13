@@ -45,7 +45,7 @@ export function EmployeeBadge({ worker, employer, viewer }: { worker: Address | 
   const e = useEmployment(worker, employer);
   if (!e.available || e.loading) return null;
   if (e.verified) {
-    return <span className="rounded-lg bg-gloss-black px-2 py-0.5 text-caption text-gloss-white">✓ verified employee</span>;
+    return <span className="rounded-pills bg-carbon px-2 py-0.5 text-caption text-paper-white">✓ verified employee</span>;
   }
   const missing =
     viewer === "employer"
@@ -56,7 +56,7 @@ export function EmployeeBadge({ worker, employer, viewer }: { worker: Address | 
         ? "waiting for your employer"
         : "not confirmed yet";
   return (
-    <span className="rounded-lg border-[1.5px] border-gloss-black/20 px-2 py-0.5 text-caption text-soft-charcoal">{missing}</span>
+    <span className="rounded-pills border border-carbon px-2 py-0.5 text-caption text-carbon/70">{missing}</span>
   );
 }
 
@@ -95,7 +95,7 @@ export function ConfirmEmployer({ employer, employerName }: { employer: Address;
     return <p>✓ You confirmed you work for {employerName ?? "this employer"}.</p>;
   }
   if (!passkeysSupported()) {
-    return <p className="text-soft-charcoal">This browser can&apos;t use passkeys. Open Veil in Chrome, Safari or Edge to confirm.</p>;
+    return <p className="text-carbon/70">This browser can&apos;t use passkeys. Open Veil in Chrome, Safari or Edge to confirm.</p>;
   }
 
   const registry = d.employeeRegistry;

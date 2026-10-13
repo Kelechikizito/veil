@@ -7,7 +7,7 @@ export default async function VerifyCredential(props: PageProps<"/verify/[id]">)
   return (
     <>
       <SiteHeader />
-      <Section tone="tint" className="flex-1 !py-12 md:!py-16">
+      <Section tone="sky" className="flex-1 !py-12 md:!py-16">
         <CredentialView id={id} />
       </Section>
       <SiteFooter />

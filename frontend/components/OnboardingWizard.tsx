@@ -42,7 +42,7 @@ export function OnboardingWizard({ steps, footer }: { steps: WizardStep[]; foote
     <div className="grid gap-10 lg:grid-cols-[320px_1fr] lg:gap-16">
       {/* Step list */}
       <nav aria-label="Setup steps" className="flex flex-col gap-6">
-        <span className="text-caption tracking-[0.2em] text-mid-grey uppercase">
+        <span className="label-type text-caption uppercase">
           {allDone ? "All steps done" : `Step ${current + 1} of ${steps.length}`}
         </span>
         <ol className="flex gap-2 overflow-x-auto lg:flex-col lg:gap-1 lg:overflow-visible">
@@ -55,15 +55,16 @@ export function OnboardingWizard({ steps, footer }: { steps: WizardStep[]; foote
                   type="button"
                   disabled={!reachable}
                   aria-current={selected ? "step" : undefined}
+                  data-cuelume-navigate=""
                   onClick={() => setViewing(i === current ? null : i)}
-                  className={`flex w-full items-center gap-4 rounded-2xl px-4 py-3 text-left transition-colors ${
-                    selected ? "bg-pure-white" : reachable ? "hover:bg-pure-white/60" : ""
+                  className={`flex w-full items-center gap-4 rounded-pills border px-4 py-3 text-left transition-colors ${
+                    selected ? "border-carbon bg-paper-white" : reachable ? "border-transparent hover:border-carbon" : "border-transparent"
                   }`}
                 >
                   <StepDot n={i + 1} status={s.status} selected={selected} />
-                  <span className={`hidden whitespace-nowrap sm:inline ${s.status === "todo" ? "text-mid-grey" : ""}`}>
+                  <span className={`hidden whitespace-nowrap sm:inline ${s.status === "todo" ? "text-carbon/55" : ""}`}>
                     {s.title}
-                    {s.status === "skipped" && <span className="ml-2 text-caption text-mid-grey">skipped</span>}
+                    {s.status === "skipped" && <span className="ml-2 text-caption text-carbon/55">skipped</span>}
                   </span>
                 </button>
               </li>
@@ -73,13 +74,13 @@ export function OnboardingWizard({ steps, footer }: { steps: WizardStep[]; foote
       </nav>
 
       {/* Current step */}
-      <section className="flex min-h-[420px] flex-col gap-8 rounded-3xl bg-pure-white p-6 md:p-12">
+      <section className="flex min-h-[420px] flex-col gap-8 rounded-cards-elevated border border-carbon bg-paper-white p-6 md:p-12">
         <header className="flex items-start justify-between gap-6">
           <div className="flex flex-col gap-6">
-            <span className="text-caption tracking-[0.2em] text-mid-grey uppercase">Step {index + 1}</span>
+            <span className="label-type text-caption uppercase">Step {index + 1}</span>
             <div className="flex flex-col gap-4">
-              <h2 className="text-heading">{step.title}</h2>
-              <p className="max-w-2xl text-subheading text-soft-charcoal">{step.help}</p>
+              <h2 className="display-type text-[34px] sm:text-[44px] md:text-display-70">{step.title}</h2>
+              <p className="max-w-2xl text-subheading text-carbon/70">{step.help}</p>
             </div>
           </div>
           {step.icon && <span className="hidden shrink-0 md:block">{step.icon}</span>}
@@ -89,7 +90,7 @@ export function OnboardingWizard({ steps, footer }: { steps: WizardStep[]; foote
           <ul className="flex flex-col gap-3">
             {step.bullets.map((b) => (
               <li key={b} className="flex items-center gap-3">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gloss-black" />
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-carbon" />
                 {b}
               </li>
             ))}
@@ -109,7 +110,7 @@ export function OnboardingWizard({ steps, footer }: { steps: WizardStep[]; foote
           )
         )}
 
-        <footer className="mt-auto flex flex-wrap items-center justify-between gap-4 border-t-[1.5px] border-gloss-black/10 pt-6">
+        <footer className="mt-auto flex flex-wrap items-center justify-between gap-4 border-t border-carbon pt-6">
           <Button
             variant="outline"
             disabled={index === 0}
@@ -120,7 +121,7 @@ export function OnboardingWizard({ steps, footer }: { steps: WizardStep[]; foote
           </Button>
           <div className="flex items-center gap-4">
             {step.onSkip && step.status === "active" && (
-              <button type="button" onClick={step.onSkip} className="text-caption text-soft-charcoal underline underline-offset-4">
+              <button type="button" onClick={step.onSkip} data-cuelume-tap="" className="text-caption text-carbon/70 underline underline-offset-4">
                 Skip for now
               </button>
             )}
@@ -138,16 +139,16 @@ export function OnboardingWizard({ steps, footer }: { steps: WizardStep[]; foote
   );
 }
 
-/** The numbered circle: outline when to-do, ink when current, ink with ✓ when done */
+/** The numbered circle: white when to-do, black when current, black with ✓ when done */
 function StepDot({ n, status, selected }: { n: number; status: StepStatus; selected: boolean }) {
-  const base = "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-caption transition-colors";
-  if (status === "done") return <span className={`${base} bg-gloss-black text-gloss-white`}>✓</span>;
-  if (status === "active" || selected) return <span className={`${base} bg-gloss-black text-gloss-white`}>{n}</span>;
-  if (status === "skipped") return <span className={`${base} border-[1.5px] border-dashed border-gloss-black/30 text-mid-grey`}>{n}</span>;
-  return <span className={`${base} border-[1.5px] border-gloss-black/20 text-mid-grey`}>{n}</span>;
+  const base = "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-carbon text-caption font-bold transition-colors";
+  if (status === "done") return <span className={`${base} bg-carbon text-paper-white`}>✓</span>;
+  if (status === "active" || selected) return <span className={`${base} bg-carbon text-paper-white`}>{n}</span>;
+  if (status === "skipped") return <span className={`${base} border-dashed bg-soft-mist text-carbon/55`}>{n}</span>;
+  return <span className={`${base} bg-paper-white text-carbon/55`}>{n}</span>;
 }
 
-/** Thin line icons for the step card, drawn in ink at 1.5px like the rest of the system */
+/** Thin line icons for the step card, drawn in black like the rest of the system */
 export function StepIcon({ name }: { name: "key" | "org" | "vault" | "rules" | "eye" | "invite" | "human" | "wallet" }) {
   const paths: Record<typeof name, ReactNode> = {
     key: (

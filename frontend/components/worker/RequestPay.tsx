@@ -43,9 +43,10 @@ export function RequestPay({ employer, employerName }: { employer: Address | und
             <p>✓ Request sent. You&apos;re in {name}&apos;s console, waiting for them to set your salary.</p>
             <button
               type="button"
+              data-cuelume-tap=""
               onClick={() => void send("cancelRequest")}
               disabled={tx.busy}
-              className="w-fit text-caption text-soft-charcoal underline underline-offset-4"
+              className="w-fit text-caption text-carbon/70 underline underline-offset-4"
             >
               Withdraw request
             </button>
@@ -58,7 +59,7 @@ export function RequestPay({ employer, employerName }: { employer: Address | und
           </div>
         )
       ) : (
-        <p className="text-caption text-soft-charcoal">
+        <p className="text-caption text-carbon/70">
           {employer ? "Join requests aren't set up on this network yet." : "Open your employer's invite link to ask them directly."} Use one of
           the other ways below.
         </p>

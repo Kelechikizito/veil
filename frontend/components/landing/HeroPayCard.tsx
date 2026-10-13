@@ -67,22 +67,23 @@ export function HeroPayCard() {
   };
 
   return (
-    <div className="relative rounded-2xl bg-pure-white p-6 md:p-8">
-      <div className="flex items-center justify-between gap-4">
+    <div className="relative rounded-cards-elevated border border-carbon bg-paper-white p-6 md:p-8">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-caption">
-          <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-gloss-black" />
+          <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-carbon" />
           Streaming · Acme Labs →{" "}
           <Ciphertext plain="you" revealed={revealed} minLength={10} />
         </div>
-        <div role="tablist" aria-label="Who is looking" className="flex rounded-pill bg-gloss-white p-1 text-caption">
+        <div role="tablist" aria-label="Who is looking" className="flex rounded-pills border border-carbon bg-paper-white p-1 text-caption">
           {(["you", "explorer"] as const).map((v) => (
             <button
               key={v}
               role="tab"
+              data-cuelume-select=""
               aria-selected={view === v}
               onClick={() => choose(v)}
-              className={`rounded-pill px-3 py-1 transition-colors duration-300 ${
-                view === v ? "bg-gloss-black text-gloss-white" : "text-soft-charcoal hover:text-gloss-black"
+              className={`label-type rounded-pills px-3 py-1.5 transition-colors duration-300 ${
+                view === v ? "bg-carbon text-paper-white" : "text-carbon/70 hover:text-carbon"
               }`}
             >
               {v === "you" ? "Your view" : "Explorer view"}
@@ -92,13 +93,13 @@ export function HeroPayCard() {
       </div>
 
       <div className="mt-8 flex flex-col gap-2">
-        <span className="text-caption text-mid-grey">Earned this month</span>
-        <div className="flex min-h-[64px] items-baseline gap-2 font-classic text-[52px] leading-none tracking-[-0.03em] md:text-[64px]">
+        <span className="text-caption text-carbon/55">Earned this month</span>
+        <div className="display-type flex min-h-[64px] flex-wrap items-baseline gap-2 text-[34px] sm:text-[44px] md:text-display-70">
           <span className="tabular-nums">
             {whole}
-            <span className="text-mid-grey">.{fraction}</span>
+            <span className="text-carbon/55">.{fraction}</span>
           </span>
-          <span className="font-grotesk text-subheading">USDC</span>
+          <span className="font-aeonik-pro text-subheading font-bold normal-case">USDC</span>
         </div>
       </div>
 
@@ -106,20 +107,20 @@ export function HeroPayCard() {
         <Sparkline />
       </div>
 
-      <dl className="mt-6 grid grid-cols-3 gap-4 border-t-[1.5px] border-gloss-black pt-5">
+      <dl className="mt-6 grid grid-cols-3 gap-4 border-t border-carbon pt-5">
         {[
           ["Monthly", money(MONTHLY), false],
           ["Withdrawn", money(900), false],
           ["Paid to", "Alice", true],
         ].map(([label, value, hidden]) => (
           <div key={label as string} className="flex flex-col gap-1">
-            <dt className="text-caption text-mid-grey">{label}</dt>
+            <dt className="text-caption text-carbon/55">{label}</dt>
             <dd className="text-body">{hidden ? <Ciphertext plain={value as string} revealed={revealed} /> : value}</dd>
           </div>
         ))}
       </dl>
 
-      <p className="mt-6 text-caption text-soft-charcoal">
+      <p className="mt-6 text-caption text-carbon/70">
         {revealed
           ? "Only you, your employer and their auditor know this salary is yours."
           : "What everyone else sees onchain: real pay, to a one-time address they can't link to anyone."}

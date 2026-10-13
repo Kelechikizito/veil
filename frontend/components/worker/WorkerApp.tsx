@@ -1,7 +1,7 @@
 "use client";
 
 import { useReadContract } from "wagmi";
-import { Badge, ButtonLink } from "@/components/ui";
+import { Badge, ButtonLink, PageTitle } from "@/components/ui";
 import { useVeil } from "@/hooks/useVeil";
 import { DemoTokenAbi } from "@/lib/contracts/abis";
 import { formatAmount } from "@/lib/tokens";
@@ -22,13 +22,13 @@ export function WorkerApp() {
     query: { enabled: !!account && !!usdc, refetchInterval: 15_000 },
   });
 
-  if (isLoading) return <p className="py-10 text-mid-grey">Loading your pay…</p>;
+  if (isLoading) return <p className="py-10 text-carbon/55">Loading your pay…</p>;
 
   if (rows.length === 0) {
     return (
       <div className="flex max-w-xl flex-col gap-4 py-10">
         <h2 className="text-heading-sm">No salary stream yet</h2>
-        <p className="text-soft-charcoal">
+        <p className="text-carbon/70">
           Send your wallet address to your employer. Your pay shows up here as soon as they start it.
         </p>
         <div>
@@ -44,11 +44,11 @@ export function WorkerApp() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-3">
           <Badge ghost>Your pay</Badge>
-          <h1 className="text-[44px] leading-[0.97] tracking-[-0.03em] md:text-heading-lg">Paid by the second.</h1>
+          <PageTitle stickers={["clock", "coin"]}>Paid by the second.</PageTitle>
         </div>
         {usdc && wallet.data !== undefined && (
-          <span className="text-caption text-soft-charcoal">
-            In your wallet: <span className="tabular-nums text-gloss-black">{formatAmount(wallet.data, usdc.decimals)} {usdc.symbol}</span>
+          <span className="text-caption text-carbon/70">
+            In your wallet: <span className="tabular-nums text-carbon">{formatAmount(wallet.data, usdc.decimals)} {usdc.symbol}</span>
           </span>
         )}
       </header>
@@ -57,7 +57,7 @@ export function WorkerApp() {
         <StreamCard key={String(s.id)} stream={s} />
       ))}
 
-      <section className="flex flex-col gap-3 rounded-3xl border-[1.5px] border-gloss-black/10 p-6">
+      <section className="flex flex-col gap-3 rounded-cards-elevated border border-carbon bg-paper-white p-6">
         <span className="text-subheading">Private pay</span>
         <PrivatePaySetup />
       </section>

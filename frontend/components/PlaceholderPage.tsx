@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { SiteFooter, SiteHeader } from "./SiteChrome";
-import { Badge, ButtonLink, Section } from "./ui";
+import { Badge, ButtonLink, PageTitle, Section } from "./ui";
 
 /** Shell for routes whose checkpoint isn't built yet */
 export function PlaceholderPage({
@@ -15,11 +15,11 @@ export function PlaceholderPage({
   return (
     <>
       <SiteHeader />
-      <Section tone="tint" className="flex-1">
+      <Section tone="sky" className="flex-1">
         <div className="flex max-w-3xl flex-col gap-8">
           <Badge ghost>Checkpoint {checkpoint}</Badge>
-          <h1 className="text-[48px] leading-[0.97] tracking-[-0.03em] md:text-heading-lg">{title}</h1>
-          <div className="text-subheading text-soft-charcoal">{children}</div>
+          <PageTitle stickers={["star", "clock"]}>{title}</PageTitle>
+          <div className="text-subheading text-carbon/70">{children}</div>
           <div>
             <ButtonLink href="/" variant="outline">
               ← Back home

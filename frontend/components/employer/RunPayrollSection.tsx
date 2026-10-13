@@ -71,7 +71,7 @@ export function RunPayrollSection() {
         )
       }
     >
-      <p className="text-caption text-soft-charcoal">
+      <p className="text-caption text-carbon/70">
         This pay period ends at {new Date(Number(end) * 1000).toLocaleTimeString()} (in {countdown(end - now)}).{" "}
         {active.length === 0
           ? `You have no active ${token.symbol} streams.`
@@ -95,7 +95,7 @@ export function RunPayrollSection() {
                 vaultFunded ? (
                   <>
                     This period needs {formatAmount(needed, token.decimals)} {token.symbol}.{" "}
-                    <button type="button" className="underline underline-offset-4" onClick={() => setBudget(formatAmount(needed, token.decimals, 6).replace(/,/g, ""))}>
+                    <button type="button" data-cuelume-tap="" className="underline underline-offset-4" onClick={() => setBudget(formatAmount(needed, token.decimals, 6).replace(/,/g, ""))}>
                       Use that
                     </button>
                     . Capped at your vault ({formatAmount(vault.data ?? BigInt(0), token.decimals)} {token.symbol}).

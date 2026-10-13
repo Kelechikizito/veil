@@ -12,7 +12,7 @@ export function shortAddress(address: string): string {
 
 /**
  * Log in / log out, with the active wallet once logged in.
- * @param onDark Light styling for use over the hero video
+ * @param onDark Light styling for use on black surfaces
  */
 export function AuthButton({ onDark = false }: { onDark?: boolean }) {
   const { ready, authenticated, login, logout } = usePrivy();
@@ -46,9 +46,9 @@ export function AuthButton({ onDark = false }: { onDark?: boolean }) {
   return (
     <div className="flex items-center gap-3">
       {address && (
-        <button type="button" onClick={copyAddress} title={`${address} (click to copy)`} className="cursor-pointer">
+        <button type="button" onClick={copyAddress} data-cuelume-tap="" title={`${address} (click to copy)`} className="cursor-pointer">
           {onDark ? (
-            <span className="rounded-lg bg-pure-white/15 px-3 py-1 text-caption text-pure-white backdrop-blur">
+            <span className="rounded-pills border border-paper-white px-3 py-1 text-caption text-paper-white">
               {copied ? "Copied" : shortAddress(address)}
             </span>
           ) : (

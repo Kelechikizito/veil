@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
-import { Inter, Newsreader } from "next/font/google";
+import { Bowlby_One, Inter } from "next/font/google";
 import "./globals.css";
 import { NetworkBanner } from "@/components/NetworkBanner";
 import { Providers } from "./providers";
 
-// Stand-ins for Basel Grotesk (UI) and Basel Classic (display) from DESIGN.md
+// Stand-ins for Aeonik Pro (UI) and Lateral (display) from DESIGN.md
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: ["500", "700"],
 });
 
-const newsreader = Newsreader({
-  variable: "--font-newsreader",
+const bowlby = Bowlby_One({
+  variable: "--font-bowlby",
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${inter.variable} ${newsreader.variable} h-full antialiased`}>
+    <html lang="en" className={`${inter.variable} ${bowlby.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <Providers>
           <NetworkBanner />

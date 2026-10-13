@@ -11,6 +11,7 @@ import { Button } from "@/components/ui";
 import { useVeil } from "@/hooks/useVeil";
 import { shortError, useGasSponsored } from "@/hooks/useTx";
 import { VeilPayrollAbi } from "@/lib/contracts/abis";
+import { isEmbeddedWallet } from "@/lib/wallets";
 
 /** Gas sent from the current org's wallet to a new org's wallet, when the current one can spare it */
 const GAS_TOP_UP = parseEther("0.003");
@@ -105,12 +106,12 @@ export function OrgSwitcher() {
     setBusy(true);
     try {
       // Reuse an embedded wallet left without an org (an abandoned setup) before creating another
-      const spare = entries.find((e) => !e.name && e.wallet.walletClientType === "privy")?.wallet;
+      const spare = entries.find((e) => !e.name && isEmbeddedWallet(e.wallet))?.wallet;
       let address: Address;
       if (spare) address = spare.address as Address;
       else {
         setStatus("Creating a wallet for the new org…");
-        const hasEmbedded = entries.some((e) => e.wallet.walletClientType === "privy");
+        const hasEmbedded = entries.some((e) => isEmbeddedWallet(e.wallet));
         address = (await createWallet({ createAdditional: hasEmbedded })).address as Address;
       }
 
@@ -158,9 +159,10 @@ export function OrgSwitcher() {
         {rest.length > 0 && (
           <button
             type="button"
+            data-cuelume-toggle=""
             onClick={() => setShowAll(!showAll)}
             aria-expanded={showAll}
-            className="text-caption text-soft-charcoal underline underline-offset-4"
+            className="text-caption text-carbon/70 underline underline-offset-4"
           >
             {showAll ? "See less" : `See more (${rest.length})`}
           </button>
@@ -170,19 +172,20 @@ export function OrgSwitcher() {
         </Button>
       </div>
       {showAll && rest.length > 0 && (
-        <ul className="flex max-h-64 flex-col overflow-y-auto rounded-lg border-[1.5px] border-gloss-black/10">
+        <ul className="flex max-h-64 flex-col overflow-y-auto rounded-cards border border-carbon">
           {rest.map((o) => (
-            <li key={o.wallet.address} className="border-t-[1.5px] border-gloss-black/10 first:border-t-0">
+            <li key={o.wallet.address} className="border-t border-carbon/10 first:border-t-0">
               <button
                 type="button"
+                data-cuelume-select=""
                 onClick={() => {
                   setShowAll(false);
                   void switchTo(o.wallet);
                 }}
-                className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left hover:bg-gloss-white"
+                className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left hover:bg-soft-mist"
               >
                 <span>{o.name}</span>
-                <span className="font-mono text-caption text-mid-grey">
+                <span className="font-mono text-caption text-carbon/55">
                   {o.wallet.address.slice(0, 6)}…{o.wallet.address.slice(-4)}
                 </span>
               </button>
@@ -190,8 +193,8 @@ export function OrgSwitcher() {
           ))}
         </ul>
       )}
-      {busy && status && <p className="text-caption text-soft-charcoal">{status}</p>}
-      {error && <p className="text-caption text-soft-charcoal">Something went wrong: {error}</p>}
+      {busy && status && <p className="text-caption text-carbon/70">{status}</p>}
+      {error && <p className="text-caption text-carbon/70">Something went wrong: {error}</p>}
     </div>
   );
 }

@@ -63,7 +63,7 @@ export function OrgSection() {
         </Button>
       </form>
       {!sponsored && balance.data?.value === BigInt(0) && account && (
-        <p className="text-caption text-soft-charcoal">
+        <p className="text-caption text-carbon/70">
           This wallet has no MON for gas. Get some from the Monad testnet faucet and send it to:{" "}
           <span className="break-all font-mono">{account}</span>
         </p>

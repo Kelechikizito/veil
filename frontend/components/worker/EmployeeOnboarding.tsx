@@ -105,7 +105,7 @@ export function EmployeeOnboarding({ org }: { org?: string }) {
         <div className="flex flex-col gap-6">
           <RequestPay employer={orgAddress} employerName={orgName} />
           <details className="group">
-            <summary className="cursor-pointer text-caption text-soft-charcoal underline underline-offset-4">
+            <summary data-cuelume-open="" className="cursor-pointer text-caption text-carbon/70 underline underline-offset-4">
               Other ways: a pay-me link or your address
             </summary>
             <div className="pt-4">
@@ -130,7 +130,7 @@ export function EmployeeOnboarding({ org }: { org?: string }) {
       status: count > 0 ? "done" : statusOf("wait"),
       content: (
         <p className="flex items-center gap-3 text-caption">
-          <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-gloss-black" />
+          <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-carbon" />
           Waiting for {orgName ?? "your employer"}…
         </p>
       ),
@@ -151,12 +151,12 @@ function AddressShare({ address, onShared }: { address: Address; onShared: () =>
     });
   return (
     <div className="flex flex-col gap-6 md:flex-row md:items-center">
-      <div className="w-fit rounded-2xl bg-gloss-white p-4">
-        <QRCode value={address} size={140} fgColor="#17150e" bgColor="#f0f7f6" />
+      <div className="w-fit rounded-wallet-icon border border-carbon bg-paper-white p-4">
+        <QRCode value={address} size={140} fgColor="#000000" />
       </div>
       <div className="flex flex-col gap-4">
         <code className="font-mono text-subheading break-all">{address}</code>
-        <p className="text-caption text-soft-charcoal">
+        <p className="text-caption text-carbon/70">
           The pay-me link opens your employer&apos;s console with your address already filled in.
         </p>
         <div className="flex flex-wrap gap-3">
