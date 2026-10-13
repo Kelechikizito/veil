@@ -4,7 +4,7 @@
 
 **Monad Metropolis** · Built on Monad, Privy, Chainlink CRE, Envio, Alchemy and passkeys
 
-[Deployed contracts](#deployments) · [Proof it ran](#proof-it-ran) · [Quick start](#quick-start)
+[Live app](https://veil-chi-eight.vercel.app) · [How it uses each sponsor](#how-veil-uses-each-sponsor) · [Deployed contracts](#deployments) · [Proof it ran](#proof-it-ran)
 
 ---
 
@@ -96,15 +96,20 @@ The employer calls `vouch` ([L59–L64](https://github.com/Kelechikizito/veil/bl
 
 Next.js 16 with wagmi and viem. Every transaction goes through [`hooks/useTx.ts`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/frontend/hooks/useTx.ts#L130-L140), which sends embedded-wallet transactions through Privy with gas sponsored. The relayer is a Next.js route ([`app/api/relay/route.ts`](frontend/app/api/relay/route.ts#L51-L56)) that only accepts `withdrawWithSig`, `issueWithSig` and `revokeWithSig`. It sends them from an app-owned Privy server wallet with gas sponsored by Privy ([`lib/privyServerWallet.ts`](frontend/lib/privyServerWallet.ts)), so no relayer key or MON sits on the server. Stealth announcements come from Envio HyperSync through [`app/api/announcements/route.ts`](frontend/app/api/announcements/route.ts); without a token, the worker's browser falls back to reading every stream over RPC.
 
-## Sponsor integrations
+## How Veil uses each sponsor
 
-| Sponsor | What Veil uses it for | Where |
-|---|---|---|
-| **Monad** | P256 precompile for onchain passkey checks; all contracts | [`WebAuthn.sol#L64-L81`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/libraries/WebAuthn.sol#L64-L81) |
-| **Privy** | Email and Google login, embedded wallets created on login, gas sponsorship for every worker and employer transaction, no confirm pop-ups; the relayer is an app-owned **Privy server wallet** sending sponsored transactions through Privy's wallet API | [`app/providers.tsx`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/frontend/app/providers.tsx), [`hooks/useTx.ts#L130-L140`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/frontend/hooks/useTx.ts#L130-L140), [`lib/privyServerWallet.ts`](frontend/lib/privyServerWallet.ts) |
-| **Chainlink CRE** | A cron workflow that runs each employer's payroll every period: reads streams on Monad, computes the budget, writes a signed report through the forwarder to the employer's receiver | [`cre/veil-payroll/main.ts`](cre/veil-payroll/main.ts), [`VeilPayrollAutomation.sol`](src/VeilPayrollAutomation.sol) |
-| **Envio** | HyperSync serves every stealth announcement, so workers find their pay without reading every stream; public RPCs cap logs at 10 to 100 blocks | [`app/api/announcements/route.ts`](frontend/app/api/announcements/route.ts), [`hooks/useStealth.ts`](frontend/hooks/useStealth.ts) |
-| **Alchemy** | Monad testnet RPC for the browser, the embedded wallet's sends and the API routes; Privy's gas sponsorship on Monad also runs through Alchemy | [`lib/chains.ts`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/frontend/lib/chains.ts), [`lib/privyChains.ts`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/frontend/lib/privyChains.ts), [`app/api/relay/route.ts`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/frontend/app/api/relay/route.ts) |
+**Monad** runs everything. Its P256 precompile is what lets the contract check a worker's Face ID passkey onchain ([`WebAuthn.sol#L64-L81`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/libraries/WebAuthn.sol#L64-L81)), and fast, cheap blocks make per-second pay and gas-free withdrawals practical.
+
+**Privy** is how people get in and why nobody pays gas.
+- Workers and employers sign in with email or Google, and Privy creates a wallet for them. No seed phrase, no extension ([`app/providers.tsx`](frontend/app/providers.tsx)).
+- Every transaction they make is gas-sponsored by Privy, with no confirm pop-ups ([`hooks/useTx.ts#L130-L140`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/frontend/hooks/useTx.ts#L130-L140)).
+- The relayer that sends workers' private withdrawals is a Privy server wallet owned by the app, also gas-sponsored. No private key or MON sits on our server ([`lib/privyServerWallet.ts`](frontend/lib/privyServerWallet.ts), [`app/api/relay/route.ts`](frontend/app/api/relay/route.ts#L51-L56)).
+
+**Chainlink CRE** runs payroll on a schedule. A CRE workflow wakes up at the start of each pay period, reads the employer's salary streams on Monad, works out which ones need funding and how much, and sends a signed report through Chainlink's forwarder. The employer's receiver contract checks the report came from that forwarder, caps the amount at a limit the employer set, and runs payroll ([`cre/veil-payroll/main.ts`](cre/veil-payroll/main.ts), [`VeilPayrollAutomation.sol`](src/VeilPayrollAutomation.sol#L121-L137)).
+
+**Envio** helps workers find their pay. Private salaries go to one-time addresses, so a worker's app can't just look up their wallet. Instead it asks Envio HyperSync for every payment announcement and checks each one against the worker's private key, then reads only the streams that are theirs. Public RPCs only return 10 to 100 blocks of events at a time; HyperSync returns the whole history in a request or two ([`app/api/announcements/route.ts`](frontend/app/api/announcements/route.ts), [`hooks/useStealth.ts`](frontend/hooks/useStealth.ts)).
+
+**Alchemy** is the app's connection to Monad: every read, every embedded-wallet send and every server route goes through Alchemy's Monad RPC ([`lib/chains.ts`](frontend/lib/chains.ts), [`lib/privyChains.ts`](frontend/lib/privyChains.ts)). Privy's gas sponsorship on Monad also runs through Alchemy.
 
 ## Deployments
 
@@ -229,7 +234,7 @@ What the tests hold to:
 
 ## Known issues
 
-- **Amounts are public; who is paid is not.** FHE coprocessors don't run on Monad, so salaries are plain USDC. Privacy comes from unlinkability: each stream pays a one-time address. Withdrawing to your main wallet links the two again. The app warns about this and suggests an exchange deposit address or a fresh wallet.
+- **Amounts are public; who is paid is not.** FHE coprocessors don't run on Monad, so salaries are plain USDC. Privacy comes from unlinkability: each stream pays a one-time address. A worker who hasn't turned on private pay is paid at their own wallet, and the employer console and the live table on the landing page say so. Withdrawing to your main wallet links the two again. The app warns about this and suggests an exchange deposit address or a fresh wallet.
 - **An income proof reveals the stream and its salary to anyone who reads it.** The credential stores the stream id, and the stream's salary is public. A ZK credential that proves `salary >= threshold` without naming the stream is the next step.
 - **Proofs from stealth streams don't show "verified employee".** `_issue` checks employment for the stream's payee, which for a stealth stream is the one-time address, not the worker's confirmed wallet. Fixing it needs a proof that links the two without revealing the link onchain.
 - **One signature derives both stealth keys.** Anyone who gets that wallet signature can find and spend the worker's private streams. This is the same trade-off as other stealth-address wallets, and it lets a worker recover their pay on any device by logging in.
