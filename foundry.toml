@@ -26,6 +26,6 @@ monad_mainnet = "${ALCHEMY_MONAD_MAINNET_RPC_URL}"
 
 # An Etherscan V2 key verifies on Monadscan
 [etherscan]
-monad_testnet = { key = "${ETHERSCAN_API_KEY}", chain = 10143 }
+monad_testnet = { key = "${ETHERSCAN_API_KEY}", chain = 10143, url = "https://api.etherscan.io/v2/api?chainid=10143" }
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
