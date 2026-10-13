@@ -1,10 +1,8 @@
 # Veil
 
-> Salaries stream onchain where nobody can read them, and a worker can prove "I earn at least $2,500" to one landlord without revealing the number.
+> Salaries on Monad stream to one-time addresses, so nobody can tell whose pay is whose, and a worker can prove "I earn at least $2,500" to one landlord.
 
-**Monad Metropolis** · Built on Monad, Privy and passkeys
-
-Veil builds on [Dayze](https://github.com/Kelechikizito/dayze), our earlier confidential payroll on Base Sepolia. The links, deployments and transactions below are still Dayze's until the Monad deploy.
+**Monad Metropolis** · Built on Monad, Privy, Chainlink CRE, Envio, Alchemy and passkeys
 
 [Deployed contracts](#deployments) · [Proof it ran](#proof-it-ran) · [Quick start](#quick-start)
 
@@ -12,7 +10,7 @@ Veil builds on [Dayze](https://github.com/Kelechikizito/dayze), our earlier conf
 
 ## The problem
 
-Ada is paid 3,000 USDC a month. If her employer pays her onchain, her salary is public forever: her coworkers, her landlord and any stranger with a block explorer can read it.
+Ada is paid 3,000 USDC a month. If her employer pays her onchain, her salary is public forever. Her coworkers, her landlord and any stranger with a block explorer can look up her wallet and see what she earns.
 
 Then she applies for a flat. The landlord wants payslips, which show her exact salary and more. Sharing her wallet is worse, because it shows her whole financial history.
 
@@ -20,138 +18,166 @@ So companies keep payroll off-chain, and workers paid in crypto can't prove what
 
 ## How it works
 
-Ada works for Acme Labs at 3,000 cUSDC a month. On testnet a "month" is 10 minutes, so you can watch it happen.
+Ada works for Acme Labs at 3,000 USDC a month. On testnet a "month" is 10 minutes, so you can watch it happen.
 
-1. **Acme funds payroll.** It shields 5,000 USDC into cUSDC, a confidential wrapper, and moves it into its payroll vault. From here on, every amount is ciphertext.
-2. **Acme creates Ada's stream.** The browser encrypts "3,000" before it leaves the page. `ApprovalPolicy` compares it with Acme's encrypted 10,000 threshold. Only one bit becomes public: "above the threshold" or "below it". Below goes Active. Above waits for Acme's approvers (2 of 2 in the demo).
-3. **Acme runs payroll** with an encrypted budget. Each stream gets `min(salary for the rest of the period, budget left)`, in table order. A 4,000 budget across two 3,000 streams gives 3,000 and 1,000. Only what is set aside leaves the vault.
-4. **Ada watches her pay stream in.** Her app decrypts her own allocation once, with a signed permit, then ticks it up every second. No transactions.
-5. **Ada withdraws.** The contract pays `req` if it fits what has streamed, else 0, all on ciphertext. Basescan shows a handle, not an amount.
-6. **Ada proves her income.** Her landlord asks for at least 2,500 a month. Ada issues a credential that expires in 7 days. The contract computes `monthly >= 2500` on the encrypted salary and lets only the landlord decrypt the answer. The landlord sees: yes, issued by a World ID-verified human, active since, expires at. Nobody learns "3,000".
-7. **Acme's auditor checks the books.** They decrypt salaries, set-aside amounts and withdrawals in their browser and export a CSV. Nothing is uploaded.
+1. **Ada signs up with her email.** Privy gives her a wallet. She never sees a seed phrase or pays gas.
+2. **She turns on private pay.** One signature derives her stealth keys, and she publishes a public "meta-address" in `StealthRegistry`.
+3. **She confirms she works for Acme with Face ID.** Her passkey signs a challenge, and Monad's P256 precompile checks it onchain. Acme vouches for her from its console. With both, she is a "verified employee of Acme".
+4. **Acme starts her stream.** The browser derives a fresh one-time address from Ada's meta-address, and the salary streams to that address. Onchain, the stream pays an address nobody has seen before. Nothing links it to Ada's wallet.
+5. **Payroll runs every period, on its own.** A Chainlink CRE workflow checks Acme's streams each period and sends a signed report with the budget they need; Acme's receiver contract runs payroll with it, capped by a limit Acme set onchain. Acme can also run it by hand with a budget. Each stream gets `min(salary for the rest of the period, budget left)`, in table order. A 4,000 budget across two 3,000 streams gives 3,000 and 1,000. A stream only streams what was set aside, so pay never outruns the money.
+6. **Ada finds her pay.** Her app fetches every stream announcement from Envio HyperSync and matches them against her viewing key, so it only reads the streams meant for her. Her balance ticks up every second, with no transactions.
+7. **Ada withdraws, gas-free.** The one-time address has no MON, and funding it from her main wallet would link the two. So she signs the withdrawal, and Veil's relayer, a Privy server wallet with sponsored gas, sends it. The money goes wherever she chose.
+8. **Ada proves her income.** Her landlord asks for at least 2,500 a month. Ada issues a credential that names the landlord and expires in 7 days. The landlord opens a link and sees: yes, it meets the threshold, paid by Acme Labs, active since, expires at.
+
+Salaries above an employer's limit wait for k-of-n approvers before they start. Auditors the employer appoints can read the books.
 
 ```mermaid
 sequenceDiagram
-    actor Acme as Acme (employer)
-    actor Ada as Ada (worker)
-    actor Landlord
-    participant P as VeilPayroll
-    participant AP as ApprovalPolicy
-    participant IC as IncomeCredential
-    participant TN as CoFHE Threshold Network
-
-    Acme->>P: createStream(Ada, enc(3000))
-    P->>AP: evaluate: enc(3000) > enc(threshold)?
-    AP-->>TN: one public bit
-    TN-->>P: resolvePolicy(false + signature): Active
-    Acme->>P: runPayroll(enc(budget), [ids])
-    Note over P: allocation = min(salary, budget left)<br/>vault -= allocation (encrypted)
-    Ada->>TN: permit: unseal my allocation
-    Note over Ada: balance ticks locally, 0 txs
-    Ada->>P: withdraw(enc(amount))
-    Note over P: pay = amount <= streamed ? amount : 0
-    Ada->>IC: issue(stream, Landlord, 2500, expiry)
-    IC->>P: read encrypted monthly
-    Note over IC: ok = monthly >= 2500<br/>FHE.allow(ok, Landlord) only
-    Landlord->>TN: permit: unseal ok
-    TN-->>Landlord: yes
+    participant W as Worker (Ada)
+    participant E as Employer (Acme)
+    participant C as Monad contracts
+    participant R as Relayer
+    W->>C: registerKeys(meta-address)  [StealthRegistry]
+    W->>C: confirm(employer, passkey, assertion)  [EmployeeRegistry, P256 precompile]
+    E->>C: vouch(worker)
+    E->>E: derive one-time address from Ada's meta-address
+    E->>C: createStealthStream(oneTime, USDC, 3000, ephemeralKey, viewTag)
+    E->>C: runPayroll(USDC, budget, ids)
+    W->>C: scan announcements with viewing key
+    W->>R: signed Withdraw(id, amount, to, nonce, deadline)
+    R->>C: withdrawWithSig(...)  (Privy server wallet, gas sponsored)
+    C-->>W: USDC to the address Ada chose
 ```
 
 ## What makes this different
 
-- **Against plain stablecoin payroll (Sablier, Superfluid, a USDC transfer):** those publish every salary. Veil keeps salary, balance, budget and withdrawal amounts encrypted onchain.
-- **Against a ZK proof of income:** a SNARK would need a separate commitment to the salary, plus a proof that it matches the real payments. Veil's check runs on the stream's own ciphertext ([`IncomeCredential.sol#L101`](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/IncomeCredential.sol#L101)), so the proof can't drift from what the worker is actually paid.
-- **Against FHE payroll that publishes a permanent "salary ≥ X" flag:** a Veil credential goes to one verifier, expires, and can be revoked. The worker decides who learns the bit, and for how long.
-- **Against "encrypt the salary, hope the vault holds it":** pay never outruns the money. Each period, payroll sets aside what each stream may stream, so a worker can always withdraw what they see.
-- **Against payslips:** the landlord learns one bit, plus who paid, since when, and whether the worker is a verified unique human.
+- **Against public streaming payroll** (Sablier-style streams): every salary is readable by anyone who knows a worker's wallet. Veil pays each stream to a fresh one-time address ([ERC-5564](https://eips.ethereum.org/EIPS/eip-5564)), so a block explorer shows a salary but not whose it is.
+- **Against stealth payments alone:** a one-time address has no gas, so the usual fix is to fund it, which links it straight back to you. Veil's payee signs an EIP-712 withdrawal and a relayer sends it. The signature binds the amount, destination, nonce and deadline, so the relayer can't redirect the money.
+- **Against "verified human" checks:** a landlord doesn't care that you're a unique person. They care that you work where you say. Veil records both sides: the employer vouches and the worker confirms with a passkey, checked onchain by Monad's P256 precompile.
+- **Against payslips:** a credential is issued to one named verifier, expires, and can be revoked. It answers "at least $X?" with yes or no, and it reads the live stream, so it can't be backdated or forged.
 
 ## Architecture
 
-Seven contracts, all on Base Sepolia, all source-verified. Every amount is a CoFHE `euint64` handle. Access is granted per handle with `FHE.allow`, and users decrypt with EIP-712 permits. No server holds a key that can read a salary.
+Permalinks point at commit [`078972f`](https://github.com/Kelechikizito/veil/tree/078972fb002e166149079d052312494888da3d75).
 
-### VeilPayroll ([src/DayzePayroll.sol](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/DayzePayroll.sol))
+### VeilPayroll ([src/VeilPayroll.sol](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/VeilPayroll.sol))
 
-Orgs, encrypted per-token vaults and salary streams. Money flows vault → payroll run → stream → worker.
-- `createStream` ([L202–L242](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/DayzePayroll.sol#L202-L242)) stores the encrypted salary and asks `ApprovalPolicy` for the one public bit.
-- `resolvePolicy` ([L246–L259](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/DayzePayroll.sol#L246-L259)) is permissionless: anyone can post the decrypted bit, and the Threshold Network's signature proves it.
-- `runPayroll` ([L274–L311](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/DayzePayroll.sol#L274-L311)) splits an encrypted budget across streams, pro rata for the time left in the period. Finished periods move into `banked`, which stays withdrawable.
-- `withdraw` ([L315–L338](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/DayzePayroll.sol#L315-L338)) pays 0 on an over-withdrawal instead of reverting, so a failed attempt leaks nothing.
-- Streaming is lazy. It's computed in `euint128` only on withdraw ([L379–L405](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/DayzePayroll.sol#L379-L405)). Times are plaintext; only amounts are encrypted.
+Orgs, per-token vaults and salary streams. Money flows vault → payroll → stream → payee.
 
-### ApprovalPolicy ([src/ApprovalPolicy.sol](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/ApprovalPolicy.sol))
+- `createStealthStream` ([L227–L240](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/VeilPayroll.sol#L227-L240)) pays a one-time address and emits an ERC-5564 `Announcement`, so the payee finds it by scanning.
+- `_runPayroll` ([L375–L408](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/VeilPayroll.sol#L375-L408)) splits a budget across streams, pro rata for the time left in the period. Finished periods move into `banked`, which stays withdrawable.
+- `withdrawWithSig` ([L311–L324](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/VeilPayroll.sol#L311-L324)) pays out on the payee's EIP-712 signature. Anyone can send it, so a stealth payee never needs gas.
+- `setPayrollOperator` and `runPayrollFor` ([L290–L300](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/VeilPayroll.sol#L290-L300)) let an employer allow an automation, such as a scheduled workflow, to run payroll for them. An operator can only move money from the vault into the employer's own active streams.
+- Streaming is lazy: it is computed on each withdraw, so a stream costs nothing while it runs.
 
-k-of-n approvers per employer, plus an encrypted monthly threshold per token. `evaluate` ([L146–L162](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/ApprovalPolicy.sol#L146-L162)) computes `salary > threshold` on ciphertext. It fails closed: a token with no threshold always needs approval.
+### VeilPayrollAutomation ([src/VeilPayrollAutomation.sol](src/VeilPayrollAutomation.sol)) and the CRE workflow ([cre/veil-payroll/main.ts](cre/veil-payroll/main.ts))
 
-### IncomeCredential ([src/IncomeCredential.sol](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/IncomeCredential.sol))
+The employer deploys a receiver and allows it as payroll operator. A Chainlink CRE cron workflow fires 5 seconds into each pay period, reads the employer's streams on Monad, picks the Active ones not yet funded for this period, and computes what they need for the time left. It sends `abi.encode(budget, ids)` as a signed report through Chainlink's forwarder. `onReport` ([L121–L137](src/VeilPayrollAutomation.sol#L121-L137)) accepts only the configured forwarder (and, optionally, one workflow owner), caps the budget at the employer's onchain `maxBudget`, and calls `runPayrollFor`. The report can't reach another employer's streams or move money out: VeilPayroll checks every id.
 
-`issue` ([L90–L125](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/IncomeCredential.sol#L90-L125)) compares the live stream's encrypted salary with a plaintext threshold and lets only the named verifier decrypt the result. It records the issuer, expiry, how long the stream has been active, and whether the worker is a verified human. `revoke` and `isValid` handle the rest.
+### EmployeeRegistry ([src/EmployeeRegistry.sol](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/EmployeeRegistry.sol)) and WebAuthn ([src/libraries/WebAuthn.sol](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/libraries/WebAuthn.sol))
 
-### HumanRegistry ([src/HumanRegistry.sol](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/HumanRegistry.sol))
+The employer calls `vouch` ([L59–L64](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/EmployeeRegistry.sol#L59-L64)). The worker calls `confirm` ([L74–L88](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/EmployeeRegistry.sol#L74-L88)) with a WebAuthn assertion over a per-pair challenge. `WebAuthn.verify` ([L64–L81](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/libraries/WebAuthn.sol#L64-L81)) checks the client data and authenticator flags, then verifies the P256 signature through OpenZeppelin's `P256`, which calls the precompile at `0x100` on Monad. A worker is verified only when both sides have signed.
 
-One human, one wallet. The worker does a World ID Selfie Check. The [attest route](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/frontend/app/api/world-id/attest/route.ts) verifies it with World's API and signs an EIP-712 attestation over a salted nullifier. `register` ([L77–L95](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/HumanRegistry.sol#L77-L95)) checks the signature and burns the nullifier. Employers see "verified human" next to each payee, and so does a landlord reading a credential.
+### StealthRegistry ([src/StealthRegistry.sol](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/StealthRegistry.sol))
 
-### AuditRegistry, JoinRequests, confidential tokens
+`registerKeys` ([L54–L60](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/StealthRegistry.sol#L54-L60)) stores a worker's ERC-6538-style meta-address: two compressed secp256k1 keys, one for spending and one for viewing. The derivation is in [`frontend/lib/stealth.ts`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/frontend/lib/stealth.ts#L76-L97): the employer's browser makes the one-time address, and the worker's browser recognises it with the view tag and rebuilds its private key.
 
-- **[AuditRegistry](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/AuditRegistry.sol)** lists each employer's auditors. Payroll grants them every new handle through the [AuditAccess](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/libraries/AuditAccess.sol) library.
-- **[JoinRequests](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/JoinRequests.sol)** lets a worker ask an employer to pay them. The request shows up in the employer console, with no wallet address sent over chat.
-- **[ConfidentialToken](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/ConfidentialToken.sol)** and **[ConfidentialNative](https://github.com/Kelechikizito/dayze/blob/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/src/ConfidentialNative.sol)** are thin hosts over Fhenix's FHERC20 wrappers: cUSDC, cARB and cETH. Shield and unshield are the only places an amount is plaintext.
+### IncomeCredential ([src/IncomeCredential.sol](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/IncomeCredential.sol))
 
-### Frontend ([frontend/](https://github.com/Kelechikizito/dayze/tree/44db611d4ed87ed7fd2460a5c5d1c0ceff488502/frontend))
+`_issue` ([L151–L185](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/IncomeCredential.sol#L151-L185)) reads the live stream, records whether `monthly >= threshold`, the verifier, the expiry, how long the stream has been active, and whether the employment is verified. Stealth payees issue and revoke by signature through the relayer (`issueWithSig`, `revokeWithSig`).
 
-Next.js 16 with five role views: employer console (`/employer`), worker app (`/worker`), approvers (`/approvals`), verifier (`/verify`) and auditor (`/audit`). Employers and workers each get a guided onboarding.
-- **Login:** Privy embedded wallets with Google or email, and gas sponsorship, so a worker needs no ETH and no browser extension.
-- **Encryption:** inputs are encrypted in the browser with `@cofhe/sdk`, and every decryption uses the viewer's own permit.
+### ApprovalPolicy, AuditRegistry, JoinRequests
+
+- **[ApprovalPolicy](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/ApprovalPolicy.sol)** holds each employer's k-of-n approvers and a monthly threshold per token. `needsApproval` ([L148–L152](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/ApprovalPolicy.sol#L148-L152)) fails closed: a token with no threshold always needs approval.
+- **[AuditRegistry](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/AuditRegistry.sol)** lists each employer's auditors. The employer can download a list matching one-time addresses to names, built in the browser and never stored onchain.
+- **[JoinRequests](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/JoinRequests.sol)** lets a worker ask an employer to pay them. The request shows up in the employer's console, so nobody pastes wallet addresses into chat.
+
+### Frontend ([frontend/](https://github.com/Kelechikizito/veil/tree/078972fb002e166149079d052312494888da3d75/frontend))
+
+Next.js 16 with wagmi and viem. Every transaction goes through [`hooks/useTx.ts`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/frontend/hooks/useTx.ts#L130-L140), which sends embedded-wallet transactions through Privy with gas sponsored. The relayer is a Next.js route ([`app/api/relay/route.ts`](frontend/app/api/relay/route.ts#L51-L56)) that only accepts `withdrawWithSig`, `issueWithSig` and `revokeWithSig`. It sends them from an app-owned Privy server wallet with gas sponsored by Privy ([`lib/privyServerWallet.ts`](frontend/lib/privyServerWallet.ts)), so no relayer key or MON sits on the server. Stealth announcements come from Envio HyperSync through [`app/api/announcements/route.ts`](frontend/app/api/announcements/route.ts); without a token, the worker's browser falls back to reading every stream over RPC.
+
+## Sponsor integrations
+
+| Sponsor | What Veil uses it for | Where |
+|---|---|---|
+| **Monad** | P256 precompile for onchain passkey checks; all contracts | [`WebAuthn.sol#L64-L81`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/libraries/WebAuthn.sol#L64-L81) |
+| **Privy** | Email and Google login, embedded wallets created on login, gas sponsorship for every worker and employer transaction, no confirm pop-ups; the relayer is an app-owned **Privy server wallet** sending sponsored transactions through Privy's wallet API | [`app/providers.tsx`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/frontend/app/providers.tsx), [`hooks/useTx.ts#L130-L140`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/frontend/hooks/useTx.ts#L130-L140), [`lib/privyServerWallet.ts`](frontend/lib/privyServerWallet.ts) |
+| **Chainlink CRE** | A cron workflow that runs each employer's payroll every period: reads streams on Monad, computes the budget, writes a signed report through the forwarder to the employer's receiver | [`cre/veil-payroll/main.ts`](cre/veil-payroll/main.ts), [`VeilPayrollAutomation.sol`](src/VeilPayrollAutomation.sol) |
+| **Envio** | HyperSync serves every stealth announcement, so workers find their pay without reading every stream; public RPCs cap logs at 10 to 100 blocks | [`app/api/announcements/route.ts`](frontend/app/api/announcements/route.ts), [`hooks/useStealth.ts`](frontend/hooks/useStealth.ts) |
+| **Alchemy** | Monad testnet RPC for the browser, the embedded wallet's sends and the API routes; Privy's gas sponsorship on Monad also runs through Alchemy | [`lib/chains.ts`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/frontend/lib/chains.ts), [`lib/privyChains.ts`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/frontend/lib/privyChains.ts), [`app/api/relay/route.ts`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/frontend/app/api/relay/route.ts) |
 
 ## Deployments
 
-### Base Sepolia (84532)
+### Monad testnet (10143)
+
+All contracts are verified on Monadscan. The demo pay period is 600 seconds.
 
 | Contract | Address |
 |---|---|
-| DayzePayroll | [`0x4121…98E0`](https://sepolia.basescan.org/address/0x4121Bc6A9BF72fDe36BED539F0A2E643394998E0#code) |
-| ApprovalPolicy | [`0x0a55…dA89`](https://sepolia.basescan.org/address/0x0a558146fB23F9bDF138440e191E573E4ed3dA89#code) |
-| IncomeCredential | [`0x99c0…b106`](https://sepolia.basescan.org/address/0x99c09678A7f193dF3E636B6a5D160715DEE1b106#code) |
-| HumanRegistry | [`0x420d…F7b5`](https://sepolia.basescan.org/address/0x420ddf737d5B5742360129205b33311aeb69F7b5#code) |
-| AuditRegistry | [`0x85F0…E8f2`](https://sepolia.basescan.org/address/0x85F0Db319Cd689634Ad2012daa5ABBFAf3CdE8f2#code) |
-| JoinRequests | [`0xC58C…3511`](https://sepolia.basescan.org/address/0xC58C02D829DCeCB2B646Bf71163Ba1dAF2Ea3511#code) |
-| cUSDC | [`0xc2Ab…6674`](https://sepolia.basescan.org/address/0xc2AbF7D3f44Ec03Aa23f4cE08339cE13F8F36674#code) |
-| cARB | [`0x7603…04c`](https://sepolia.basescan.org/address/0x7603Aa7d585b00a63036fDFa84bDB0a0FbB2b04c#code) |
-| cETH | [`0xbd89…3979`](https://sepolia.basescan.org/address/0xbd896ff7f281bDb9Ca71E88eB6aC72EEcACf3979#code) |
-| Test USDC | [`0x953A…95D0`](https://sepolia.basescan.org/address/0x953AD9dC75e355660e28b3FDA5307E588e9a95D0) |
+| VeilPayroll | [`0xbEDd…726B`](https://testnet.monadscan.com/address/0xbEDdCB7B043BbF075264C8E642f1161E1c58726B#code) |
+| EmployeeRegistry | [`0x12F9…fEd6`](https://testnet.monadscan.com/address/0x12F9FF86633d0633cB91c7992018f503ab2dfEd6#code) |
+| StealthRegistry | [`0x3d2B…Ba78`](https://testnet.monadscan.com/address/0x3d2B7DF01ac8D8aB729E4998FC4BcDb02436Ba78#code) |
+| IncomeCredential | [`0x213d…1454`](https://testnet.monadscan.com/address/0x213d51712c33C0e449E02e3A47aCd75634231454#code) |
+| ApprovalPolicy | [`0x5519…9E86`](https://testnet.monadscan.com/address/0x551904f44630B7C2ac9BBf81db795928Cc329E86#code) |
+| AuditRegistry | [`0xce0c…aBC7`](https://testnet.monadscan.com/address/0xce0c01B9c2E407af328eB25D06aea0f1929aaBC7#code) |
+| JoinRequests | [`0x8529…aF77`](https://testnet.monadscan.com/address/0x8529e281E8dB02fBE76a3ebe85a909b5eAbaAf77#code) |
+| VeilPayrollAutomation (Acme Labs' CRE receiver) | [`0x3507…1cfD`](https://testnet.monadscan.com/address/0x350784A9f4DD60b80102A3C7665357851A3f1cfD) |
+| Demo USDC (anyone can mint) | [`0x194b…3335`](https://testnet.monadscan.com/address/0x194b050678eb50923b84fE5aDC8E6f8176D43335#code) |
 
-The demo pay period is 600 seconds. All addresses are also in [`deployments/84532.json`](deployments/84532.json).
+All addresses are also in [`deployments/10143.json`](deployments/10143.json).
 
 ## Proof it ran
 
-One full payroll cycle on Base Sepolia, from creating the org to USDC landing in the worker's wallet:
+### Scheduled payroll through Chainlink CRE
+
+The `veil-payroll` workflow, run with `cre workflow simulate --broadcast` on Monad testnet, found Acme Labs' stream #2 unfunded and sent a report through Chainlink's forwarder:
 
 | Step | What it proves | Transaction |
 |---|---|---|
-| Deploy DayzePayroll | Live on Base Sepolia with real CoFHE | [`0x299d…54a0`](https://sepolia.basescan.org/tx/0x299daf62b77d1dac156f6f489e73e4888179e7c97ba1e4d10398207d1edb54a0) |
-| Create org | Employer onboarding | [`0x7367…2a79`](https://sepolia.basescan.org/tx/0x73674f31e1e9e54159b0f740112fbcb1797607467e37487931e247fd083a2a79) |
-| Fund vault | Amount moves as ciphertext | [`0x3ec9…03e9`](https://sepolia.basescan.org/tx/0x3ec931a034e2413979780b739079439107e36e7614db6fbd001ad8134df303e9) |
-| Create stream | The salary is an encrypted input | [`0x1b45…11d3`](https://sepolia.basescan.org/tx/0x1b45d347b03c8777c0d516b0c3ed6df9e9a5b6d8a68a557cc2e9516b670c11d3) |
-| Policy check: needs approval | The decrypted bit, posted with its signature | [`0x9050…981a`](https://sepolia.basescan.org/tx/0x9050665fbccf11aad6f9fc0d942b78436a11eef2a9bcc7911eff4f4eb7a8981a) |
-| Approver signs | k-of-n approval | [`0xe5dd…ac27`](https://sepolia.basescan.org/tx/0xe5dd5dc93b8564d0359a21cc81b9164c29d35d4c3bef8ff66cbff3c634f7ac27) |
-| Stream activated | Approval enforced onchain | [`0x9c18…2d92`](https://sepolia.basescan.org/tx/0x9c182246cbb2e56b454140ffe89e2699059ba4580a1c019ad5db0cdeaf382d92) |
-| Worker registered as human | World ID Selfie Check attestation accepted | [`0x089d…0bbb`](https://sepolia.basescan.org/tx/0x089d736d85dcd121c19baaf7fcb34ecef3416a02cf87a631f142bd67de110bbb) |
-| Run payroll | Encrypted budget split across streams | [`0xbbc2…e365`](https://sepolia.basescan.org/tx/0xbbc2de5b8c904c29e76d98bc094bc9575e5712921f9299039ce02faa633ee365) |
-| **Withdraw** | **No readable amount anywhere in the tx** | [`0x11a5…e82d`](https://sepolia.basescan.org/tx/0x11a575e561ecf543ac84133554abea667c13c3e734e7caa690fd7d6901cbe82d) |
-| Unshield | Cash out starts; the amount becomes public here, by design | [`0x8956…e750`](https://sepolia.basescan.org/tx/0x89568a42a373319b2c37d2acea6ee25fe22e0580418cab1fb35c472de9c6e750) |
-| Claim | 2,000 USDC lands in the worker's wallet | [`0x9a3f…5b63`](https://sepolia.basescan.org/tx/0x9a3f1db3887d00b696561ca0a6a9a1c7d45ee8d098b16c90152f6e12bd035b63) |
+| CRE report → `onReport` → `runPayrollFor` | The forwarder delivered the workflow's report; the receiver ran payroll (`ReportProcessed`, `PayrollRun`), setting aside 2,640 USDC pro rata for the rest of the period | [`0x300e…b10a`](https://testnet.monadscan.com/tx/0x300e92b90bbb7388dff985494ff8e428c5ed6f3bbcd6f8343e4207f5da2eb10a) |
+
+### Gas-free payroll and a relayed withdrawal through Privy
+
+An employer wallet with no MON, then a payee who signs and never sends a transaction:
+
+| Step | What it proves | Transaction |
+|---|---|---|
+| Create org | Sponsored by Privy: the employer holds no MON | [`0xac87…3fab`](https://testnet.monadscan.com/tx/0xac87814e75792cf7d1b3e9f2d59ac8d51f742b391d524e05f40ce53395387fab) |
+| Fund vault | 10,000 USDC into the payroll vault | [`0x4ff7…fc93`](https://testnet.monadscan.com/tx/0x4ff7dd9bf0ef7dcb3dfc470694883b49c1012bd8d77fef410ae8a8380c13fc93) |
+| Create stream | 3,000 USDC a month | [`0x6bd6…b240`](https://testnet.monadscan.com/tx/0x6bd6ffb141ed141395f43f4e02895e3e30dabcce2072560a8d2785bff8f2b240) |
+| Run payroll | The period's pay is set aside | [`0x7550…b350`](https://testnet.monadscan.com/tx/0x7550b91d092e468873c2a04603f19731648ef6919bb2963dd3f88397b07bb350) |
+| **Relayed withdraw** | **The payee signed; Veil's Privy server wallet sent it, sponsored; 65 USDC reached a brand-new address** | [`0x3370…f72d`](https://testnet.monadscan.com/tx/0x3370e4e7ccb6499c2a0b1655216fe53623a89d974bdbd8a3083dcf7c5f16f72d) |
+
+### Finding private pay through Envio
+
+| Step | What it proves | Transaction |
+|---|---|---|
+| Stealth stream #3 | Paid to a one-time address; `/api/announcements` returned it from Envio HyperSync, and the worker's keys matched it and rebuilt its private key | [`0x1d01…cd66`](https://testnet.monadscan.com/tx/0x1d0172a785f6334d0b91ffaa1baef1c02629353983557afb3c65981f87b6cd66) |
+
+### Deployment
+
+From Foundry's [`broadcast/`](broadcast/DeployScript.s.sol/10143/run-latest.json):
+
+| Step | What it proves | Transaction |
+|---|---|---|
+| Deploy VeilPayroll | Payroll is live on Monad testnet | [`0x9b4b…13ea`](https://testnet.monadscan.com/tx/0x9b4bcb9049d519005673fabeee763f939beb40b1116bad933a7bf1064a7b13ea) |
+| Deploy EmployeeRegistry | Passkey checks via the P256 precompile are live | [`0x8870…fcd2f`](https://testnet.monadscan.com/tx/0x887039775504d535a695d73bd6813044ef5ce1761657e4a32d7845b0f82fcd2f) |
+| Deploy StealthRegistry | Workers can publish meta-addresses | [`0x22a9…76ec`](https://testnet.monadscan.com/tx/0x22a940e6b57bfac18864266a92f425baca61f7db9ac8ccbf090bd26ffd5e76ec) |
+| Deploy IncomeCredential | Credentials read live streams | [`0xd71e…8d14`](https://testnet.monadscan.com/tx/0xd71e75675487f5ddce921367e9f1fb4a37895ce6b9fc4be6319530e29dad8d14) |
+| Allowlist demo USDC | Payroll accepts the demo token | [`0x1237…d5a1`](https://testnet.monadscan.com/tx/0x123778e60ccd52ab2ca3b9d19760a4bea7f9f404a285bedf4b14335b2b5ed5a1) |
 
 ## Quick start
 
-Prerequisites: [Foundry](https://book.getfoundry.sh/getting-started/installation), Node 20+.
+Prerequisites: [Foundry](https://book.getfoundry.sh/getting-started/installation) 1.8 or later, Node 20+.
 
 ```bash
 git clone --recursive https://github.com/Kelechikizito/veil.git
 cd veil
-make install        # submodules: forge-std, OpenZeppelin, CoFHE, Fhenix contracts
-make test           # 128 tests on CoFHE mocks
+make install        # git submodules
+forge test          # 132 tests
 ```
 
-Run the app against the live Base Sepolia deployment:
+Run the app against the live Monad testnet deployment:
 
 ```bash
 cd frontend
@@ -164,65 +190,82 @@ npm run dev         # http://localhost:3000
 | Variable | What it's for |
 |---|---|
 | `NEXT_PUBLIC_PRIVY_APP_ID` | Privy login and embedded wallets |
-| `NEXT_PUBLIC_BASE_SEPOLIA_RPC` | Your own RPC; public ones rate-limit |
-| `NEXT_PUBLIC_WLD_ENVIRONMENT` | `sandbox` to test with the World ID (Sandbox) app |
-| `WORLDID_APP_ID`, `WORLDID_RP_ID`, `WORLDID_RP_SIGNING_KEY` | World ID Selfie Check |
-| `ATTESTER_PRIVATE_KEY` | Signs HumanRegistry attestations; must match `HumanRegistry.attester()` |
-| `NULLIFIER_SALT` | 32 random bytes; never change it after the first registration |
+| `NEXT_PUBLIC_MONAD_TESTNET_RPC` | Alchemy's Monad testnet URL. It ships to the browser, so restrict its origins in Alchemy |
+| `MONAD_TESTNET_RPC_URL` | The RPC the relayer and API routes use, server only |
+| `PRIVY_APP_SECRET`, `PRIVY_RELAYER_WALLET_ID` | The relayer: an app-owned Privy server wallet with sponsored gas (create it once with `POST /v1/wallets`) |
+| `ENVIO_API_TOKEN` | Envio HyperSync, for finding private streams. Optional: without it, the app reads every stream over RPC |
 
-> Gas is sponsored through Privy for Google and email logins. In the Privy dashboard, turn on Fee sponsorship for Base Sepolia, with "Allow transactions from the client". MetaMask users pay their own gas.
+> Gas for embedded wallets is sponsored by Privy. In the Privy dashboard, turn on gas sponsorship for Monad testnet with "Allow transactions from the client". MetaMask users pay their own gas.
 
-To deploy your own copy: `make deploy` with a Foundry keystore, then `make export-abis`. Run `make help` to list every command.
+To deploy your own copy, run `make deploy` with a Foundry keystore, then `make export-abis`. `make help` lists every command.
+
+Scheduled payroll with Chainlink CRE (needs the [CRE CLI](https://docs.chain.link/cre) and Bun):
+
+```bash
+make deploy-automation            # your receiver, allowed as payroll operator
+cd cre && bun install --cwd ./veil-payroll
+cre workflow simulate veil-payroll --target local-simulation --non-interactive --trigger-index 0
+```
+
+Put the receiver's address in `cre/veil-payroll/config.staging.json`, then add `--target staging-settings --broadcast` to run payroll onchain through Monad testnet's forwarder.
 
 ## Testing
 
 ```
-Ran 13 test suites: 128 tests passed, 0 failed, 1 skipped (129 total)
+Ran 13 test suites: 132 tests passed, 0 failed, 1 skipped (133 total)
 ```
 
-The skipped suite is the live fork suite, which runs with `make test-fork` (6/6 against the real CoFHE Task Manager on Base Sepolia). CI runs format, contract-size and test checks on every push.
+The skipped suite is the live fork suite, which runs with `make test-fork`. CI runs `forge fmt --check`, `forge build --sizes` and `forge test` on every push.
 
 What the tests hold to:
-- **A worker is never paid more than has streamed.** The fuzz test varies salary, budget, vault balance, elapsed time and request amount, for both a 30-day and a 10-minute period. It checks the payout, allocation, withdrawn total and vault balance exactly.
-- **A stream never streams more than its salary, the payroll budget or the vault.**
-- **An over-withdrawal pays 0, never reverts**, so a failed attempt reveals nothing.
-- **A decrypt result can't be replayed** on another stream or posted twice (`DecryptReplayTest`).
-- **One World ID, one wallet:** a nullifier registers once, and only with the attester's signature.
-- **A credential is decryptable only by its verifier**, and is invalid after expiry or revocation.
+
+- **A worker is never paid more than has streamed.** The fuzz test varies salary, budget, vault balance, elapsed time and the amount requested, for both a 30-day and a 10-minute period. It checks the payout, the allocation, the withdrawn total and the vault balance exactly.
+- **A stream never streams more than its salary, the payroll budget or the vault**, and payroll stays solvent.
+- **A relayed withdrawal works once, only for its exact terms, only from the payee, and only before its deadline.** The relayer can't change the amount or the destination.
+- **A passkey confirmation needs a valid P256 signature over that worker and employer's challenge**, and "verified" needs both the vouch and the confirmation.
+- **A token with no approval threshold always needs approval** (fail closed).
+- **A payroll operator can only fund its employer's own streams**, and a revoked operator can't act at all.
+- **The CRE receiver accepts reports only from its forwarder** (and, when set, one workflow owner), and caps every budget at the employer's onchain limit.
 
 ## Known issues
 
-- **Amounts are public at the edges.** Shielding USDC into cUSDC, and unshielding back, show the amount. That's unavoidable while the underlying token is a plain ERC20. The app warns before unshielding. Spending stays private if the worker keeps funds in cUSDC.
-- **Who is paid is public; how much is not.** Payee addresses and stream existence are visible. Encrypting payees with `eaddress` is the next step.
-- **The approval check reveals one bit:** whether a salary is above or below a hidden threshold. That's the price of letting anyone resolve the policy without a trusted server.
-- **Expiry ends validity, not knowledge.** A landlord who decrypted "yes" still knows it. Credentials are "as of issuance", so short expiries keep them honest.
-- **The World ID attester is trusted.** It can mark a wallet as human, but it can't read salaries or move funds. The owner can rotate it with `setAttester`.
-- **Removing an auditor doesn't revoke past access.** `FHE.allow` grants can't be withdrawn, so new handles go only to current auditors.
+- **Amounts are public; who is paid is not.** FHE coprocessors don't run on Monad, so salaries are plain USDC. Privacy comes from unlinkability: each stream pays a one-time address. Withdrawing to your main wallet links the two again. The app warns about this and suggests an exchange deposit address or a fresh wallet.
+- **An income proof reveals the stream and its salary to anyone who reads it.** The credential stores the stream id, and the stream's salary is public. A ZK credential that proves `salary >= threshold` without naming the stream is the next step.
+- **Proofs from stealth streams don't show "verified employee".** `_issue` checks employment for the stream's payee, which for a stealth stream is the one-time address, not the worker's confirmed wallet. Fixing it needs a proof that links the two without revealing the link onchain.
+- **One signature derives both stealth keys.** Anyone who gets that wallet signature can find and spend the worker's private streams. This is the same trade-off as other stealth-address wallets, and it lets a worker recover their pay on any device by logging in.
+- **The relayer can delay a withdrawal but not redirect it.** It is a Privy server wallet, so it depends on Privy's API. If it is down, the contract still accepts a direct `withdraw` from the one-time address, but paying that gas links it to whoever funded it.
+- **The CRE workflow runs as a simulation, not a deployed DON workflow.** Deploying needs CRE Early Access. The broadcast run above goes through Monad testnet's MockKeystoneForwarder; the receiver takes the production KeystoneForwarder's address at deploy time, with no code change.
+- **A passkey proves employment, not personhood.** The employer's vouch is trusted, so the app says "verified employee", never "verified human".
 
-## Why Base
+## Why Monad
 
-- **CoFHE runs on Base Sepolia**, so every encrypted add, compare and transfer here runs on the real coprocessor and Threshold Network, not a mock.
-- **Low fees make the product usable.** Withdrawing whenever you like, issuing one credential per landlord, and sponsoring gas for workers are cheap enough on an L2.
-- **Stablecoin payroll is the use case** that onchain finance most obviously breaks today, because every salary is public.
+- **Passkeys onchain.** The P256 precompile at `0x100` makes a WebAuthn check one cheap call, so "the worker confirmed with Face ID" is something the contract checks, not something a server claims.
+- **Fast blocks make relayed withdrawals feel direct.** With 400 ms blocks, the round trip through the relayer is short enough that the worker just sees the money arrive, without ever touching gas.
+- **Per-second payroll needs cheap, frequent actions.** Withdrawing whenever you like, one credential per landlord and a payroll run every period are only reasonable on a fast, low-fee chain.
 
 ## Tech stack
 
 | Layer | Choice |
 |---|---|
-| Contracts | Solidity 0.8.25, Foundry, OpenZeppelin |
-| Encryption | Fhenix CoFHE (`FHE.sol`, `euint64`, `ebool`, Threshold Network), FHERC20 wrappers |
-| Identity | World ID Selfie Check (IDKit 4), EIP-712 attestations |
-| Wallets | Privy embedded wallets, gas sponsorship, wagmi, viem |
-| Frontend | Next.js 16, React 19, `@cofhe/sdk`, `@cofhe/react` |
-| Chain | Base Sepolia |
+| Contracts | Solidity 0.8.25, Foundry, OpenZeppelin (`P256`, EIP-712, `SafeERC20`) |
+| Privacy | ERC-5564 stealth addresses (secp256k1 with view tags), EIP-712 relayed withdrawals |
+| Identity | WebAuthn passkeys verified by Monad's P256 precompile, employer vouches |
+| Wallets | Privy embedded wallets and a Privy server-wallet relayer, both with gas sponsorship; wagmi, viem |
+| Automation | Chainlink CRE (TypeScript cron workflow, `@chainlink/cre-sdk`) |
+| Indexing | Envio HyperSync |
+| RPC | Alchemy (Monad testnet) |
+| Frontend | Next.js 16, React 19 |
+| Chain | Monad testnet |
 
 ## What's next
 
-- **Hidden payees.** Encrypt recipient addresses with `eaddress`, so who gets paid is as private as how much.
-- **Employer verification.** Attach an organisation attestation to credentials. Today a credential proves what a payroll contract pays, not which company runs it.
-- **Portable credentials.** A SNARK wrapper, so a credential can be checked off-chain or on another chain without a CoFHE permit.
-- **A payroll agent.** It runs payroll each period within employer-set budgets and caps, so nobody has to press the button.
-- **Mainnet**, once CoFHE ships on Base mainnet.
+- **A ZK income credential.** Prove `salary >= threshold` for a stream you own without revealing which stream or the salary, and carry the "verified employee" bit through the stealth address.
+- **A deployed CRE workflow per employer**, created from the console, so scheduled payroll needs no setup beyond one click.
+- **Employer verification.** Attach an organisation attestation, so a credential proves which company runs the payroll, not just which address.
+
+## Built on Dayze
+
+Veil builds on [Dayze](https://github.com/Kelechikizito/dayze), our earlier payroll project on Base Sepolia, which hid salary amounts with Fhenix's FHE coprocessor and verified workers with World ID. For Monad we rebuilt the privacy and identity layers: stealth payees with a gas-paying relayer instead of encrypted amounts, and employer vouches with onchain passkey checks instead of World ID. The streaming and payroll-run logic carries over from Dayze.
 
 ## Team
 
