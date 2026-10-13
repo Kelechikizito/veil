@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { ChainVsYou } from "@/components/landing/ChainVsYou";
 import { HeroPayCard } from "@/components/landing/HeroPayCard";
+import { LiveOnMonad } from "@/components/landing/LiveOnMonad";
 import { AuditorMock, CredentialMock, EmployerMock } from "@/components/landing/RoleMocks";
+import { BuiltOn, ClosingCta, ContractsGrid, Leaks, SalaryStates } from "@/components/landing/Story";
 import { RoleButtons } from "@/components/RoleButtons";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { Ribbon, Sticker, type StickerKind } from "@/components/Stickers";
@@ -9,7 +11,8 @@ import { Badge, ButtonLink, Container } from "@/components/ui";
 
 /*
  * Landing. Each section is a full-bleed color band, read top to bottom like posters (DESIGN.md "Layout"):
- * sky hero → electric-blue live pay → gray stats → white ledgers → sky roles → gray privacy → mint steps → white roadmap → black footer.
+ * sky hero → white leaks → blue live pay → gray stats → white ledgers → gray privacy → sky roles → mint steps
+ * → lavender states → sky live data → white built-on → gray contracts → white roadmap → blue closing CTA → black footer.
  * Every display headline is paired with the ribbon or a sticker cluster. Only the marquee and the product mocks move.
  */
 
@@ -121,6 +124,9 @@ export default function Home() {
       <section className="relative isolate overflow-hidden bg-sky-wash pt-10 pb-20 md:pt-16 md:pb-28">
         <Ribbon variant="hero" className="-z-10 max-md:!h-[45%]" />
         <Container className="relative flex flex-col items-center gap-10 text-center">
+          <span className="label-type rounded-pills border border-carbon bg-sunburst px-4 py-1.5 text-caption uppercase">
+            Monad Metropolis 2026 · Testnet
+          </span>
           <h1 className="display-type relative max-w-[14ch] text-[11vw] md:text-display-110 xl:text-display-160">
             Payroll nobody can trace to you
           </h1>
@@ -132,9 +138,27 @@ export default function Home() {
             Salaries stream onchain by the second, to one-time addresses. Everyone can see payroll ran. Only you know
             which salary is yours.
           </p>
-          <RoleButtons />
+          <div className="flex flex-col items-center gap-4">
+            <RoleButtons />
+            <a href="#live" data-cuelume-navigate="" className="label-type text-caption uppercase underline underline-offset-4">
+              See it live on Monad ↓
+            </a>
+          </div>
+          <ul className="flex flex-wrap justify-center gap-2">
+            {[
+              ["Paid to one-time addresses", "bg-lavender"],
+              ["Workers never pay gas", "bg-mint-pop"],
+              ["Income proofs that expire", "bg-paper-white"],
+            ].map(([t, fill]) => (
+              <li key={t} className={`rounded-pills border border-carbon px-3 py-1.5 text-caption font-bold ${fill}`}>
+                {t}
+              </li>
+            ))}
+          </ul>
         </Container>
       </section>
+
+      <Leaks />
 
       {/* Live pay — electric blue */}
       <Band className="bg-electric-blue">
@@ -181,37 +205,6 @@ export default function Home() {
         </div>
       </Band>
 
-      {/* Roles — sky wash, ribbon arcing across the top */}
-      <section id="roles" className="relative isolate overflow-hidden bg-sky-wash py-20 md:py-28">
-        <Ribbon variant="arc" className="-z-10 !h-[300px]" />
-        <Container className="flex flex-col gap-14">
-          <h2 className={`max-w-5xl ${wideHeading}`}>Three people. Three views of one payroll.</h2>
-          <div className="grid gap-4 md:grid-cols-3">
-            {roles.map((r) => (
-              <article
-                key={r.eyebrow}
-                className="relative flex flex-col gap-6 rounded-cards-elevated border border-carbon bg-paper-white p-4 pb-6"
-              >
-                <div className={`relative rounded-cards border border-carbon p-5 ${r.panel}`}>
-                  {r.mock}
-                  <Sticker kind={r.sticker} size={56} rotate={12} className="absolute -top-5 -right-3" />
-                </div>
-                <div className="flex flex-1 flex-col gap-4 px-2">
-                  <Badge ghost>{r.eyebrow}</Badge>
-                  <h3 className="text-heading-sm font-bold">{r.title}</h3>
-                  <p className="flex-1 text-carbon/70">{r.body}</p>
-                  <div>
-                    <ButtonLink href={r.href} variant="outline">
-                      {r.cta}
-                    </ButtonLink>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </Container>
-      </section>
-
       {/* Privacy — concrete gray */}
       <Band className="bg-concrete-gray" id="private">
         <div className="grid gap-14 lg:grid-cols-[1fr_1.4fr]">
@@ -247,6 +240,37 @@ export default function Home() {
         </div>
       </Band>
 
+      {/* Roles — sky wash, ribbon arcing across the top */}
+      <section id="roles" className="relative isolate overflow-hidden bg-sky-wash py-20 md:py-28">
+        <Ribbon variant="arc" className="-z-10 !h-[300px]" />
+        <Container className="flex flex-col gap-14">
+          <h2 className={`max-w-5xl ${wideHeading}`}>Three people. Three views of one payroll.</h2>
+          <div className="grid gap-4 md:grid-cols-3">
+            {roles.map((r) => (
+              <article
+                key={r.eyebrow}
+                className="relative flex flex-col gap-6 rounded-cards-elevated border border-carbon bg-paper-white p-4 pb-6"
+              >
+                <div className={`relative rounded-cards border border-carbon p-5 ${r.panel}`}>
+                  {r.mock}
+                  <Sticker kind={r.sticker} size={56} rotate={12} className="absolute -top-5 -right-3" />
+                </div>
+                <div className="flex flex-1 flex-col gap-4 px-2">
+                  <Badge ghost>{r.eyebrow}</Badge>
+                  <h3 className="text-heading-sm font-bold">{r.title}</h3>
+                  <p className="flex-1 text-carbon/70">{r.body}</p>
+                  <div>
+                    <ButtonLink href={r.href} variant="outline">
+                      {r.cta}
+                    </ButtonLink>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </Container>
+      </section>
+
       {/* How it works — mint band */}
       <Band className="bg-mint-pop" id="how">
         <div className="flex flex-col gap-14">
@@ -270,6 +294,14 @@ export default function Home() {
         </div>
       </Band>
 
+      <SalaryStates />
+
+      <LiveOnMonad />
+
+      <BuiltOn />
+
+      <ContractsGrid />
+
       {/* Roadmap — white */}
       <Band className="bg-paper-white" id="roadmap">
         <div className="grid gap-14 lg:grid-cols-[1fr_1.4fr]">
@@ -291,6 +323,8 @@ export default function Home() {
           </ul>
         </div>
       </Band>
+
+      <ClosingCta />
 
       <SiteFooter />
     </>
