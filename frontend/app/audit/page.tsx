@@ -2,6 +2,7 @@ import { AppGate } from "@/components/AppGate";
 import { AuditorView } from "@/components/audit/AuditorView";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { Badge, PageTitle, Section } from "@/components/ui";
+import { AuditorBriefs } from "@/components/agents/RoleBriefs";
 
 export default function AuditPage() {
   return (
@@ -18,6 +19,7 @@ export default function AuditPage() {
           </div>
           <AppGate>
             <AuditorView />
+            <AuditorBriefs />
           </AppGate>
         </div>
       </Section>

@@ -13,6 +13,7 @@ import { OrgSwitcher, useMyOrgs } from "./OrgSwitcher";
 import { PolicySection, usePolicy } from "./PolicySection";
 import { RunPayrollSection } from "./RunPayrollSection";
 import { StreamsSection, inviteCopied } from "./StreamsSection";
+import { EmployerBriefs } from "@/components/agents/RoleBriefs";
 
 /**
  * The employer dashboard (10): streams first, then approvals, vault, rules and auditors.
@@ -100,6 +101,7 @@ export function EmployerConsole({ payee }: { payee?: string }) {
       <div id="auditors">
         <AuditorsSection />
       </div>
+      <EmployerBriefs />
     </div>
   );
 }

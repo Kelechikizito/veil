@@ -8,7 +8,7 @@ import { http, useAccount } from "wagmi";
 import { defaultChain, rpcUrls, supportedChains, type SupportedChain } from "@/lib/chains";
 import { privyChains } from "@/lib/privyChains";
 import { isEmbeddedWallet } from "@/lib/wallets";
-import { SoundBinder } from "@/components/SoundToggle";
+import { SoundBinder } from "@/components/Toggles";
 
 /*
  * Order matters: Privy → React Query → wagmi.

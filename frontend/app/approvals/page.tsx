@@ -2,6 +2,7 @@ import { AppGate } from "@/components/AppGate";
 import { ApprovalsSection } from "@/components/employer/ApprovalsSection";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { Badge, PageTitle, Section } from "@/components/ui";
+import { ApproverBriefs } from "@/components/agents/RoleBriefs";
 
 /** /approvals: for approvers, who may have no org of their own */
 export default function ApprovalsPage() {
@@ -20,6 +21,7 @@ export default function ApprovalsPage() {
           </div>
           <AppGate>
             <ApprovalsSection />
+            <ApproverBriefs />
           </AppGate>
         </div>
       </Section>

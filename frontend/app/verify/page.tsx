@@ -2,6 +2,7 @@ import { AppGate } from "@/components/AppGate";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { Badge, PageTitle, Section } from "@/components/ui";
 import { VerifierHome } from "@/components/verify/VerifierHome";
+import { VerifierBriefs } from "@/components/agents/RoleBriefs";
 
 export default function VerifierPage() {
   return (
@@ -18,6 +19,7 @@ export default function VerifierPage() {
           </div>
           <AppGate>
             <VerifierHome />
+            <VerifierBriefs />
           </AppGate>
         </div>
       </Section>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AuthButton } from "./AuthButton";
-import { SoundToggle } from "./SoundToggle";
+import { AgentToggle, SoundToggle } from "./Toggles";
 import { Ribbon, Sticker } from "./Stickers";
 import { Container } from "./ui";
 
@@ -33,8 +33,9 @@ export function Marquee() {
 const NAV = [
   { href: "/#how", label: "How it works" },
   { href: "/#roles", label: "Who it's for" },
+  { href: "/#live", label: "Live" },
   { href: "/audit", label: "Auditors" },
-  { href: "/#roadmap", label: "Roadmap" },
+  { href: "/docs", label: "Docs" },
 ];
 
 /** Logo mark: a round outlined "V" badge */
@@ -64,7 +65,7 @@ export function SiteHeader({ className = "bg-sky-wash" }: { className?: string }
               Veil
             </Link>
           </div>
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="hidden items-center gap-1 lg:flex">
             {NAV.map((n) => (
               <Link
                 key={n.href}
@@ -77,6 +78,7 @@ export function SiteHeader({ className = "bg-sky-wash" }: { className?: string }
             ))}
           </nav>
           <div className="flex items-center gap-2">
+            <AgentToggle />
             <SoundToggle />
             <AuthButton />
           </div>
@@ -86,20 +88,43 @@ export function SiteHeader({ className = "bg-sky-wash" }: { className?: string }
   );
 }
 
+const BUILT_ON = [
+  ["https://monad.xyz", "Monad"],
+  ["https://privy.io", "Privy"],
+  ["https://testnet.monadvision.com", "MonadVision"],
+  ["https://getfoundry.sh", "Foundry"],
+  ["https://eips.ethereum.org/EIPS/eip-5564", "ERC-5564"],
+];
+
 /** Black footer: links, then the wordmark at poster size with a ribbon looping under it */
 export function SiteFooter() {
   return (
     <footer className="relative mt-auto overflow-hidden bg-carbon pt-16 text-paper-white">
       <Container className="relative z-10 flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
-        <p className="max-w-sm text-caption text-paper-white/70">
-          Payroll on Monad testnet. Not audited; don&apos;t use real funds.
-        </p>
+        <div className="flex max-w-md flex-col gap-4">
+          <p className="text-caption text-paper-white/70">
+            Payroll on Monad testnet. A hackathon build: not audited, not financial advice. Don&apos;t use real funds.
+          </p>
+          <p className="text-caption text-paper-white/70">
+            Veil builds on Dayze, our earlier payroll project on Base Sepolia, ported to Monad with stealth payees instead
+            of FHE.
+          </p>
+          <p className="flex flex-wrap gap-x-4 gap-y-1 text-caption">
+            <span className="text-paper-white/55">Built on</span>
+            {BUILT_ON.map(([href, label]) => (
+              <a key={href} href={href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
+                {label}
+              </a>
+            ))}
+          </p>
+        </div>
         <nav className="flex flex-wrap gap-2">
           {[
             ["/employer", "Employer console"],
             ["/worker", "Worker app"],
             ["/approvals", "Approvals"],
             ["/audit", "Auditor view"],
+            ["/docs", "Docs"],
           ].map(([href, label]) => (
             <Link
               key={href}

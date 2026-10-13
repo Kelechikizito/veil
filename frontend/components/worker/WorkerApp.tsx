@@ -8,6 +8,7 @@ import { formatAmount } from "@/lib/tokens";
 import { CredentialsSection } from "./CredentialsSection";
 import { PrivatePaySetup, useMyStreams } from "./PrivatePay";
 import { StreamCard } from "./StreamCard";
+import { WorkerBriefs } from "@/components/agents/RoleBriefs";
 
 /** The worker app (11): live pay first, then income proofs */
 export function WorkerApp() {
@@ -63,6 +64,7 @@ export function WorkerApp() {
       </section>
 
       <CredentialsSection streams={rows} />
+      <WorkerBriefs />
     </div>
   );
 }
