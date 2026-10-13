@@ -443,6 +443,84 @@ abstract contract VeilPayrollTest is PayrollTestBase {
         vm.expectRevert(VeilPayroll.VeilPayroll__ZeroPeriod.selector);
         new VeilPayroll(address(policy), 0);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                               OPERATORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice 28. An allowed operator runs payroll for the payer, from the payer's vault
+    function test_runPayrollFor_byOperator() public {
+        _fund(usdc, EMPLOYER_USDC);
+        _warpToPeriodStart();
+        uint256 id = _createStream(usdc, MONTHLY);
+        uint256[] memory ids = new uint256[](1);
+        ids[0] = id;
+
+        vm.expectEmit(true, true, false, true, address(payroll));
+        emit IVeilPayroll.PayrollOperatorSet(employer, bob, true);
+        vm.prank(employer);
+        payroll.setPayrollOperator(bob, true);
+        assertTrue(payroll.isPayrollOperator(employer, bob));
+
+        vm.expectEmit(true, true, false, true, address(payroll));
+        emit IVeilPayroll.PayrollRun(employer, usdc, uint64(block.timestamp + _period()), 1, MONTHLY);
+        vm.prank(bob);
+        payroll.runPayrollFor(employer, usdc, MONTHLY, ids);
+
+        assertEq(payroll.getStream(id).allocated, MONTHLY);
+        assertEq(payroll.vaultOf(employer, usdc), EMPLOYER_USDC - MONTHLY);
+    }
+
+    /// @notice 29. The payer can call it too; anyone else, or a revoked operator, can't
+    function test_runPayrollFor_reverts() public {
+        _fund(usdc, EMPLOYER_USDC);
+        _warpToPeriodStart();
+        uint256[] memory ids = new uint256[](1);
+        ids[0] = _createStream(usdc, MONTHLY);
+
+        vm.prank(bob);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotOperator.selector);
+        payroll.runPayrollFor(employer, usdc, MONTHLY, ids);
+
+        vm.prank(employer);
+        payroll.setPayrollOperator(bob, true);
+        vm.prank(employer);
+        payroll.setPayrollOperator(bob, false);
+        assertFalse(payroll.isPayrollOperator(employer, bob));
+        vm.prank(bob);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotOperator.selector);
+        payroll.runPayrollFor(employer, usdc, MONTHLY, ids);
+
+        vm.prank(employer);
+        payroll.runPayrollFor(employer, usdc, MONTHLY, ids);
+        assertEq(payroll.getStream(ids[0]).allocated, MONTHLY);
+    }
+
+    /// @notice 30. An operator only reaches the payer that allowed it, and can't be the zero address
+    function test_setPayrollOperator_scope() public {
+        vm.prank(employer);
+        vm.expectRevert(VeilPayroll.VeilPayroll__ZeroAddress.selector);
+        payroll.setPayrollOperator(address(0), true);
+
+        _fund(usdc, EMPLOYER_USDC);
+        _warpToPeriodStart();
+        uint256[] memory ids = new uint256[](1);
+        ids[0] = _createStream(usdc, MONTHLY);
+
+        // Bob lets Alice run his payroll; that gives her nothing over the employer's
+        vm.prank(bob);
+        payroll.setPayrollOperator(alice, true);
+        vm.prank(alice);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotOperator.selector);
+        payroll.runPayrollFor(employer, usdc, MONTHLY, ids);
+
+        // Even through Bob, his operator can only fund Bob's own streams
+        vm.prank(bob);
+        payroll.createOrg("Bob Ltd");
+        vm.prank(alice);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotPayer.selector);
+        payroll.runPayrollFor(bob, usdc, MONTHLY, ids);
+    }
 }
 
 /// @notice The suite with a real 30-day month

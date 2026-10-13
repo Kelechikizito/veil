@@ -130,6 +130,12 @@ interface IVeilPayroll {
     /// @param spent Total set aside
     event PayrollRun(address indexed payer, IERC20 indexed token, uint64 periodEnd, uint256 streams, uint256 spent);
 
+    /// @notice Emitted when a payer lets an operator run payroll for them, or stops it
+    /// @param payer The payer
+    /// @param operator The operator, e.g. a Chainlink CRE workflow's receiver contract
+    /// @param allowed Whether the operator may run payroll
+    event PayrollOperatorSet(address indexed payer, address indexed operator, bool allowed);
+
     /// @notice Emitted when a payer cancels a stream
     /// @param id The stream id
     event StreamCancelled(uint256 indexed id);
@@ -199,6 +205,21 @@ interface IVeilPayroll {
     /// @param ids Active streams of the caller in `token`, not yet funded this period
     function runPayroll(IERC20 token, uint256 budget, uint256[] calldata ids) external;
 
+    /// @notice Lets `operator` run payroll for the caller, or stops it
+    /// @dev For automation such as a Chainlink CRE workflow. An operator can only set money aside from the
+    ///      vault into the caller's own Active streams; it can't move money out. It does choose the budget,
+    ///      so only allow an operator you trust.
+    /// @param operator The address allowed to call `runPayrollFor` for the caller
+    /// @param allowed True to allow, false to revoke
+    function setPayrollOperator(address operator, bool allowed) external;
+
+    /// @notice `runPayroll` for `payer`, sent by the payer or one of their operators
+    /// @param payer The payer whose vault and streams are used
+    /// @param token The token to pay in
+    /// @param budget Most to set aside this period, in the token's units
+    /// @param ids Active streams of `payer` in `token`, not yet funded this period
+    function runPayrollFor(address payer, IERC20 token, uint256 budget, uint256[] calldata ids) external;
+
     /// @notice Withdraws `amount` of what has streamed and not been withdrawn, to the payee
     /// @param id The stream to withdraw from
     /// @param amount Amount requested; must be <= `available(id)`
@@ -236,6 +257,12 @@ interface IVeilPayroll {
     /// @param id The stream to look up
     /// @return The withdrawable amount
     function available(uint256 id) external view returns (uint256);
+
+    /// @notice Returns whether `operator` may run payroll for `payer`
+    /// @param payer The payer to look up
+    /// @param operator The operator to look up
+    /// @return True if allowed
+    function isPayrollOperator(address payer, address operator) external view returns (bool);
 
     /// @notice Returns a stealth stream's announcement; empty for a plain stream
     /// @param id The stream to look up

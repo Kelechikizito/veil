@@ -102,6 +102,9 @@ contract VeilPayroll is IVeilPayroll, Ownable, ReentrancyGuard, EIP712, Nonces {
     /// @notice Thrown when a withdrawal signature isn't the payee's
     error VeilPayroll__BadSignature();
 
+    /// @notice Thrown when running payroll for a payer who hasn't allowed the caller
+    error VeilPayroll__NotOperator();
+
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -146,6 +149,9 @@ contract VeilPayroll is IVeilPayroll, Ownable, ReentrancyGuard, EIP712, Nonces {
 
     /// @notice Announcements of stealth streams, by stream id
     mapping(uint256 id => StealthAnnouncement announcement) internal s_announcements;
+
+    /// @notice Addresses each payer lets run payroll for them, e.g. a Chainlink CRE workflow's receiver
+    mapping(address payer => mapping(address operator => bool allowed)) internal s_payrollOperators;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -277,38 +283,20 @@ contract VeilPayroll is IVeilPayroll, Ownable, ReentrancyGuard, EIP712, Nonces {
 
     /// @inheritdoc IVeilPayroll
     function runPayroll(IERC20 token, uint256 budget, uint256[] calldata ids) external {
-        if (!s_orgs[msg.sender].exists) revert VeilPayroll__NoOrg();
+        _runPayroll(msg.sender, token, budget, ids);
+    }
 
-        // forge-lint: disable-next-line(unsafe-typecast)
-        uint64 nowTs = uint64(block.timestamp);
-        uint64 end = _periodEnd(nowTs);
-        uint256 pot = Math.min(budget, s_vaults[msg.sender][token]);
-        uint256 spent;
+    /// @inheritdoc IVeilPayroll
+    function setPayrollOperator(address operator, bool allowed) external {
+        if (operator == address(0)) revert VeilPayroll__ZeroAddress();
+        s_payrollOperators[msg.sender][operator] = allowed;
+        emit PayrollOperatorSet(msg.sender, operator, allowed);
+    }
 
-        for (uint256 i; i < ids.length; ++i) {
-            Stream storage s = s_streams[ids[i]];
-            // forge-lint: disable-next-line(require-revert-in-loop)
-            if (s.payer != msg.sender) revert VeilPayroll__NotPayer();
-            // forge-lint: disable-next-line(require-revert-in-loop)
-            if (s.token != token) revert VeilPayroll__WrongToken();
-            // forge-lint: disable-next-line(require-revert-in-loop)
-            if (s.status != Status.Active) revert VeilPayroll__NotActive();
-            // forge-lint: disable-next-line(require-revert-in-loop)
-            if (s.allocEnd == end) revert VeilPayroll__AlreadyFunded();
-
-            // The last allocation's period is over, so all of it was earned
-            if (s.allocEnd != 0) s.banked += s.allocated;
-
-            uint256 give = Math.min(Math.mulDiv(s.monthly, end - nowTs, PERIOD), pot - spent);
-            spent += give;
-
-            s.allocated = give;
-            s.allocStart = nowTs;
-            s.allocEnd = end;
-        }
-
-        s_vaults[msg.sender][token] -= spent;
-        emit PayrollRun(msg.sender, token, end, ids.length, spent);
+    /// @inheritdoc IVeilPayroll
+    function runPayrollFor(address payer, IERC20 token, uint256 budget, uint256[] calldata ids) external {
+        if (msg.sender != payer && !s_payrollOperators[payer][msg.sender]) revert VeilPayroll__NotOperator();
+        _runPayroll(payer, token, budget, ids);
     }
 
     /// @inheritdoc IVeilPayroll
@@ -378,6 +366,47 @@ contract VeilPayroll is IVeilPayroll, Ownable, ReentrancyGuard, EIP712, Nonces {
         s.token.safeTransfer(to, amount);
     }
 
+    /// @notice Sets this period's pay aside from `payer`'s vault; see `runPayroll`
+    /// @dev Callers check that msg.sender may act for `payer`
+    /// @param payer The payer whose vault and streams are used
+    /// @param token The token to pay in
+    /// @param budget Most to set aside this period
+    /// @param ids Active streams of `payer` in `token`, not yet funded this period
+    function _runPayroll(address payer, IERC20 token, uint256 budget, uint256[] calldata ids) internal {
+        if (!s_orgs[payer].exists) revert VeilPayroll__NoOrg();
+
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint64 nowTs = uint64(block.timestamp);
+        uint64 end = _periodEnd(nowTs);
+        uint256 pot = Math.min(budget, s_vaults[payer][token]);
+        uint256 spent;
+
+        for (uint256 i; i < ids.length; ++i) {
+            Stream storage s = s_streams[ids[i]];
+            // forge-lint: disable-next-line(require-revert-in-loop)
+            if (s.payer != payer) revert VeilPayroll__NotPayer();
+            // forge-lint: disable-next-line(require-revert-in-loop)
+            if (s.token != token) revert VeilPayroll__WrongToken();
+            // forge-lint: disable-next-line(require-revert-in-loop)
+            if (s.status != Status.Active) revert VeilPayroll__NotActive();
+            // forge-lint: disable-next-line(require-revert-in-loop)
+            if (s.allocEnd == end) revert VeilPayroll__AlreadyFunded();
+
+            // The last allocation's period is over, so all of it was earned
+            if (s.allocEnd != 0) s.banked += s.allocated;
+
+            uint256 give = Math.min(Math.mulDiv(s.monthly, end - nowTs, PERIOD), pot - spent);
+            spent += give;
+
+            s.allocated = give;
+            s.allocStart = nowTs;
+            s.allocEnd = end;
+        }
+
+        s_vaults[payer][token] -= spent;
+        emit PayrollRun(payer, token, end, ids.length, spent);
+    }
+
     /// @notice Starts a stream's accrual from now
     /// @param s The stream
     /// @param id The stream's id
@@ -436,6 +465,11 @@ contract VeilPayroll is IVeilPayroll, Ownable, ReentrancyGuard, EIP712, Nonces {
         Stream storage s = s_streams[id];
         if (s.status != Status.Active && s.status != Status.Cancelled) return 0;
         return _streamed(s) - s.withdrawn;
+    }
+
+    /// @inheritdoc IVeilPayroll
+    function isPayrollOperator(address payer, address operator) external view returns (bool) {
+        return s_payrollOperators[payer][operator];
     }
 
     /// @inheritdoc IVeilPayroll
