@@ -4,18 +4,16 @@ import { useAccount } from "wagmi";
 import { chainFor } from "@/lib/chains";
 import { useTxLog } from "@/lib/txLog";
 
-export type TxStage = "idle" | "encrypting" | "signing" | "confirming" | "fhe-processing" | "done" | "error";
+export type TxStage = "idle" | "signing" | "confirming" | "done" | "error";
 
-/** The four working stages, in order. Every FHE action in 10–12 walks through them. */
+/** The working stages, in order */
 const STAGES: { stage: Exclude<TxStage, "idle" | "done" | "error">; label: string; help: string }[] = [
-  { stage: "encrypting", label: "Encrypting", help: "Encrypting in your browser. The amount never leaves it in plaintext." },
   { stage: "signing", label: "Signing", help: "Confirm in your wallet." },
   { stage: "confirming", label: "Confirming", help: "Waiting for the transaction to land." },
-  { stage: "fhe-processing", label: "Processing", help: "The FHE network is computing on the encrypted values." },
 ];
 
 /**
- * Progress for an FHE transaction: encrypting → signing → confirming → processing → done | error.
+ * Progress for a transaction: signing → confirming → done | error.
  * Flat, ink-only: the current stage is outlined, finished ones are filled.
  */
 export function TxStatus({ stage, error, txHash }: { stage: TxStage; error?: string; txHash?: string }) {
@@ -25,7 +23,7 @@ export function TxStatus({ stage, error, txHash }: { stage: TxStage; error?: str
 
   return (
     <div role="status" aria-live="polite" className="flex flex-col gap-4 rounded-lg bg-gloss-white p-6">
-      <ol className="grid grid-cols-4 gap-2">
+      <ol className="grid grid-cols-2 gap-2">
         {STAGES.map((s, i) => {
           const done = finished || (currentIndex !== -1 && i < currentIndex);
           const current = i === currentIndex;

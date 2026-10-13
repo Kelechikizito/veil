@@ -8,7 +8,7 @@ import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 import type { TxStage } from "@/components/TxStatus";
 import { addTx } from "@/lib/txLog";
 
-// wagmi's un-narrowed param type has `value: undefined`; replace it so payable calls (shieldNative) type-check
+// wagmi's un-narrowed param type has `value: undefined`; replace it so payable calls type-check
 type WriteParams = Omit<Parameters<ReturnType<typeof useWriteContract>["writeContractAsync"]>[0], "value"> & {
   value?: bigint;
 };
@@ -31,16 +31,19 @@ export function useGasSponsored(): boolean {
 
 /** A readable one-line error from viem, wallet or SDK errors */
 export function shortError(e: unknown): string {
-  // The most common testnet failure: a new embedded wallet with no ETH for gas
+  // The most common testnet failure: a new wallet with no MON for gas
   const text = fullText(e);
   if (/sponsor|paymaster|credits/i.test(text)) {
     return `Gas sponsorship failed. Check Fee sponsorship in the Privy dashboard. (${text.trim().split("\n")[0].slice(0, 160)})`;
   }
   if (/insufficient funds/i.test(text)) {
-    return "Your wallet has no ETH for gas. Send it a little testnet ETH (0.005 is plenty), then try again.";
+    return "Your wallet has no MON for gas. Get some from the Monad testnet faucet, then try again.";
   }
-  if (/FHERC20ZeroBalance/.test(text)) {
-    return "This wallet has none of that confidential token yet. Withdraw your salary first, then cash out.";
+  if (/VeilPayroll__ExceedsAvailable/.test(text)) {
+    return "That's more than has streamed so far. Try a smaller amount.";
+  }
+  if (/VeilPayroll__ExceedsVault/.test(text)) {
+    return "That's more than your vault holds right now.";
   }
   if (/EmployeeRegistry__BadPasskeySignature/.test(text)) {
     return "That passkey didn't check out. Try again, and use the passkey you made for Veil.";
@@ -72,8 +75,7 @@ function fullText(e: unknown): string {
 
 /**
  * Runs one transaction through the TxStatus stages:
- * encrypting (if `build` encrypts) → signing → confirming → done | error.
- * Callers that wait on the FHE network afterwards can call `setStage("fhe-processing")`.
+ * signing → confirming → done | error.
  * On success, every contract read is refetched so the UI shows the new state.
  * With a `log` scope, each confirmed transaction is kept for TxLinks (lib/txLog).
  */
@@ -91,22 +93,20 @@ export function useTx(log?: string) {
   const run = useCallback(
     async (
       build: () => WriteParams | Promise<WriteParams>,
-      opts: { encrypts?: boolean; keepOpen?: boolean; label?: string } = {},
+      opts: { keepOpen?: boolean; label?: string } = {},
     ): Promise<TransactionReceipt | undefined> => {
       setError(undefined);
       setHash(undefined);
       try {
         if (!publicClient || !address) throw new Error("Connect a wallet first");
-        setStage(opts.encrypts ? "encrypting" : "signing");
-        const params = await build();
         setStage("signing");
+        const params = await build();
 
         // Estimate gas and price it with our RPC, so the wallet's own (often rate-limited) RPC does less.
-        // - Gas: FHE calls fan out to the TaskManager, and estimates can come in low: +50%.
-        // - Price: a legacy gasPrice with 25% headroom. MetaMask can treat Base Sepolia as
-        //   non-EIP-1559: it rejects maxFeePerGas outright, and its own price has no headroom, so a base
-        //   fee tick fails the send ("max fee per gas less than block base fee"). Every wallet accepts a
-        //   legacy gasPrice.
+        // - Gas: +20%, for state that moves between the estimate and the send. Kept small on purpose:
+        //   Monad charges for the gas limit, not the gas used.
+        // - Price: a legacy gasPrice with 25% headroom, so a base fee tick doesn't fail the send
+        //   ("max fee per gas less than block base fee"). Every wallet accepts a legacy gasPrice.
         const [estimate, gasPrice] = await Promise.all([
           publicClient.estimateContractGas({ ...(params as object), account: address } as never).catch((e) => {
             // A revert fails the same way on-chain; sending anyway makes the wallet guess a huge gas limit
@@ -116,10 +116,10 @@ export function useTx(log?: string) {
           }),
           publicClient.getGasPrice().catch(() => undefined),
         ]);
-        const gas = estimate ? (estimate * BigInt(3)) / BigInt(2) : undefined;
+        const gas = estimate ? (estimate * BigInt(6)) / BigInt(5) : undefined;
         let txHash: Hex;
         if (sponsored) {
-          // Privy upgrades the wallet with EIP-7702 and a paymaster pays: same address, no ETH needed
+          // Privy upgrades the wallet with EIP-7702 and a paymaster pays: same address, no MON needed
           const p = params as unknown as { address: Hex; abi: never; functionName: string; args?: unknown[]; value?: bigint };
           ({ hash: txHash } = await sendWithPrivy(
             {

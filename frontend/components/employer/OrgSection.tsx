@@ -64,7 +64,7 @@ export function OrgSection() {
       </form>
       {!sponsored && balance.data?.value === BigInt(0) && account && (
         <p className="text-caption text-soft-charcoal">
-          This wallet has no ETH for gas. Send it a little Base Sepolia ETH (0.005 is plenty):{" "}
+          This wallet has no MON for gas. Get some from the Monad testnet faucet and send it to:{" "}
           <span className="break-all font-mono">{account}</span>
         </p>
       )}

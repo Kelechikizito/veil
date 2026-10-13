@@ -1,16 +1,13 @@
 "use client";
 
-import { useCofheClient } from "@cofhe/react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import type { Address, Hex } from "viem";
+import type { Address } from "viem";
 import { usePublicClient, useReadContract, useReadContracts } from "wagmi";
 import type { StreamRow } from "@/components/employer/streams";
 import { useVeil } from "@/hooks/useVeil";
-import { useEnsureACP } from "@/hooks/useEnsureACP";
 import { useReducedMotion } from "@/hooks/useMotion";
 import { VeilPayrollAbi } from "@/lib/contracts/abis";
-import { isUnsetHandle, unsealUint64 } from "@/lib/fhe";
 
 /** The connected worker's streams (as payee), newest first */
 export function useStreamsOfPayee(pollMs?: number) {
@@ -81,26 +78,6 @@ export function useChainNow(everyMs = 1000): bigint {
   return BigInt(Math.floor(now + offset));
 }
 
-/**
- * Unseals one encrypted uint64 once per handle (a new handle after a write unseals again).
- * Runs only when `enabled`, so the ACP prompt appears when the worker asks to see their pay.
- */
-export function useUnsealed(handle: Hex | undefined, enabled: boolean) {
-  const client = useCofheClient();
-  const { ensureACP } = useEnsureACP();
-  return useQuery({
-    queryKey: ["unsealed", handle],
-    enabled: enabled && handle !== undefined,
-    staleTime: Infinity,
-    retry: 2,
-    queryFn: async () => {
-      if (isUnsetHandle(handle)) return BigInt(0);
-      await ensureACP();
-      return unsealUint64(client, handle!);
-    },
-  });
-}
-
 export type LivePay = {
   /** Streamed and not yet withdrawn: what a withdrawal can take */
   available: bigint;
@@ -118,10 +95,7 @@ export type LivePay = {
  * counts as earlier pay, and the stream waits for the next payroll run.
  * No transactions: the numbers only change on screen.
  */
-export function useLiveBalance(
-  stream: StreamRow,
-  amounts: { allocated: bigint | undefined; banked: bigint | undefined; withdrawn: bigint | undefined },
-): LivePay | undefined {
+export function useLiveBalance(stream: StreamRow): LivePay {
   const offset = useChainClockOffset();
   const reduced = useReducedMotion();
   const [now, setNow] = useState(() => Date.now() / 1000);
@@ -132,9 +106,7 @@ export function useLiveBalance(
     return () => clearInterval(id);
   }, [reduced]);
 
-  const { allocated, banked, withdrawn } = amounts;
-  if (allocated === undefined || banked === undefined || withdrawn === undefined) return undefined;
-
+  const { allocated, banked, withdrawn } = stream;
   const zero = BigInt(0);
   // Milliseconds, so the number moves smoothly between blocks
   const nowMs = BigInt(Math.floor((now + offset) * 1000));

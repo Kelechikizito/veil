@@ -2,18 +2,21 @@
 
 import { useEffect, useState } from "react";
 import QRCode from "react-qr-code";
-import { decodeEventLog, isAddress, type Address } from "viem";
-import { useReadContract, useReadContracts } from "wagmi";
+import { decodeEventLog, isAddress, type Address, type Hex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { usePublicClient, useReadContracts } from "wagmi";
 import { shortAddress } from "@/components/AuthButton";
 import { StreamStatus, type StreamRow } from "@/components/employer/streams";
 import { Field, Input, Panel, PillPicker } from "@/components/forms";
 import { TxStatus } from "@/components/TxStatus";
 import { Badge, Button } from "@/components/ui";
 import { useVeil } from "@/hooks/useVeil";
+import { useRelay } from "@/hooks/useRelay";
 import { useTx } from "@/hooks/useTx";
 import { IncomeCredentialAbi } from "@/lib/contracts/abis";
 import { shortLink } from "@/lib/format";
-import { formatConfidential, parseConfidential } from "@/lib/tokens";
+import { credentialDomain, ISSUE_TYPES, RELAY_DEADLINE_SECONDS, REVOKE_TYPES } from "@/lib/relay";
+import { formatAmount, parseAmount } from "@/lib/tokens";
 import { useChainClockOffset } from "./hooks";
 
 const EXPIRIES = [
@@ -35,7 +38,7 @@ type Credential = {
   streamActiveSince: bigint;
   revoked: boolean;
   employeeVerified: boolean;
-  ok: `0x${string}`;
+  ok: boolean;
 };
 
 /** §4 Income credentials: prove "I earn at least X a month" to one verifier, for a limited time */
@@ -43,17 +46,19 @@ export function CredentialsSection({ streams }: { streams: StreamRow[] }) {
   return (
     <Panel
       title="Income proofs"
-      help="Show a landlord or lender that you earn at least an amount, without showing your salary. They learn yes or no, nothing else."
+      help="Show a landlord or lender that you earn at least an amount. The proof names them, expires, and you can revoke it."
     >
       <IssueForm streams={streams.filter((s) => s.status === StreamStatus.Active)} />
-      <MyCredentials />
+      <MyCredentials streams={streams} />
     </Panel>
   );
 }
 
 function IssueForm({ streams }: { streams: StreamRow[] }) {
-  const { d, tokens } = useVeil();
-  const tx = useTx();
+  const { d, tokens, chainId } = useVeil();
+  const publicClient = usePublicClient();
+  const direct = useTx();
+  const relay = useRelay();
   const [streamId, setStreamId] = useState(streams[0] ? String(streams[0].id) : "");
   const [verifier, setVerifier] = useState("");
   const [threshold, setThreshold] = useState("");
@@ -62,10 +67,11 @@ function IssueForm({ streams }: { streams: StreamRow[] }) {
   const offset = useChainClockOffset();
 
   const stream = streams.find((s) => String(s.id) === streamId);
-  const symbolOf = (wrapper: Address) => tokens.find((t) => t.wrapper.toLowerCase() === wrapper.toLowerCase())?.symbol ?? "";
+  const tx = stream?.stealthKey ? relay : direct;
+  const symbolOf = (token: Address) => tokens.find((t) => t.address.toLowerCase() === token.toLowerCase())?.symbol ?? "";
   let parsed: bigint | undefined;
   try {
-    parsed = threshold ? parseConfidential(threshold) : undefined;
+    parsed = threshold ? parseAmount(threshold) : undefined;
   } catch {
     parsed = undefined;
   }
@@ -78,12 +84,40 @@ function IssueForm({ streams }: { streams: StreamRow[] }) {
   const issue = async () => {
     setIssuedId(undefined);
     const expiresAt = BigInt(Math.floor(nowSeconds() + offset) + Number(expiry));
-    const receipt = await tx.run(() => ({
-      address: d!.incomeCredential,
-      abi: IncomeCredentialAbi,
-      functionName: "issue",
-      args: [stream!.id, verifier.trim() as Address, parsed!, expiresAt],
-    }));
+    const to = verifier.trim() as Address;
+    const receipt = stream!.stealthKey
+      ? await relay.run(async () => {
+          // A stealth stream's payee is a one-time address with no gas: it signs, the relayer sends
+          const signer = privateKeyToAccount(stream!.stealthKey!);
+          const nonce = (await publicClient!.readContract({
+            address: d!.incomeCredential,
+            abi: IncomeCredentialAbi,
+            functionName: "nonces",
+            args: [signer.address],
+          })) as bigint;
+          const deadline = BigInt(Math.floor(nowSeconds() + offset) + RELAY_DEADLINE_SECONDS);
+          const signature = await signer.signTypedData({
+            domain: credentialDomain(chainId!, d!.incomeCredential),
+            types: ISSUE_TYPES,
+            primaryType: "Issue",
+            message: { streamId: stream!.id, verifier: to, threshold: parsed!, expiresAt, nonce, deadline },
+          });
+          return {
+            kind: "issue",
+            streamId: String(stream!.id),
+            verifier: to,
+            threshold: String(parsed),
+            expiresAt: String(expiresAt),
+            deadline: String(deadline),
+            signature,
+          };
+        })
+      : await direct.run(() => ({
+          address: d!.incomeCredential,
+          abi: IncomeCredentialAbi,
+          functionName: "issue",
+          args: [stream!.id, to, parsed!, expiresAt],
+        }));
     const issued = receipt?.logs
       .map((log) => {
         try {
@@ -116,7 +150,7 @@ function IssueForm({ streams }: { streams: StreamRow[] }) {
           <Field label="Expires after">
             <PillPicker options={[...EXPIRIES]} value={expiry} onChange={setExpiry} />
           </Field>
-          <Field label="Verifier's wallet" hint="Only this address can read the answer.">
+          <Field label="Verifier's wallet" hint="The landlord or lender this proof is for.">
             <Input value={verifier} onChange={(e) => setVerifier(e.target.value)} placeholder="0x…" spellCheck={false} />
           </Field>
           <Field label={`They asked: at least how much per month? (${stream ? symbolOf(stream.token) : ""})`}>
@@ -128,6 +162,11 @@ function IssueForm({ streams }: { streams: StreamRow[] }) {
             Issue proof
           </Button>
         </div>
+        {stream?.stealthKey && (
+          <p className="text-caption text-soft-charcoal">
+            This salary is paid privately. Issuing a proof shows the verifier which stream is yours, and how much it pays.
+          </p>
+        )}
         <TxStatus stage={tx.stage} error={tx.error} txHash={tx.hash} />
       </form>
       {issuedId !== undefined && <ShareLink id={issuedId} />}
@@ -163,17 +202,27 @@ function ShareLink({ id }: { id: bigint }) {
   );
 }
 
-function MyCredentials() {
-  const { account, d, tokens } = useVeil();
-  const tx = useTx();
-  const ids = useReadContract({
-    address: d?.incomeCredential,
-    abi: IncomeCredentialAbi,
-    functionName: "credentialsOf",
-    args: account ? [account] : undefined,
-    query: { enabled: !!account && !!d },
+function MyCredentials({ streams }: { streams: StreamRow[] }) {
+  const { account, d, tokens, chainId } = useVeil();
+  const publicClient = usePublicClient();
+  const direct = useTx();
+  const relay = useRelay();
+  // Proofs can come from the main wallet or from any of the worker's one-time addresses
+  const stealthKeyOf = new Map(streams.filter((s) => s.stealthKey).map((s) => [s.payee.toLowerCase(), s.stealthKey!]));
+  const payees = [...(account ? [account] : []), ...streams.filter((s) => s.stealthKey).map((s) => s.payee)];
+  const ids = useReadContracts({
+    contracts: payees.map((p) => ({
+      address: d?.incomeCredential,
+      abi: IncomeCredentialAbi,
+      functionName: "credentialsOf" as const,
+      args: [p] as const,
+    })),
+    query: { enabled: payees.length > 0 && !!d },
   });
-  const list = [...(ids.data ?? [])].reverse();
+  const list = [...new Set((ids.data ?? []).flatMap((r) => (r.status === "success" ? (r.result as readonly bigint[]) : [])))].sort((a, b) =>
+    a > b ? -1 : 1,
+  );
+  const tx = relay.busy || relay.stage === "error" || relay.stage === "done" ? relay : direct;
   const creds = useReadContracts({
     contracts: list.flatMap((id) => [
       { address: d?.incomeCredential, abi: IncomeCredentialAbi, functionName: "get" as const, args: [id] as const },
@@ -183,12 +232,33 @@ function MyCredentials() {
   });
   const now = useNow();
   const offset = useChainClockOffset();
-  const symbolOf = (wrapper: Address) => tokens.find((t) => t.wrapper.toLowerCase() === wrapper.toLowerCase())?.symbol ?? "";
+  const symbolOf = (token: Address) => tokens.find((t) => t.address.toLowerCase() === token.toLowerCase())?.symbol ?? "";
 
   if (list.length === 0) return null;
 
-  const revoke = (id: bigint) =>
-    tx.run(() => ({ address: d!.incomeCredential, abi: IncomeCredentialAbi, functionName: "revoke", args: [id] }));
+  const revoke = (id: bigint, payee: Address) => {
+    const stealthKey: Hex | undefined = stealthKeyOf.get(payee.toLowerCase());
+    if (!stealthKey) {
+      return direct.run(() => ({ address: d!.incomeCredential, abi: IncomeCredentialAbi, functionName: "revoke", args: [id] }));
+    }
+    return relay.run(async () => {
+      const signer = privateKeyToAccount(stealthKey);
+      const nonce = (await publicClient!.readContract({
+        address: d!.incomeCredential,
+        abi: IncomeCredentialAbi,
+        functionName: "nonces",
+        args: [signer.address],
+      })) as bigint;
+      const deadline = BigInt(Math.floor(nowSeconds() + offset) + RELAY_DEADLINE_SECONDS);
+      const signature = await signer.signTypedData({
+        domain: credentialDomain(chainId!, d!.incomeCredential),
+        types: REVOKE_TYPES,
+        primaryType: "Revoke",
+        message: { id, nonce, deadline },
+      });
+      return { kind: "revoke", id: String(id), deadline: String(deadline), signature };
+    });
+  };
 
   return (
     <div className="flex flex-col gap-3 border-t-[1.5px] border-gloss-black pt-6">
@@ -203,13 +273,13 @@ function MyCredentials() {
           return (
             <li key={String(id)} className="flex flex-wrap items-center justify-between gap-3 border-t-[1.5px] border-gloss-black/10 py-3 text-caption">
               <span>
-                #{String(id)} · ≥ {formatConfidential(c.threshold)} {symbolOf(c.token)}/month · to {shortAddress(c.verifier)}
+                #{String(id)} · ≥ {formatAmount(c.threshold)} {symbolOf(c.token)}/month · to {shortAddress(c.verifier)}
               </span>
               <span className="flex items-center gap-3">
                 <Badge>{status}</Badge>
                 {status === "Valid" && <span className="tabular-nums text-soft-charcoal">{countdown(left)}</span>}
                 {status === "Valid" && (
-                  <Button variant="outline" disabled={tx.busy} onClick={() => void revoke(id)} className="!px-3 !py-1 text-caption">
+                  <Button variant="outline" disabled={tx.busy} onClick={() => void revoke(id, c.payee)} className="!px-3 !py-1 text-caption">
                     Revoke
                   </Button>
                 )}

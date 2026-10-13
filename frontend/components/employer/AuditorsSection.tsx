@@ -10,6 +10,8 @@ import { Button } from "@/components/ui";
 import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
 import { AuditRegistryAbi } from "@/lib/contracts/abis";
+import { payeeOf } from "@/lib/payeeLabels";
+import { useStreamsOfPayer } from "./streams";
 
 /** Reads the connected employer's auditors */
 export function useAuditors() {
@@ -40,7 +42,7 @@ export function AuditorsSection() {
   return (
     <Panel
       title="Auditors"
-      help="An auditor can read every salary, vault balance and withdrawal you create from now on."
+      help="An auditor sees every salary, payroll run and withdrawal. For private salaries, hand them the payee list so they know who each one-time address pays."
     >
       {auditors.length > 0 && (
         <ul className="flex flex-col">
@@ -72,10 +74,46 @@ export function AuditorsSection() {
           Add auditor
         </Button>
       </form>
-      <p className="text-caption text-soft-charcoal">
-        Removing an auditor stops access to <em>new</em> data only. What they could already read stays readable.
-      </p>
       <TxStatus stage={tx.stage} error={tx.error} txHash={tx.hash} />
+      <PayeeListDownload />
     </Panel>
+  );
+}
+
+/**
+ * Downloads who each private salary pays: one-time address → worker wallet. Only this browser knows it,
+ * so the employer hands the file to their auditor. Built locally; nothing is uploaded.
+ */
+export function PayeeListDownload() {
+  const { rows } = useStreamsOfPayer();
+  const known = rows.flatMap((s) => {
+    const worker = payeeOf(s.payee);
+    return worker ? [{ id: s.id, stealth: s.payee, worker }] : [];
+  });
+  if (known.length === 0) return null;
+
+  const download = () => {
+    const csv = [["stream", "one-time address", "worker wallet"], ...known.map((k) => [String(k.id), k.stealth, k.worker])]
+      .map((r) => r.join(","))
+      .join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "veil-payee-list.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="flex flex-col gap-2 border-t-[1.5px] border-gloss-black/10 pt-4">
+      <span className="text-caption text-soft-charcoal">
+        {known.length} private salar{known.length === 1 ? "y" : "ies"} created in this browser.
+      </span>
+      <div>
+        <Button variant="outline" onClick={download} className="!px-4 !py-1.5 text-caption">
+          Download payee list for your auditor
+        </Button>
+      </div>
+    </div>
   );
 }

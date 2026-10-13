@@ -1,26 +1,26 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { Badge, Button, ButtonLink } from "@/components/ui";
-import { ACP_EXPLAINER, useEnsureACP } from "@/hooks/useEnsureACP";
-import { useGasSponsored } from "@/hooks/useTx";
-import { CashOutSection } from "./CashOutSection";
+import { useReadContract } from "wagmi";
+import { Badge, ButtonLink } from "@/components/ui";
+import { useVeil } from "@/hooks/useVeil";
+import { DemoTokenAbi } from "@/lib/contracts/abis";
+import { formatAmount } from "@/lib/tokens";
 import { CredentialsSection } from "./CredentialsSection";
-import { useStreamsOfPayee } from "./hooks";
+import { PrivatePaySetup, useMyStreams } from "./PrivatePay";
 import { StreamCard } from "./StreamCard";
 
-/** The worker app (11): live pay first, then cash out and income proofs */
+/** The worker app (11): live pay first, then income proofs */
 export function WorkerApp() {
-  const { rows, isLoading } = useStreamsOfPayee(15_000);
-  const { hasACP, status, error, ensureACP } = useEnsureACP();
-  // Embedded wallets sign silently, so unlock the pay on arrival. External wallets (MetaMask) keep the button.
-  const embedded = useGasSponsored();
-  const tried = useRef(false);
-  useEffect(() => {
-    if (!embedded || hasACP || tried.current || rows.length === 0) return;
-    tried.current = true;
-    void ensureACP().catch(() => undefined);
-  }, [embedded, hasACP, rows.length, ensureACP]);
+  const { rows, isLoading } = useMyStreams(15_000);
+  const { account, tokens } = useVeil();
+  const usdc = tokens[0];
+  const wallet = useReadContract({
+    address: usdc?.address,
+    abi: DemoTokenAbi,
+    functionName: "balanceOf",
+    args: account ? [account] : undefined,
+    query: { enabled: !!account && !!usdc, refetchInterval: 15_000 },
+  });
 
   if (isLoading) return <p className="py-10 text-mid-grey">Loading your pay…</p>;
 
@@ -34,6 +34,7 @@ export function WorkerApp() {
         <div>
           <ButtonLink href="/onboarding/employee">Set up your account</ButtonLink>
         </div>
+        <PrivatePaySetup />
       </div>
     );
   }
@@ -45,26 +46,22 @@ export function WorkerApp() {
           <Badge ghost>Your pay</Badge>
           <h1 className="text-[44px] leading-[0.97] tracking-[-0.03em] md:text-heading-lg">Paid by the second.</h1>
         </div>
+        {usdc && wallet.data !== undefined && (
+          <span className="text-caption text-soft-charcoal">
+            In your wallet: <span className="tabular-nums text-gloss-black">{formatAmount(wallet.data, usdc.decimals)} {usdc.symbol}</span>
+          </span>
+        )}
       </header>
 
-      {!hasACP && (
-        <div className="flex flex-col gap-4 rounded-3xl border-[1.5px] border-gloss-black p-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-col gap-1">
-            <span className="text-subheading">Your amounts are encrypted</span>
-            <span className="text-caption text-soft-charcoal">{ACP_EXPLAINER}</span>
-            {error && <span className="text-caption text-soft-charcoal">{error.message}</span>}
-          </div>
-          <Button onClick={() => void ensureACP().catch(() => undefined)} disabled={status === "signing"}>
-            {status === "signing" ? "Waiting for signature…" : "Show my pay"}
-          </Button>
-        </div>
-      )}
-
       {rows.map((s) => (
-        <StreamCard key={String(s.id)} stream={s} unlocked={hasACP} />
+        <StreamCard key={String(s.id)} stream={s} />
       ))}
 
-      <CashOutSection />
+      <section className="flex flex-col gap-3 rounded-3xl border-[1.5px] border-gloss-black/10 p-6">
+        <span className="text-subheading">Private pay</span>
+        <PrivatePaySetup />
+      </section>
+
       <CredentialsSection streams={rows} />
     </div>
   );

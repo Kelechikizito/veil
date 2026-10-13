@@ -1,23 +1,18 @@
 "use client";
 
-import { useCofheClient } from "@cofhe/react";
 import { useState } from "react";
-import { formatUnits, maxUint256, parseUnits, type Address } from "viem";
-import { useBalance, useReadContract, useReadContracts } from "wagmi";
+import { maxUint256 } from "viem";
+import { useReadContract, useReadContracts } from "wagmi";
 import { Field, Input, Panel, PillPicker, Stat } from "@/components/forms";
-import { SecretValue } from "@/components/SecretValue";
 import { TxLinks, TxStatus } from "@/components/TxStatus";
 import { Button } from "@/components/ui";
 import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
-import { ConfidentialNativeAbi, ConfidentialTokenAbi, VeilPayrollAbi, ERC20_HarnessAbi } from "@/lib/contracts/abis";
-import { encryptUint64 } from "@/lib/fhe";
+import { DemoTokenAbi, VeilPayrollAbi } from "@/lib/contracts/abis";
 import { clearTxLog } from "@/lib/txLog";
-import { formatConfidential, parseConfidential, toConfidentialUnits, type ConfidentialTokenInfo, type TokenKey } from "@/lib/tokens";
+import { formatAmount, parseAmount, type TokenInfo, type TokenKey } from "@/lib/tokens";
 
-const OPERATOR_FOREVER = 2 ** 48 - 1;
-
-/** Whether the connected employer has funded any vault (a non-zero handle) */
+/** Whether the connected employer has money in any vault */
 export function useHasFundedVault() {
   const { account, d, tokens } = useVeil();
   const { data } = useReadContracts({
@@ -25,30 +20,28 @@ export function useHasFundedVault() {
       address: d?.payroll,
       abi: VeilPayrollAbi,
       functionName: "vaultOf" as const,
-      args: [account!, t.wrapper] as const,
+      args: [account!, t.address] as const,
     })),
     query: { enabled: !!account && !!d },
   });
-  return (data ?? []).some((r) => r.status === "success" && BigInt(r.result as string) !== BigInt(0));
+  return (data ?? []).some((r) => r.status === "success" && (r.result as bigint) > BigInt(0));
 }
 
-/** §2 Fund: one amount, one button. Shielding, allowing payroll and funding the vault run behind it. */
+/** §2 Fund: one amount, one button. Minting test money, approving and funding run behind it. */
 export function FundSection() {
   const { tokens } = useVeil();
-  const [key, setKey] = useState<TokenKey>(tokens[0]?.key ?? "cusdc");
+  const [key, setKey] = useState<TokenKey>(tokens[0]?.key ?? "usdc");
   const token = tokens.find((t) => t.key === key) ?? tokens[0];
   if (!token) return null;
 
   return (
     <Panel
       title="Payroll vault"
-      help="Add money to pay salaries from. It's encrypted on the way in: the deposit is public, every salary stays private."
+      help="Add money to pay salaries from. Each payroll run sets this period's pay aside from here."
       aside={
-        <PillPicker
-          options={tokens.map((t) => ({ value: t.key, label: t.underlyingSymbol }))}
-          value={token.key}
-          onChange={setKey}
-        />
+        tokens.length > 1 && (
+          <PillPicker options={tokens.map((t) => ({ value: t.key, label: t.symbol }))} value={token.key} onChange={setKey} />
+        )
       }
     >
       <TokenFunding key={token.key} token={token} />
@@ -56,102 +49,71 @@ export function FundSection() {
   );
 }
 
-function TokenFunding({ token }: { token: ConfidentialTokenInfo }) {
+function TokenFunding({ token }: { token: TokenInfo }) {
   const { account, d } = useVeil();
-  const cofhe = useCofheClient();
   const tx = useTx("fund");
   const [amount, setAmount] = useState("");
   const [progress, setProgress] = useState<string>();
 
-  // Public balance: native ETH for cETH, the ERC20 otherwise
-  const nativeBalance = useBalance({ address: account, query: { enabled: token.native && !!account } });
-  const erc20Balance = useReadContract({
-    address: token.underlying,
-    abi: ERC20_HarnessAbi,
+  const balance = useReadContract({
+    address: token.address,
+    abi: DemoTokenAbi,
     functionName: "balanceOf",
     args: account ? [account] : undefined,
-    query: { enabled: !token.native && !!account && !!token.underlying },
+    query: { enabled: !!account },
   });
   const allowance = useReadContract({
-    address: token.underlying,
-    abi: ERC20_HarnessAbi,
+    address: token.address,
+    abi: DemoTokenAbi,
     functionName: "allowance",
-    args: account ? [account, token.wrapper] : undefined,
-    query: { enabled: !token.native && !!account && !!token.underlying },
-  });
-  const publicBalance = token.native ? nativeBalance.data?.value : erc20Balance.data;
-
-  const vaultHandle = useReadContract({
-    address: d?.payroll,
-    abi: VeilPayrollAbi,
-    functionName: "vaultOf",
-    args: account ? [account, token.wrapper] : undefined,
-    query: { enabled: !!account && !!d },
-  });
-  const isOperator = useReadContract({
-    address: token.wrapper,
-    abi: ConfidentialTokenAbi,
-    functionName: "isOperator",
     args: account && d ? [account, d.payroll] : undefined,
     query: { enabled: !!account && !!d },
   });
+  const vault = useReadContract({
+    address: d?.payroll,
+    abi: VeilPayrollAbi,
+    functionName: "vaultOf",
+    args: account ? [account, token.address] : undefined,
+    query: { enabled: !!account && !!d },
+  });
 
-  const parsed = safeParse(amount, token.underlyingDecimals);
-  // The wrapper keeps whole confidential units and refunds the rest, so fund exactly what lands
-  const units = parsed === undefined ? undefined : toConfidentialUnits(token, parsed).units;
-  const shortfall = parsed !== undefined && publicBalance !== undefined && parsed > publicBalance ? parsed - publicBalance : BigInt(0);
-  // Testnet: top up the mock token instead of sending the employer to a faucet. ETH can't be minted.
-  const canMint = !token.native && !!token.underlying;
+  const parsed = safeParse(amount, token.decimals);
+  const shortfall = parsed !== undefined && balance.data !== undefined && parsed > balance.data ? parsed - balance.data : BigInt(0);
 
-  /** Mint (testnet) → approve → shield → allow payroll → fund, each only if needed, one click */
+  /** Mint (testnet) → approve → fund, each only if needed, one click */
   const addFunds = async () => {
-    if (!parsed || !units) return;
+    if (!parsed || !d || !account) return;
     const steps: { label: string; run: () => Promise<unknown> }[] = [];
 
-    if (shortfall > BigInt(0) && canMint) {
+    if (shortfall > BigInt(0)) {
       steps.push({
-        label: `Getting test ${token.underlyingSymbol}`,
-        run: () => tx.run(() => ({ address: token.underlying!, abi: ERC20_HarnessAbi, functionName: "mint", args: [account!, shortfall] }), { keepOpen: true, label: `Got test ${token.underlyingSymbol}` }),
+        label: `Getting test ${token.symbol}`,
+        run: () =>
+          tx.run(() => ({ address: token.address, abi: DemoTokenAbi, functionName: "mint", args: [account, shortfall] }), {
+            keepOpen: true,
+            label: `Got test ${token.symbol}`,
+          }),
       });
     }
-    if (!token.native && (allowance.data ?? BigInt(0)) < parsed) {
+    if ((allowance.data ?? BigInt(0)) < parsed) {
       steps.push({
-        label: `Approving ${token.underlyingSymbol}`,
+        label: `Letting payroll take ${token.symbol}`,
         run: () =>
-          tx.run(() => ({ address: token.underlying!, abi: ERC20_HarnessAbi, functionName: "approve", args: [token.wrapper, maxUint256] }), { keepOpen: true, label: `Approved ${token.underlyingSymbol}` }),
-      });
-    }
-    steps.push({
-      label: "Encrypting your deposit",
-      run: () =>
-        tx.run(
-          () =>
-            token.native
-              ? { address: token.wrapper, abi: ConfidentialNativeAbi, functionName: "shieldNative", args: [account!], value: parsed }
-              : { address: token.wrapper, abi: ConfidentialTokenAbi, functionName: "shield", args: [account!, parsed] },
-          { keepOpen: true, label: "Encrypted the deposit" },
-        ),
-    });
-    if (!isOperator.data) {
-      steps.push({
-        label: "Connecting it to payroll",
-        run: () =>
-          tx.run(() => ({ address: token.wrapper, abi: ConfidentialTokenAbi, functionName: "setOperator", args: [d!.payroll, OPERATOR_FOREVER] }), { keepOpen: true, label: "Connected it to payroll" }),
+          tx.run(() => ({ address: token.address, abi: DemoTokenAbi, functionName: "approve", args: [d.payroll, maxUint256] }), {
+            keepOpen: true,
+            label: `Approved ${token.symbol}`,
+          }),
       });
     }
     steps.push({
       label: "Moving it into your vault",
       run: () =>
-        tx.run(
-          async () => {
-            const { handle, proof } = await encryptUint64(cofhe, units, d!.payroll);
-            return { address: d!.payroll, abi: VeilPayrollAbi, functionName: "fundVault", args: [token.wrapper, handle, proof] };
-          },
-          { encrypts: true, label: "Moved it into the vault" },
-        ),
+        tx.run(() => ({ address: d.payroll, abi: VeilPayrollAbi, functionName: "fundVault", args: [token.address, parsed] }), {
+          label: "Moved it into the vault",
+        }),
     });
 
-    clearTxLog(account!, "fund");
+    clearTxLog(account, "fund");
     for (const [i, step] of steps.entries()) {
       setProgress(`Step ${i + 1} of ${steps.length}: ${step.label}…`);
       if (!(await step.run())) {
@@ -159,7 +121,7 @@ function TokenFunding({ token }: { token: ConfidentialTokenInfo }) {
         return;
       }
     }
-    setProgress(`✓ Added ${formatConfidential(units)} ${token.underlyingSymbol} to your payroll vault.`);
+    setProgress(`✓ Added ${formatAmount(parsed, token.decimals)} ${token.symbol} to your payroll vault.`);
     setAmount("");
   };
 
@@ -167,10 +129,10 @@ function TokenFunding({ token }: { token: ConfidentialTokenInfo }) {
     <div className="flex flex-col gap-6">
       <div>
         <Stat label="Payroll vault">
-          <SecretValue handle={vaultHandle.data} unit={token.underlyingSymbol} />
+          {vault.data === undefined ? "…" : `${formatAmount(vault.data, token.decimals)} ${token.symbol}`}
         </Stat>
-        <Stat label={`In your wallet`}>
-          {publicBalance === undefined ? "…" : `${trim(formatUnits(publicBalance, token.underlyingDecimals))} ${token.underlyingSymbol}`}
+        <Stat label="In your wallet">
+          {balance.data === undefined ? "…" : `${formatAmount(balance.data, token.decimals)} ${token.symbol}`}
         </Stat>
       </div>
 
@@ -183,19 +145,17 @@ function TokenFunding({ token }: { token: ConfidentialTokenInfo }) {
       >
         <div className="flex-1">
           <Field
-            label={`Amount (${token.underlyingSymbol})`}
+            label={`Amount (${token.symbol})`}
             hint={
               shortfall > BigInt(0)
-                ? canMint
-                  ? `Testnet: the missing ${trim(formatUnits(shortfall, token.underlyingDecimals))} ${token.underlyingSymbol} is minted for you.`
-                  : `You only have ${trim(formatUnits(publicBalance ?? BigInt(0), token.underlyingDecimals))} ${token.underlyingSymbol}.`
+                ? `Testnet: the missing ${formatAmount(shortfall, token.decimals)} ${token.symbol} is minted for you.`
                 : undefined
             }
           >
             <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="5000" />
           </Field>
         </div>
-        <Button type="submit" disabled={!units || tx.busy || (shortfall > BigInt(0) && !canMint)}>
+        <Button type="submit" disabled={!parsed || tx.busy}>
           Add to payroll
         </Button>
       </form>
@@ -210,16 +170,9 @@ function TokenFunding({ token }: { token: ConfidentialTokenInfo }) {
 /** Parses a typed amount, or undefined if it's empty, invalid or zero */
 function safeParse(value: string, decimals: number): bigint | undefined {
   try {
-    const v = decimals === 6 ? parseConfidential(value) : parseUnits(value, decimals);
+    const v = parseAmount(value, decimals);
     return v > BigInt(0) ? v : undefined;
   } catch {
     return undefined;
   }
 }
-
-/** Drops trailing zeros: "10000.000000" → "10000" */
-function trim(s: string) {
-  return s.includes(".") ? s.replace(/\.?0+$/, "") : s;
-}
-
-export type { Address };

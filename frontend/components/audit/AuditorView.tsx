@@ -1,33 +1,27 @@
 "use client";
 
-import { useCofheClient } from "@cofhe/react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { isAddress, type Address, type Hex } from "viem";
+import { isAddress, type Address } from "viem";
 import { usePublicClient } from "wagmi";
 import { shortAddress } from "@/components/AuthButton";
 import { scanAllStreams, StreamStatus, statusLabel, type StreamRow } from "@/components/employer/streams";
 import { Field, Input, Panel, PillPicker } from "@/components/forms";
 import { Button } from "@/components/ui";
 import { useVeil } from "@/hooks/useVeil";
-import { useEnsureACP } from "@/hooks/useEnsureACP";
 import { shortError } from "@/hooks/useTx";
 import { AuditRegistryAbi, VeilPayrollAbi } from "@/lib/contracts/abis";
-import { isUnsetHandle, unsealUint64 } from "@/lib/fhe";
-import { formatConfidential } from "@/lib/tokens";
-
-/** A decrypted amount, or why there isn't one */
-type Cell = bigint | "no-access" | "pending";
+import { formatAmount } from "@/lib/tokens";
 
 type Books = {
   orgName: string;
   streams: StreamRow[];
-  vaults: { symbol: string; handle: Hex }[];
+  vaults: { symbol: string; balance: bigint }[];
 };
 
 /**
- * The auditor view (12 B). Lists the orgs that appointed the connected wallet, then unseals that org's
- * salaries, withdrawals and vaults in the browser. The CSV is built locally: this page uploads nothing.
+ * The auditor view (12 B). Lists the orgs that appointed the connected wallet, then shows that org's
+ * salaries, withdrawals and vaults. The CSV is built locally: this page uploads nothing.
  */
 export function AuditorView() {
   const { account, d } = useVeil();
@@ -100,15 +94,10 @@ export function AuditorView() {
   );
 }
 
-/** One org's books: check access, unseal on request, export CSV */
+/** One org's books: salaries, what was set aside and paid, vaults, and a CSV export */
 function OrgBooks({ payer }: { payer: Address }) {
   const { account, d, tokens } = useVeil();
   const publicClient = usePublicClient();
-  const client = useCofheClient();
-  const { ensureACP } = useEnsureACP();
-  const [cells, setCells] = useState<Record<string, Cell>>({});
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
 
   const books = useQuery({
     queryKey: ["audit-books", d?.payroll, payer, account],
@@ -129,7 +118,7 @@ function OrgBooks({ payer }: { payer: Address }) {
       const vaults = await Promise.all(
         tokens.map(async (t) => ({
           symbol: t.symbol,
-          handle: (await read({ address: d!.payroll, abi: VeilPayrollAbi, functionName: "vaultOf", args: [payer, t.wrapper] })) as Hex,
+          balance: (await read({ address: d!.payroll, abi: VeilPayrollAbi, functionName: "vaultOf", args: [payer, t.address] })) as bigint,
         })),
       );
       return {
@@ -153,55 +142,12 @@ function OrgBooks({ payer }: { payer: Address }) {
   if (!b.allowed) {
     return (
       <Panel title={b.orgName} help="">
-        <p className="text-soft-charcoal">You aren&apos;t an auditor for this organisation, so its amounts stay encrypted to you.</p>
+        <p className="text-soft-charcoal">You aren&apos;t an auditor for this organisation.</p>
       </Panel>
     );
   }
 
-  const symbolOf = (wrapper: Address) => tokens.find((t) => t.wrapper.toLowerCase() === wrapper.toLowerCase())?.symbol ?? "?";
-
-  const unsealAll = async () => {
-    setBusy(true);
-    setError(undefined);
-    try {
-      await ensureACP();
-      const jobs: [string, Hex][] = [
-        ...b.streams.flatMap((s): [string, Hex][] => [
-          [`m${s.id}`, s.monthly],
-          [`a${s.id}`, s.allocated],
-          [`w${s.id}`, s.withdrawn],
-        ]),
-        ...b.vaults.map((v): [string, Hex] => [`v${v.symbol}`, v.handle]),
-      ];
-      for (const [key, handle] of jobs) {
-        if (isUnsetHandle(handle)) {
-          setCells((c) => ({ ...c, [key]: BigInt(0) }));
-          continue;
-        }
-        setCells((c) => ({ ...c, [key]: "pending" }));
-        // A handle made before you were added, or after you were removed, isn't readable: that's expected
-        const value: Cell = await unsealUint64(client, handle).catch(() => "no-access" as const);
-        setCells((c) => ({ ...c, [key]: value }));
-      }
-    } catch (e) {
-      setError(shortError(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // `withdrawn` and `allocated` start as encrypted 0s that auditors aren't granted; every withdrawal
-  // or payroll run re-grants them. So if you could read the salary (you were auditor at creation) but
-  // not one of these, it's still 0.
-  const zeroUnlessChanged = (s: StreamRow, prefix: "w" | "a"): Cell | undefined => {
-    const c = cells[`${prefix}${s.id}`];
-    return c === "no-access" && typeof cells[`m${s.id}`] === "bigint" ? BigInt(0) : c;
-  };
-  const withdrawnCell = (s: StreamRow) => zeroUnlessChanged(s, "w");
-  const allocatedCell = (s: StreamRow) => zeroUnlessChanged(s, "a");
-  const show = (cell: Cell | undefined) =>
-    cell === undefined ? "••••••" : cell === "pending" ? "decrypting…" : cell === "no-access" ? "🔒 no access" : formatConfidential(cell);
-  const csvValue = (cell: Cell | undefined) => (typeof cell === "bigint" ? formatConfidential(cell) : cell === "no-access" ? "no access" : "");
+  const symbolOf = (token: Address) => tokens.find((t) => t.address.toLowerCase() === token.toLowerCase())?.symbol ?? "?";
 
   const exportCsv = () => {
     const header = ["stream", "payee", "token", "status", "monthly", "set aside (latest run)", "withdrawn", "started"];
@@ -210,19 +156,13 @@ function OrgBooks({ payer }: { payer: Address }) {
       s.payee,
       symbolOf(s.token),
       statusLabel[s.status] ?? String(s.status),
-      csvValue(cells[`m${s.id}`]),
-      csvValue(allocatedCell(s)),
-      csvValue(withdrawnCell(s)),
+      formatAmount(s.monthly, 6, 6),
+      formatAmount(s.allocated, 6, 6),
+      formatAmount(s.withdrawn, 6, 6),
       s.startTime > BigInt(0) ? new Date(Number(s.startTime) * 1000).toISOString() : "",
     ]);
-    const vaultRows = b.vaults.map((v) => [`vault`, payer, v.symbol, "", "", "", "", "", csvValue(cells[`v${v.symbol}`])]);
-    const csv = [
-      header,
-      ...rows,
-      [],
-      ["vault", "payer", "token", "", "", "", "", "", "balance"],
-      ...vaultRows,
-    ]
+    const vaultRows = b.vaults.map((v) => ["vault", payer, v.symbol, "", "", "", "", "", formatAmount(v.balance, 6, 6)]);
+    const csv = [header, ...rows, [], ["vault", "payer", "token", "", "", "", "", "", "balance"], ...vaultRows]
       .map((r) => r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(","))
       .join("\n");
     // Built and saved in the browser: no request leaves this page
@@ -235,17 +175,13 @@ function OrgBooks({ payer }: { payer: Address }) {
   };
 
   return (
-    <Panel title={b.orgName} help="Amounts are decrypted in your browser. Only what you were granted can be read.">
+    <Panel title={b.orgName} help="Every salary, what each payroll run set aside, and what each employee withdrew.">
       <div className="flex flex-wrap gap-3">
-        <Button onClick={() => void unsealAll()} disabled={busy}>
-          {busy ? "Decrypting…" : "Decrypt the books"}
-        </Button>
-        <Button variant="outline" onClick={exportCsv} disabled={busy}>
+        <Button variant="outline" onClick={exportCsv}>
           Export CSV
         </Button>
       </div>
       <p className="text-caption text-soft-charcoal">The CSV is made on your computer. Nothing is uploaded.</p>
-      {error && <p className="text-caption text-soft-charcoal">Couldn&apos;t decrypt: {error}</p>}
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-left">
@@ -274,9 +210,9 @@ function OrgBooks({ payer }: { payer: Address }) {
                   <td className="py-3 font-mono text-caption">{shortAddress(s.payee)}</td>
                   <td className="py-3">{symbolOf(s.token)}</td>
                   <td className="py-3">{s.status === StreamStatus.None ? "—" : statusLabel[s.status]}</td>
-                  <td className="py-3 tabular-nums">{show(cells[`m${s.id}`])}</td>
-                  <td className="py-3 tabular-nums">{show(allocatedCell(s))}</td>
-                  <td className="py-3 tabular-nums">{show(withdrawnCell(s))}</td>
+                  <td className="py-3 tabular-nums">{formatAmount(s.monthly)}</td>
+                  <td className="py-3 tabular-nums">{formatAmount(s.allocated)}</td>
+                  <td className="py-3 tabular-nums">{formatAmount(s.withdrawn)}</td>
                 </tr>
               ))
             )}
@@ -287,7 +223,7 @@ function OrgBooks({ payer }: { payer: Address }) {
       <div className="flex flex-wrap gap-x-8 gap-y-2">
         {b.vaults.map((v) => (
           <span key={v.symbol} className="text-caption">
-            {v.symbol} vault: <span className="tabular-nums">{show(cells[`v${v.symbol}`])}</span>
+            {v.symbol} vault: <span className="tabular-nums">{formatAmount(v.balance)}</span>
           </span>
         ))}
       </div>

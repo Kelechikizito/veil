@@ -1,20 +1,15 @@
 "use client";
 
-import { useCofheClient } from "@cofhe/react";
-import { usePrivy } from "@privy-io/react-auth";
 import { useEffect, useState } from "react";
-import type { Address, Hex } from "viem";
+import type { Address } from "viem";
 import { useReadContract } from "wagmi";
 import { shortAddress } from "@/components/AuthButton";
 import { Stat } from "@/components/forms";
-import { Badge, Button } from "@/components/ui";
-import { deploymentFor, useVeil } from "@/hooks/useVeil";
-import { useEnsureACP } from "@/hooks/useEnsureACP";
-import { shortError } from "@/hooks/useTx";
+import { Badge } from "@/components/ui";
+import { deploymentFor } from "@/hooks/useVeil";
 import { defaultChain } from "@/lib/chains";
 import { VeilPayrollAbi, IncomeCredentialAbi } from "@/lib/contracts/abis";
-import { unsealBool } from "@/lib/fhe";
-import { formatConfidential, tokensFor } from "@/lib/tokens";
+import { formatAmount, tokensFor } from "@/lib/tokens";
 
 type Credential = {
   payee: Address;
@@ -28,7 +23,7 @@ type Credential = {
   streamActiveSince: bigint;
   revoked: boolean;
   employeeVerified: boolean;
-  ok: Hex;
+  ok: boolean;
 };
 
 /** Seconds since the epoch, ticking every second */
@@ -52,8 +47,7 @@ function formatCountdown(seconds: number) {
 const formatTime = (t: bigint) => new Date(Number(t) * 1000).toLocaleString();
 
 /**
- * A landlord's view of one income credential (12 A). Everything here but the answer is public, so it reads
- * with no wallet. The answer is an encrypted bit only the named verifier can decrypt.
+ * A landlord's view of one income credential (12 A). It's all public onchain, so it reads with no wallet.
  */
 export function CredentialView({ id }: { id: string }) {
   // Reads go to Veil's chain even before anyone logs in
@@ -88,8 +82,8 @@ export function CredentialView({ id }: { id: string }) {
     return <p className="text-soft-charcoal">Credential #{id} doesn&apos;t exist.</p>;
   }
 
-  const token = tokensFor(chainId).find((t) => t.wrapper.toLowerCase() === c.token.toLowerCase());
-  const unit = token?.underlyingSymbol ?? "tokens";
+  const token = tokensFor(chainId).find((t) => t.address.toLowerCase() === c.token.toLowerCase());
+  const unit = token?.symbol ?? "tokens";
   // Computed in the browser, so the banner flips to Expired live with no reload
   const status: "valid" | "expired" | "revoked" = c.revoked ? "revoked" : now >= Number(c.expiresAt) ? "expired" : "valid";
   const orgName = (org.data as { name: string; exists: boolean } | undefined)?.name;
@@ -99,7 +93,7 @@ export function CredentialView({ id }: { id: string }) {
       <div className="flex flex-col gap-4">
         <Badge ghost>Income credential #{id}</Badge>
         <h1 className="text-[44px] leading-[0.97] tracking-[-0.03em] md:text-heading-lg">
-          Earns at least {formatConfidential(c.threshold)} {unit} a month?
+          Earns at least {formatAmount(c.threshold)} {unit} a month?
         </h1>
       </div>
 
@@ -120,11 +114,7 @@ export function CredentialView({ id }: { id: string }) {
         </Stat>
       </div>
 
-      {status === "valid" && <Reveal credential={c} />}
-
-      <p className="text-caption text-soft-charcoal">
-        You learn one fact: whether this income meets your threshold. Not the salary.
-      </p>
+      {status === "valid" && <Answer ok={c.ok} />}
     </div>
   );
 }
@@ -147,63 +137,12 @@ function StatusBanner({ status, secondsLeft }: { status: "valid" | "expired" | "
   );
 }
 
-/** Sign in as the verifier, then decrypt the one bit */
-function Reveal({ credential: c }: { credential: Credential }) {
-  const { ready, authenticated, login } = usePrivy();
-  const { account, chainId } = useVeil();
-  const client = useCofheClient();
-  const { ensureACP } = useEnsureACP();
-  const [state, setState] = useState<{ loading?: boolean; ok?: boolean; error?: string }>({});
-
-  if (!ready) return null;
-  if (!authenticated) {
-    return (
-      <div className="flex flex-col gap-3">
-        <p>Was this sent to you? Sign in with the account it was issued to.</p>
-        <div>
-          <Button onClick={login}>Sign in to reveal</Button>
-        </div>
-      </div>
-    );
-  }
-  if (!account) return <p className="text-soft-charcoal">Connecting your wallet…</p>;
-  if (account.toLowerCase() !== c.verifier.toLowerCase()) {
-    return (
-      <p className="text-soft-charcoal">
-        This credential was issued to {shortAddress(c.verifier)}. You&apos;re signed in as {shortAddress(account)}.
-      </p>
-    );
-  }
-  if (chainId !== defaultChain.id) return <p className="text-soft-charcoal">Switch your wallet to {defaultChain.name} to reveal.</p>;
-
-  if (state.ok !== undefined) {
-    return (
-      <div className="flex items-center gap-6 rounded-2xl bg-pure-white p-8">
-        <span className="text-[80px] leading-none">{state.ok ? "✅" : "❌"}</span>
-        <p className="text-heading-sm">{state.ok ? "Yes, it meets your threshold." : "No, it's below your threshold."}</p>
-      </div>
-    );
-  }
-
-  const reveal = async () => {
-    setState({ loading: true });
-    try {
-      await ensureACP();
-      setState({ ok: await unsealBool(client, c.ok) });
-    } catch (e) {
-      setState({ error: shortError(e) });
-    }
-  };
-
+/** The answer, checked onchain against the salary stream when the credential was issued */
+function Answer({ ok }: { ok: boolean }) {
   return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <Button onClick={() => void reveal()} disabled={state.loading}>
-          {state.loading ? "Decrypting…" : "Reveal result"}
-        </Button>
-      </div>
-      <p className="text-caption text-soft-charcoal">One signature, no gas. The answer is decrypted in your browser.</p>
-      {state.error && <p className="text-caption text-soft-charcoal">Couldn&apos;t decrypt: {state.error}</p>}
+    <div className="flex items-center gap-6 rounded-2xl bg-pure-white p-8">
+      <span className="text-[80px] leading-none">{ok ? "✅" : "❌"}</span>
+      <p className="text-heading-sm">{ok ? "Yes, it meets the threshold." : "No, it's below the threshold."}</p>
     </div>
   );
 }

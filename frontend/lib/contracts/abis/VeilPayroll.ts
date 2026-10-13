@@ -9,17 +9,25 @@ export const VeilPayrollAbi = [
         "internalType": "address"
       },
       {
-        "name": "auditRegistry",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
         "name": "period",
         "type": "uint64",
         "internalType": "uint64"
       }
     ],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "DOMAIN_SEPARATOR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -36,19 +44,6 @@ export const VeilPayrollAbi = [
   },
   {
     "type": "function",
-    "name": "I_AUDIT_REGISTRY",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IAuditRegistry"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "PERIOD",
     "inputs": [],
     "outputs": [
@@ -56,6 +51,19 @@ export const VeilPayrollAbi = [
         "name": "",
         "type": "uint64",
         "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "SCHEME_SECP256K1",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -80,11 +88,61 @@ export const VeilPayrollAbi = [
       {
         "name": "token",
         "type": "address",
-        "internalType": "contract IFHERC20"
+        "internalType": "contract IERC20"
       }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "announcementOf",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IVeilPayroll.StealthAnnouncement",
+        "components": [
+          {
+            "name": "ephemeralPubKey",
+            "type": "bytes",
+            "internalType": "bytes"
+          },
+          {
+            "name": "viewTag",
+            "type": "bytes1",
+            "internalType": "bytes1"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "available",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -114,27 +172,32 @@ export const VeilPayrollAbi = [
   },
   {
     "type": "function",
-    "name": "createStream",
+    "name": "createStealthStream",
     "inputs": [
       {
-        "name": "payee",
+        "name": "stealthPayee",
         "type": "address",
         "internalType": "address"
       },
       {
         "name": "token",
         "type": "address",
-        "internalType": "contract IFHERC20"
+        "internalType": "contract IERC20"
       },
       {
         "name": "monthly",
-        "type": "bytes32",
-        "internalType": "externalEuint64"
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
-        "name": "proof",
+        "name": "ephemeralPubKey",
         "type": "bytes",
         "internalType": "bytes"
+      },
+      {
+        "name": "viewTag",
+        "type": "bytes1",
+        "internalType": "bytes1"
       }
     ],
     "outputs": [
@@ -148,13 +211,90 @@ export const VeilPayrollAbi = [
   },
   {
     "type": "function",
-    "name": "credential",
+    "name": "createStream",
+    "inputs": [
+      {
+        "name": "payee",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "contract IERC20"
+      },
+      {
+        "name": "monthly",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "defundVault",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "contract IERC20"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "eip712Domain",
     "inputs": [],
     "outputs": [
       {
-        "name": "",
+        "name": "fields",
+        "type": "bytes1",
+        "internalType": "bytes1"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "version",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "chainId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "verifyingContract",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "salt",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "extensions",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
       }
     ],
     "stateMutability": "view"
@@ -166,17 +306,12 @@ export const VeilPayrollAbi = [
       {
         "name": "token",
         "type": "address",
-        "internalType": "contract IFHERC20"
+        "internalType": "contract IERC20"
       },
       {
         "name": "amount",
-        "type": "bytes32",
-        "internalType": "externalEuint64"
-      },
-      {
-        "name": "proof",
-        "type": "bytes",
-        "internalType": "bytes"
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "outputs": [],
@@ -211,17 +346,27 @@ export const VeilPayrollAbi = [
           {
             "name": "token",
             "type": "address",
-            "internalType": "contract IFHERC20"
+            "internalType": "contract IERC20"
           },
           {
             "name": "monthly",
-            "type": "bytes32",
-            "internalType": "euint64"
+            "type": "uint256",
+            "internalType": "uint256"
           },
           {
             "name": "withdrawn",
-            "type": "bytes32",
-            "internalType": "euint64"
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "allocated",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "banked",
+            "type": "uint256",
+            "internalType": "uint256"
           },
           {
             "name": "startTime",
@@ -234,26 +379,6 @@ export const VeilPayrollAbi = [
             "internalType": "uint64"
           },
           {
-            "name": "status",
-            "type": "uint8",
-            "internalType": "enum IVeilPayroll.Status"
-          },
-          {
-            "name": "needsApproval",
-            "type": "bytes32",
-            "internalType": "ebool"
-          },
-          {
-            "name": "allocated",
-            "type": "bytes32",
-            "internalType": "euint64"
-          },
-          {
-            "name": "banked",
-            "type": "bytes32",
-            "internalType": "euint64"
-          },
-          {
             "name": "allocStart",
             "type": "uint64",
             "internalType": "uint64"
@@ -262,8 +387,32 @@ export const VeilPayrollAbi = [
             "name": "allocEnd",
             "type": "uint64",
             "internalType": "uint64"
+          },
+          {
+            "name": "status",
+            "type": "uint8",
+            "internalType": "enum IVeilPayroll.Status"
           }
         ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "nonces",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -338,7 +487,7 @@ export const VeilPayrollAbi = [
       {
         "name": "token",
         "type": "address",
-        "internalType": "contract IFHERC20"
+        "internalType": "contract IERC20"
       }
     ],
     "outputs": [],
@@ -353,45 +502,17 @@ export const VeilPayrollAbi = [
   },
   {
     "type": "function",
-    "name": "resolvePolicy",
-    "inputs": [
-      {
-        "name": "id",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "needsApproval",
-        "type": "bool",
-        "internalType": "bool"
-      },
-      {
-        "name": "sig",
-        "type": "bytes",
-        "internalType": "bytes"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "runPayroll",
     "inputs": [
       {
         "name": "token",
         "type": "address",
-        "internalType": "contract IFHERC20"
+        "internalType": "contract IERC20"
       },
       {
         "name": "budget",
-        "type": "bytes32",
-        "internalType": "externalEuint64"
-      },
-      {
-        "name": "proof",
-        "type": "bytes",
-        "internalType": "bytes"
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
         "name": "ids",
@@ -409,7 +530,7 @@ export const VeilPayrollAbi = [
       {
         "name": "token",
         "type": "address",
-        "internalType": "contract IFHERC20"
+        "internalType": "contract IERC20"
       }
     ],
     "outputs": [
@@ -423,16 +544,16 @@ export const VeilPayrollAbi = [
   },
   {
     "type": "function",
-    "name": "setCredential",
-    "inputs": [
+    "name": "streamCount",
+    "inputs": [],
+    "outputs": [
       {
-        "name": "credentialAddress",
-        "type": "address",
-        "internalType": "address"
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -497,14 +618,14 @@ export const VeilPayrollAbi = [
       {
         "name": "token",
         "type": "address",
-        "internalType": "contract IFHERC20"
+        "internalType": "contract IERC20"
       }
     ],
     "outputs": [
       {
         "name": "",
-        "type": "bytes32",
-        "internalType": "euint64"
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -520,11 +641,39 @@ export const VeilPayrollAbi = [
       },
       {
         "name": "amount",
-        "type": "bytes32",
-        "internalType": "externalEuint64"
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "withdrawWithSig",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
-        "name": "proof",
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "to",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "deadline",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "signature",
         "type": "bytes",
         "internalType": "bytes"
       }
@@ -534,15 +683,45 @@ export const VeilPayrollAbi = [
   },
   {
     "type": "event",
-    "name": "CredentialSet",
+    "name": "Announcement",
     "inputs": [
       {
-        "name": "credential",
+        "name": "schemeId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "stealthAddress",
         "type": "address",
         "indexed": true,
         "internalType": "address"
+      },
+      {
+        "name": "caller",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "ephemeralPubKey",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
+      },
+      {
+        "name": "metadata",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
       }
     ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "EIP712DomainChanged",
+    "inputs": [],
     "anonymous": false
   },
   {
@@ -597,7 +776,7 @@ export const VeilPayrollAbi = [
         "name": "token",
         "type": "address",
         "indexed": true,
-        "internalType": "contract IFHERC20"
+        "internalType": "contract IERC20"
       },
       {
         "name": "periodEnd",
@@ -610,25 +789,12 @@ export const VeilPayrollAbi = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "PolicyCheckRequested",
-    "inputs": [
-      {
-        "name": "id",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
       },
       {
-        "name": "handle",
-        "type": "bytes32",
+        "name": "spent",
+        "type": "uint256",
         "indexed": false,
-        "internalType": "bytes32"
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -691,13 +857,13 @@ export const VeilPayrollAbi = [
         "name": "token",
         "type": "address",
         "indexed": false,
-        "internalType": "contract IFHERC20"
+        "internalType": "contract IERC20"
       },
       {
-        "name": "monthlyHandle",
-        "type": "bytes32",
+        "name": "monthly",
+        "type": "uint256",
         "indexed": false,
-        "internalType": "bytes32"
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -723,7 +889,7 @@ export const VeilPayrollAbi = [
         "name": "token",
         "type": "address",
         "indexed": true,
-        "internalType": "contract IFHERC20"
+        "internalType": "contract IERC20"
       }
     ],
     "anonymous": false
@@ -736,7 +902,32 @@ export const VeilPayrollAbi = [
         "name": "token",
         "type": "address",
         "indexed": true,
-        "internalType": "contract IFHERC20"
+        "internalType": "contract IERC20"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "VaultDefunded",
+    "inputs": [
+      {
+        "name": "payer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": true,
+        "internalType": "contract IERC20"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -755,7 +946,13 @@ export const VeilPayrollAbi = [
         "name": "token",
         "type": "address",
         "indexed": true,
-        "internalType": "contract IFHERC20"
+        "internalType": "contract IERC20"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -771,13 +968,40 @@ export const VeilPayrollAbi = [
         "internalType": "uint256"
       },
       {
-        "name": "withdrawnHandle",
-        "type": "bytes32",
+        "name": "to",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
         "indexed": false,
-        "internalType": "bytes32"
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "InvalidAccountNonce",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "currentNonce",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidShortString",
+    "inputs": []
   },
   {
     "type": "error",
@@ -803,12 +1027,28 @@ export const VeilPayrollAbi = [
   },
   {
     "type": "error",
-    "name": "SecurityZoneOutOfBounds",
+    "name": "ReentrancyGuardReentrantCall",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SafeERC20FailedOperation",
     "inputs": [
       {
-        "name": "value",
-        "type": "int32",
-        "internalType": "int32"
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "StringTooLong",
+    "inputs": [
+      {
+        "name": "str",
+        "type": "string",
+        "internalType": "string"
       }
     ]
   },
@@ -819,17 +1059,27 @@ export const VeilPayrollAbi = [
   },
   {
     "type": "error",
-    "name": "VeilPayroll__AlreadyResolved",
+    "name": "VeilPayroll__BadEphemeralKey",
     "inputs": []
   },
   {
     "type": "error",
-    "name": "VeilPayroll__BadDecryptProof",
+    "name": "VeilPayroll__BadSignature",
     "inputs": []
   },
   {
     "type": "error",
-    "name": "VeilPayroll__CredentialAlreadySet",
+    "name": "VeilPayroll__ExceedsAvailable",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "VeilPayroll__ExceedsVault",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "VeilPayroll__Expired",
     "inputs": []
   },
   {
@@ -889,17 +1139,17 @@ export const VeilPayrollAbi = [
   },
   {
     "type": "error",
-    "name": "VeilPayroll__VaultNotFunded",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "VeilPayroll__WrongToken",
     "inputs": []
   },
   {
     "type": "error",
     "name": "VeilPayroll__ZeroAddress",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "VeilPayroll__ZeroAmount",
     "inputs": []
   },
   {

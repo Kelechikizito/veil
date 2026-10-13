@@ -1,6 +1,5 @@
 "use client";
 
-import { useCofheClient } from "@cofhe/react";
 import { useState } from "react";
 import { useReadContract } from "wagmi";
 import { Field, Input, Panel, PillPicker } from "@/components/forms";
@@ -10,8 +9,7 @@ import { useChainNow } from "@/components/worker/hooks";
 import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
 import { VeilPayrollAbi } from "@/lib/contracts/abis";
-import { encryptUint64, isUnsetHandle } from "@/lib/fhe";
-import { parseConfidential, type TokenKey } from "@/lib/tokens";
+import { formatAmount, parseAmount, type TokenKey } from "@/lib/tokens";
 import { fundedThisPeriod, periodEndOf, StreamStatus, useStreamsOfPayer } from "./streams";
 
 /**
@@ -21,11 +19,10 @@ import { fundedThisPeriod, periodEndOf, StreamStatus, useStreamsOfPayer } from "
  */
 export function RunPayrollSection() {
   const { d, tokens } = useVeil();
-  const cofhe = useCofheClient();
   const tx = useTx("payroll");
   const now = useChainNow();
   const { rows } = useStreamsOfPayer();
-  const [key, setKey] = useState<TokenKey>(tokens[0]?.key ?? "cusdc");
+  const [key, setKey] = useState<TokenKey>(tokens[0]?.key ?? "usdc");
   const [budget, setBudget] = useState("");
   const token = tokens.find((t) => t.key === key) ?? tokens[0];
   const { account } = useVeil();
@@ -34,20 +31,23 @@ export function RunPayrollSection() {
     address: d?.payroll,
     abi: VeilPayrollAbi,
     functionName: "vaultOf",
-    args: account && token ? [account, token.wrapper] : undefined,
+    args: account && token ? [account, token.address] : undefined,
     query: { enabled: !!account && !!d && !!token },
   });
 
   if (!d || !token) return null;
 
   const end = periodEndOf(now, d.period);
-  const active = rows.filter((s) => s.status === StreamStatus.Active && s.token.toLowerCase() === token.wrapper.toLowerCase());
+  const active = rows.filter((s) => s.status === StreamStatus.Active && s.token.toLowerCase() === token.address.toLowerCase());
   const unfunded = active.filter((s) => !fundedThisPeriod(s, now, d.period));
-  const vaultFunded = !isUnsetHandle(vault.data);
+  const vaultFunded = (vault.data ?? BigInt(0)) > BigInt(0);
+  // What this period's pay comes to: each salary pro rata for the time left, as payroll computes it
+  const left = end > now ? end - now : BigInt(0);
+  const needed = unfunded.reduce((sum, s) => sum + (s.monthly * left) / BigInt(d.period), BigInt(0));
 
   let parsed: bigint | undefined;
   try {
-    parsed = budget ? parseConfidential(budget) : undefined;
+    parsed = budget ? parseAmount(budget, token.decimals) : undefined;
   } catch {
     parsed = undefined;
   }
@@ -55,11 +55,8 @@ export function RunPayrollSection() {
   const run = async () => {
     const ids = unfunded.map((s) => s.id);
     const done = await tx.run(
-      async () => {
-        const { handle, proof } = await encryptUint64(cofhe, parsed!, d.payroll);
-        return { address: d.payroll, abi: VeilPayrollAbi, functionName: "runPayroll", args: [token.wrapper, handle, proof, ids] };
-      },
-      { encrypts: true, label: `Ran payroll for ${ids.length} stream${ids.length === 1 ? "" : "s"} (${token.symbol})` },
+      () => ({ address: d.payroll, abi: VeilPayrollAbi, functionName: "runPayroll", args: [token.address, parsed!, ids] }),
+      { label: `Ran payroll for ${ids.length} stream${ids.length === 1 ? "" : "s"} (${token.symbol})` },
     );
     if (done) setBudget("");
   };
@@ -68,7 +65,11 @@ export function RunPayrollSection() {
     <Panel
       title="Run payroll"
       help="Once each pay period, set this period's pay aside from your vault. Employees stream only what's set aside. Whatever you don't use stays in the vault."
-      aside={<PillPicker options={tokens.map((t) => ({ value: t.key, label: t.symbol }))} value={token.key} onChange={setKey} />}
+      aside={
+        tokens.length > 1 && (
+          <PillPicker options={tokens.map((t) => ({ value: t.key, label: t.symbol }))} value={token.key} onChange={setKey} />
+        )
+      }
     >
       <p className="text-caption text-soft-charcoal">
         This pay period ends at {new Date(Number(end) * 1000).toLocaleTimeString()} (in {countdown(end - now)}).{" "}
@@ -91,9 +92,17 @@ export function RunPayrollSection() {
             <Field
               label={`Budget for this period (${token.symbol})`}
               hint={
-                vaultFunded
-                  ? "Encrypted in your browser. Capped at your vault. A stream started mid-period gets pay for the time left."
-                  : `Fund your ${token.symbol} vault first.`
+                vaultFunded ? (
+                  <>
+                    This period needs {formatAmount(needed, token.decimals)} {token.symbol}.{" "}
+                    <button type="button" className="underline underline-offset-4" onClick={() => setBudget(formatAmount(needed, token.decimals, 6).replace(/,/g, ""))}>
+                      Use that
+                    </button>
+                    . Capped at your vault ({formatAmount(vault.data ?? BigInt(0), token.decimals)} {token.symbol}).
+                  </>
+                ) : (
+                  `Fund your ${token.symbol} vault first.`
+                )
               }
             >
               <Input inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="5000" />

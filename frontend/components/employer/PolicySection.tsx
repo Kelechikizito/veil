@@ -1,6 +1,5 @@
 "use client";
 
-import { useCofheClient } from "@cofhe/react";
 import { useState } from "react";
 import { isAddress, type Address } from "viem";
 import { useReadContract, useReadContracts } from "wagmi";
@@ -11,8 +10,7 @@ import { Button } from "@/components/ui";
 import { useVeil } from "@/hooks/useVeil";
 import { useTx } from "@/hooks/useTx";
 import { ApprovalPolicyAbi } from "@/lib/contracts/abis";
-import { encryptUint64 } from "@/lib/fhe";
-import { parseConfidential, type ConfidentialTokenInfo } from "@/lib/tokens";
+import { formatAmount, parseAmount, type TokenInfo } from "@/lib/tokens";
 
 /** Reads the connected employer's policy */
 export function usePolicy() {
@@ -29,24 +27,22 @@ export function usePolicy() {
   };
 }
 
-/** §3 Policy: k-of-n approvers, and an encrypted monthly threshold per token */
+/** §3 Policy: k-of-n approvers, and a monthly threshold per token */
 export function PolicySection() {
   const { d, account, tokens } = useVeil();
   const { hasPolicy, approvers, required } = usePolicy();
   const thresholds = useReadContracts({
-    contracts: tokens.map((t) => ({
-      address: d?.approvalPolicy,
-      abi: ApprovalPolicyAbi,
-      functionName: "hasThreshold" as const,
-      args: [account!, t.wrapper] as const,
-    })),
+    contracts: tokens.flatMap((t) => [
+      { address: d?.approvalPolicy, abi: ApprovalPolicyAbi, functionName: "hasThreshold" as const, args: [account!, t.address] as const },
+      { address: d?.approvalPolicy, abi: ApprovalPolicyAbi, functionName: "thresholdOf" as const, args: [account!, t.address] as const },
+    ]),
     query: { enabled: !!account && !!d },
   });
 
   return (
     <Panel
       title="Approval rules"
-      help="Salaries above a token's hidden threshold wait for approvals before they start. Nobody can see the threshold, not even approvers."
+      help="Salaries above a token's threshold wait for approvals before they start."
     >
       {hasPolicy && (
         <div>
@@ -54,10 +50,15 @@ export function PolicySection() {
             {required} of {approvers.length}: {approvers.map((a) => shortAddress(a)).join(", ")}
           </Stat>
           {tokens.map((t, i) => {
-            const set = thresholds.data?.[i]?.result === true;
+            const set = thresholds.data?.[2 * i]?.result === true;
+            const value = thresholds.data?.[2 * i + 1]?.result as bigint | undefined;
             return (
               <Stat key={t.key} label={`${t.symbol} threshold`}>
-                {set ? "🔒 encrypted" : <span className="text-soft-charcoal">not set: every {t.symbol} salary needs approval</span>}
+                {set && value !== undefined ? (
+                  `${formatAmount(value, t.decimals)} ${t.symbol} a month`
+                ) : (
+                  <span className="text-soft-charcoal">not set: every {t.symbol} salary needs approval</span>
+                )}
               </Stat>
             );
           })}
@@ -133,30 +134,21 @@ function ApproversForm({ current, currentRequired }: { current: readonly Address
   );
 }
 
-function ThresholdForm({ token }: { token: ConfidentialTokenInfo }) {
+function ThresholdForm({ token }: { token: TokenInfo }) {
   const { d } = useVeil();
-  const cofhe = useCofheClient();
   const tx = useTx("policy");
   const [value, setValue] = useState("");
   let parsed: bigint | undefined;
   try {
-    parsed = value ? parseConfidential(value) : undefined;
+    parsed = value ? parseAmount(value, token.decimals) : undefined;
   } catch {
     parsed = undefined;
   }
 
   const save = () =>
     tx.run(
-      async () => {
-        const { handle, proof } = await encryptUint64(cofhe, parsed!, d!.approvalPolicy);
-        return {
-          address: d!.approvalPolicy,
-          abi: ApprovalPolicyAbi,
-          functionName: "setThreshold",
-          args: [token.wrapper, handle, proof],
-        };
-      },
-      { encrypts: true, label: `Set the ${token.symbol} threshold` },
+      () => ({ address: d!.approvalPolicy, abi: ApprovalPolicyAbi, functionName: "setThreshold", args: [token.address, parsed!] }),
+      { label: `Set the ${token.symbol} threshold` },
     );
 
   return (
@@ -167,7 +159,7 @@ function ThresholdForm({ token }: { token: ConfidentialTokenInfo }) {
         if (parsed !== undefined) void save().then((r) => r && setValue(""));
       }}
     >
-      <Field label={`${token.symbol} monthly threshold`} hint="Encrypted in your browser before it's sent.">
+      <Field label={`${token.symbol} monthly threshold`} hint="Salaries above this need approval.">
         <Input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder="10000" />
       </Field>
       <div>

@@ -6,11 +6,13 @@ import QRCode from "react-qr-code";
 import { isAddress, type Address } from "viem";
 import { OnboardingWizard, StepIcon, type WizardStep } from "@/components/OnboardingWizard";
 import { ConfirmEmployer, useEmployment } from "@/components/Employment";
+import { useStealthKeys, useStealthSetup } from "@/hooks/useStealth";
 import type { StepStatus } from "@/components/Stepper";
 import { Button } from "@/components/ui";
 import { useVeil } from "@/hooks/useVeil";
 import { markOnboarded } from "@/lib/routing";
-import { useOrgName, useStreamsOfPayee } from "./hooks";
+import { useOrgName } from "./hooks";
+import { PrivatePaySetup, useMyStreams } from "./PrivatePay";
 import { RequestPay, useHasRequested } from "./RequestPay";
 
 const localFlag = (account: string, name: string) => `veil:employee:${account.toLowerCase()}:${name}`;
@@ -42,7 +44,9 @@ export function EmployeeOnboarding({ org }: { org?: string }) {
   const orgName = useOrgName(orgAddress);
   const employment = useEmployment(account, orgAddress);
   const requested = useHasRequested(orgAddress);
-  const { count } = useStreamsOfPayee(10_000);
+  const { count } = useMyStreams(10_000);
+  const { keys } = useStealthKeys();
+  const privatePay = useStealthSetup(keys);
   const [shared, setShared] = useState(() => readFlag(account, "shared-address"));
 
   // A stream exists: onboarding is over
@@ -53,12 +57,11 @@ export function EmployeeOnboarding({ org }: { org?: string }) {
     }
   }, [count, router]);
 
-  // Decrypting needs a one-time signature; the worker app asks for it when it's first needed, not here
-  const done = { confirm: employment.confirmed, address: requested || shared };
+  const done = { confirm: employment.confirmed, private: privatePay.upToDate, address: requested || shared };
   // Confirming needs the employer's address, so it's a step only when the invite link names them
-  const order = orgAddress ? (["confirm", "address", "wait"] as const) : (["address", "wait"] as const);
+  const order = orgAddress ? (["confirm", "private", "address", "wait"] as const) : (["private", "address", "wait"] as const);
   const activeKey = order.find((k) => (k === "wait" ? true : !done[k]));
-  const statusOf = (k: "confirm" | "address" | "wait"): StepStatus =>
+  const statusOf = (k: "confirm" | "private" | "address" | "wait"): StepStatus =>
     k !== "wait" && done[k] ? "done" : k === activeKey ? "active" : "todo";
 
   const steps: WizardStep[] = [
@@ -82,6 +85,15 @@ export function EmployeeOnboarding({ org }: { org?: string }) {
           },
         ]
       : []),
+    {
+      key: "private",
+      title: "Turn on private pay",
+      help: "Your employer pays you at a fresh one-time address. Amounts are onchain, but nobody else can tell which salary is yours.",
+      bullets: ["One signature and one tap", "No gas to pay", "Log in again anywhere and your pay is still found"],
+      icon: <StepIcon name="eye" />,
+      status: statusOf("private"),
+      content: <PrivatePaySetup />,
+    },
     {
       key: "address",
       title: orgName ? `Ask ${orgName} to pay you` : "Ask your employer to pay you",

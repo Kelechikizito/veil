@@ -89,8 +89,8 @@ export function EmployerOnboarding() {
     {
       key: "fund",
       title: "Add funds",
-      help: "Type an amount and click once. Veil encrypts it and moves it into your private payroll vault.",
-      bullets: ["USDC, ARB or ETH", "The deposit is public, the vault balance is encrypted", "No gas to pay"],
+      help: "Type an amount and click once. Veil moves it into your payroll vault.",
+      bullets: ["USDC", "Testnet: missing USDC is minted for you", "No gas to pay"],
       icon: <StepIcon name="vault" />,
       status: statusOf("fund"),
       content: <FundSection />,
@@ -99,8 +99,8 @@ export function EmployerOnboarding() {
     {
       key: "policy",
       title: "Set approval rules",
-      help: "Salaries above a hidden limit wait for k of your n approvers before they start paying.",
-      bullets: ["Up to 10 approvers", "One encrypted limit per token", "Nobody sees the limit, not even approvers"],
+      help: "Salaries above a limit wait for k of your n approvers before they start paying.",
+      bullets: ["Up to 10 approvers", "One limit per token", "Approvers see the salary they approve"],
       icon: <StepIcon name="rules" />,
       status: statusOf("policy"),
       content: <PolicySection />,

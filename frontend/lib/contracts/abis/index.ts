@@ -5,6 +5,5 @@ export { AuditRegistryAbi } from "./AuditRegistry";
 export { EmployeeRegistryAbi } from "./EmployeeRegistry";
 export { IncomeCredentialAbi } from "./IncomeCredential";
 export { JoinRequestsAbi } from "./JoinRequests";
-export { ConfidentialTokenAbi } from "./ConfidentialToken";
-export { ConfidentialNativeAbi } from "./ConfidentialNative";
-export { ERC20_HarnessAbi } from "./ERC20_Harness";
+export { DemoTokenAbi } from "./DemoToken";
+export { StealthRegistryAbi } from "./StealthRegistry";

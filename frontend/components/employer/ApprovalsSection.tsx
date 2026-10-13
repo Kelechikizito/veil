@@ -10,6 +10,7 @@ import { Button } from "@/components/ui";
 import { useVeil } from "@/hooks/useVeil";
 import { shortError, useTx } from "@/hooks/useTx";
 import { ApprovalPolicyAbi, VeilPayrollAbi } from "@/lib/contracts/abis";
+import { formatAmount } from "@/lib/tokens";
 import { scanAllStreams, StreamStatus, type StreamRow } from "./streams";
 
 type QueueItem = { stream: StreamRow; orgName: string; count: number; required: number; approved: boolean };
@@ -55,7 +56,7 @@ export function ApprovalsSection() {
   const { d, tokens } = useVeil();
   const { data: queue, isLoading, error, refetch } = useApprovalQueue();
   const tx = useTx();
-  const symbolOf = (wrapper: Address) => tokens.find((t) => t.wrapper.toLowerCase() === wrapper.toLowerCase())?.symbol ?? "?";
+  const symbolOf = (token: Address) => tokens.find((t) => t.address.toLowerCase() === token.toLowerCase())?.symbol ?? "?";
 
   const approve = async (payer: Address, id: bigint) => {
     await tx.run(() => ({ address: d!.approvalPolicy, abi: ApprovalPolicyAbi, functionName: "approve", args: [payer, id] }));
@@ -69,7 +70,7 @@ export function ApprovalsSection() {
   return (
     <Panel
       title="Approvals"
-      help="Streams above an org's hidden threshold, where you're one of the approvers. You never see the salary or the threshold."
+      help="Salaries above an org's threshold, where you're one of the approvers."
     >
       {isLoading ? (
         <p className="text-caption text-mid-grey">Looking for pending streams…</p>
@@ -83,7 +84,7 @@ export function ApprovalsSection() {
             <li key={String(s.id)} className="flex flex-wrap items-center justify-between gap-4 border-t-[1.5px] border-gloss-black/10 py-4">
               <div className="flex flex-col gap-1">
                 <span>
-                  {orgName} · stream #{String(s.id)} · {symbolOf(s.token)}
+                  {orgName} · stream #{String(s.id)} · {formatAmount(s.monthly)} {symbolOf(s.token)} a month
                 </span>
                 <span className="text-caption text-soft-charcoal">
                   {shortAddress(s.payer)} → {shortAddress(s.payee)}

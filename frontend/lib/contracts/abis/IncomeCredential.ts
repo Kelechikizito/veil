@@ -82,6 +82,49 @@ export const IncomeCredentialAbi = [
   },
   {
     "type": "function",
+    "name": "eip712Domain",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "fields",
+        "type": "bytes1",
+        "internalType": "bytes1"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "version",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "chainId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "verifyingContract",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "salt",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "extensions",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "get",
     "inputs": [
       {
@@ -123,8 +166,8 @@ export const IncomeCredentialAbi = [
           },
           {
             "name": "threshold",
-            "type": "uint64",
-            "internalType": "uint64"
+            "type": "uint256",
+            "internalType": "uint256"
           },
           {
             "name": "issuedAt",
@@ -153,8 +196,8 @@ export const IncomeCredentialAbi = [
           },
           {
             "name": "ok",
-            "type": "bytes32",
-            "internalType": "ebool"
+            "type": "bool",
+            "internalType": "bool"
           }
         ]
       }
@@ -196,8 +239,8 @@ export const IncomeCredentialAbi = [
       },
       {
         "name": "threshold",
-        "type": "uint64",
-        "internalType": "uint64"
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
         "name": "expiresAt",
@@ -216,12 +259,98 @@ export const IncomeCredentialAbi = [
   },
   {
     "type": "function",
+    "name": "issueWithSig",
+    "inputs": [
+      {
+        "name": "streamId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "verifier",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "threshold",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "expiresAt",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "deadline",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "signature",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "nonces",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "revoke",
     "inputs": [
       {
         "name": "id",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "revokeWithSig",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "deadline",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "signature",
+        "type": "bytes",
+        "internalType": "bytes"
       }
     ],
     "outputs": [],
@@ -257,9 +386,9 @@ export const IncomeCredentialAbi = [
       },
       {
         "name": "threshold",
-        "type": "uint64",
+        "type": "uint256",
         "indexed": false,
-        "internalType": "uint64"
+        "internalType": "uint256"
       },
       {
         "name": "expiresAt",
@@ -284,6 +413,12 @@ export const IncomeCredentialAbi = [
     "anonymous": false
   },
   {
+    "type": "event",
+    "name": "EIP712DomainChanged",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
     "type": "error",
     "name": "IncomeCredential__AlreadyRevoked",
     "inputs": []
@@ -291,6 +426,16 @@ export const IncomeCredentialAbi = [
   {
     "type": "error",
     "name": "IncomeCredential__BadExpiry",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "IncomeCredential__BadSignature",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "IncomeCredential__Expired",
     "inputs": []
   },
   {
@@ -310,12 +455,33 @@ export const IncomeCredentialAbi = [
   },
   {
     "type": "error",
-    "name": "SecurityZoneOutOfBounds",
+    "name": "InvalidAccountNonce",
     "inputs": [
       {
-        "name": "value",
-        "type": "int32",
-        "internalType": "int32"
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "currentNonce",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidShortString",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "StringTooLong",
+    "inputs": [
+      {
+        "name": "str",
+        "type": "string",
+        "internalType": "string"
       }
     ]
   }

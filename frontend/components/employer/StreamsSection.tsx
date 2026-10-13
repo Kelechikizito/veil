@@ -1,22 +1,22 @@
 "use client";
 
-import { useCofheClient } from "@cofhe/react";
 import { useState } from "react";
 import { decodeEventLog, isAddress, type Address } from "viem";
 import { shortAddress } from "@/components/AuthButton";
 import { EmployeeBadge, VouchButton } from "@/components/Employment";
 import { Field, Input, Panel, PillPicker } from "@/components/forms";
-import { SecretValue } from "@/components/SecretValue";
 import { TxStatus } from "@/components/TxStatus";
 import { Badge, Button } from "@/components/ui";
 import { useVeil } from "@/hooks/useVeil";
+import { useMetaAddressOf } from "@/hooks/useStealth";
 import { useTx } from "@/hooks/useTx";
 import { VeilPayrollAbi } from "@/lib/contracts/abis";
-import { encryptUint64 } from "@/lib/fhe";
 import { shortLink } from "@/lib/format";
-import { parseConfidential, type TokenKey } from "@/lib/tokens";
+import { payeeOf, rememberPayee } from "@/lib/payeeLabels";
+import { generateStealthAddress } from "@/lib/stealth";
+import { formatAmount, parseAmount, type TokenKey } from "@/lib/tokens";
 import { JoinRequestsList } from "./JoinRequestsList";
-import { fundedThisPeriod, StreamStatus, statusLabel, useResolvePolicy, useStreamsOfPayer } from "./streams";
+import { fundedThisPeriod, StreamStatus, statusLabel, useStreamsOfPayer } from "./streams";
 import { useChainNow } from "@/components/worker/hooks";
 
 const inviteKey = (payer: string) => `veil:invite-copied:${payer.toLowerCase()}`;
@@ -72,7 +72,7 @@ export function StreamsSection({ initialPayee }: { initialPayee?: string }) {
   return (
     <Panel
       title="Salary streams"
-      help="Each salary is encrypted in your browser. It accrues every second once the stream is active."
+      help="Each salary accrues every second once the stream is active."
     >
       <InviteLink />
       <JoinRequestsList
@@ -89,39 +89,43 @@ export function StreamsSection({ initialPayee }: { initialPayee?: string }) {
 
 function CreateStreamForm({ initialPayee }: { initialPayee?: string }) {
   const { account, d, tokens } = useVeil();
-  const cofhe = useCofheClient();
   const tx = useTx();
-  const resolve = useResolvePolicy(tx);
   const [payee, setPayee] = useState(initialPayee && isAddress(initialPayee) ? initialPayee : "");
-  const [key, setKey] = useState<TokenKey>(tokens[0]?.key ?? "cusdc");
+  const [key, setKey] = useState<TokenKey>(tokens[0]?.key ?? "usdc");
   const [monthly, setMonthly] = useState("");
   const [outcome, setOutcome] = useState<string>();
   const token = tokens.find((t) => t.key === key);
 
   let parsed: bigint | undefined;
   try {
-    parsed = monthly ? parseConfidential(monthly) : undefined;
+    parsed = monthly && token ? parseAmount(monthly, token.decimals) : undefined;
   } catch {
     parsed = undefined;
   }
   const payeeOk = isAddress(payee.trim());
   const valid = payeeOk && !!token && parsed !== undefined && parsed > BigInt(0);
+  // A worker with private pay on gets a fresh one-time address; nobody else can tell the stream is theirs
+  const { meta, isLoading: metaLoading } = useMetaAddressOf(payeeOk ? (payee.trim() as Address) : undefined);
 
   const create = async () => {
     setOutcome(undefined);
-    const receipt = await tx.run(
-      async () => {
-        const { handle, proof } = await encryptUint64(cofhe, parsed!, d!.payroll);
-        return {
-          address: d!.payroll,
-          abi: VeilPayrollAbi,
-          functionName: "createStream",
-          args: [payee.trim() as Address, token!.wrapper, handle, proof],
-        };
-      },
-      { encrypts: true, keepOpen: true },
-    );
+    const worker = payee.trim() as Address;
+    let stealth: Address | undefined;
+    const receipt = await tx.run(() => {
+      if (!meta) {
+        return { address: d!.payroll, abi: VeilPayrollAbi, functionName: "createStream", args: [worker, token!.address, parsed!] };
+      }
+      const g = generateStealthAddress(meta);
+      stealth = g.stealthAddress;
+      return {
+        address: d!.payroll,
+        abi: VeilPayrollAbi,
+        functionName: "createStealthStream",
+        args: [g.stealthAddress, token!.address, parsed!, g.ephemeralPubKey, g.viewTag],
+      };
+    });
     if (!receipt) return;
+    if (stealth) rememberPayee(stealth, worker);
 
     // The new id is in the StreamCreated event
     const created = receipt.logs
@@ -132,20 +136,17 @@ function CreateStreamForm({ initialPayee }: { initialPayee?: string }) {
           return undefined;
         }
       })
-      .find((e) => e?.eventName === "StreamCreated");
-    const id = created && "id" in created.args ? (created.args.id as bigint) : undefined;
-    if (id === undefined) {
-      tx.setStage("done");
-      return;
+      .filter((e) => e !== undefined);
+    const createdEvent = created.find((e) => e.eventName === "StreamCreated");
+    const id = createdEvent && "id" in createdEvent.args ? (createdEvent.args.id as bigint) : undefined;
+    const pending = created.some((e) => e.eventName === "StreamPending");
+    if (id !== undefined) {
+      setOutcome(
+        pending
+          ? `Stream #${id} is above your threshold. It's waiting for approvals.`
+          : `Stream #${id} is active. Run payroll below to set its pay aside.`,
+      );
     }
-
-    const needsApproval = await resolve(id);
-    if (needsApproval === undefined) return;
-    setOutcome(
-      needsApproval
-        ? `Stream #${id} is above your hidden threshold. It's waiting for approvals.`
-        : `Stream #${id} is active. Run payroll below to set its pay aside.`,
-    );
     setPayee("");
     setMonthly("");
   };
@@ -160,14 +161,34 @@ function CreateStreamForm({ initialPayee }: { initialPayee?: string }) {
       }}
     >
       <h3 className="text-body">New stream</h3>
-      <div className="grid gap-4 md:grid-cols-[1.4fr_auto_1fr]">
-        <Field label="Employee wallet" hint={payeeOk ? <EmployeeBadge worker={payee.trim() as Address} employer={account} viewer="employer" /> : "They send it to you after signing up."}>
+      <div className={`grid gap-4 ${tokens.length > 1 ? "md:grid-cols-[1.4fr_auto_1fr]" : "md:grid-cols-[1.4fr_1fr]"}`}>
+        <Field
+          label="Employee wallet"
+          hint={
+            payeeOk ? (
+              <span className="flex flex-col gap-1">
+                <EmployeeBadge worker={payee.trim() as Address} employer={account} viewer="employer" />
+                {!metaLoading && (
+                  <span>
+                    {meta
+                      ? "Private pay is on: they're paid at a one-time address only they can link to them."
+                      : "They haven't turned on private pay, so this salary will show against their wallet."}
+                  </span>
+                )}
+              </span>
+            ) : (
+              "They send it to you after signing up."
+            )
+          }
+        >
           <Input value={payee} onChange={(e) => setPayee(e.target.value)} placeholder="0x…" spellCheck={false} />
         </Field>
-        <Field label="Token">
-          <PillPicker options={tokens.map((t) => ({ value: t.key, label: t.symbol }))} value={key} onChange={setKey} />
-        </Field>
-        <Field label={`Monthly salary (${token?.symbol ?? ""})`} hint="Encrypted before it leaves your browser.">
+        {tokens.length > 1 && (
+          <Field label="Token">
+            <PillPicker options={tokens.map((t) => ({ value: t.key, label: t.symbol }))} value={key} onChange={setKey} />
+          </Field>
+        )}
+        <Field label={`Monthly salary (${token?.symbol ?? ""})`}>
           <Input inputMode="decimal" value={monthly} onChange={(e) => setMonthly(e.target.value)} placeholder="3000" />
         </Field>
       </div>
@@ -176,7 +197,6 @@ function CreateStreamForm({ initialPayee }: { initialPayee?: string }) {
           Start stream
         </Button>
       </div>
-      {tx.stage === "fhe-processing" && <p className="text-caption">Checking policy privately…</p>}
       <TxStatus stage={tx.stage} error={tx.error} txHash={tx.hash} />
       {outcome && <p className="text-caption">{outcome}</p>}
     </form>
@@ -187,9 +207,10 @@ function StreamsTable() {
   const { account, d, tokens } = useVeil();
   const { rows, isLoading } = useStreamsOfPayer();
   const tx = useTx();
-  const resolve = useResolvePolicy(tx);
   const now = useChainNow(5000);
-  const symbolOf = (wrapper: Address) => tokens.find((t) => t.wrapper.toLowerCase() === wrapper.toLowerCase())?.symbol ?? "?";
+  const tokenOf = (address: Address) => tokens.find((t) => t.address.toLowerCase() === address.toLowerCase());
+  const symbolOf = (address: Address) => tokenOf(address)?.symbol ?? "?";
+  const amount = (units: bigint, address: Address) => `${formatAmount(units, tokenOf(address)?.decimals)} ${symbolOf(address)}`;
 
   if (isLoading) return <p className="text-caption text-mid-grey">Loading streams…</p>;
   if (rows.length === 0) return <p className="text-caption text-mid-grey">No streams yet.</p>;
@@ -216,11 +237,9 @@ function StreamsTable() {
                 <td className="py-3">{String(s.id)}</td>
                 <td className="py-3">
                   <div className="flex flex-col gap-1">
-                    <span className="font-mono" title={s.payee}>
-                      {shortAddress(s.payee)}
-                    </span>
-                    <EmployeeBadge worker={s.payee} employer={account} viewer="employer" />
-                    {s.status !== StreamStatus.Cancelled && <VouchButton worker={s.payee} />}
+                    <PayeeCell payee={s.payee} />
+                    <EmployeeBadge worker={payeeOf(s.payee) ?? s.payee} employer={account} viewer="employer" />
+                    {s.status !== StreamStatus.Cancelled && <VouchButton worker={payeeOf(s.payee) ?? s.payee} />}
                   </div>
                 </td>
                 <td className="py-3">{symbolOf(s.token)}</td>
@@ -228,7 +247,7 @@ function StreamsTable() {
                   <Badge>{statusLabel[s.status]}</Badge>
                 </td>
                 <td className="py-3">
-                  <SecretValue handle={s.monthly} unit={symbolOf(s.token)} />
+                  <span className="tabular-nums">{amount(s.monthly, s.token)}</span>
                 </td>
                 <td className="py-3">
                   {s.status !== StreamStatus.Active ? (
@@ -236,7 +255,7 @@ function StreamsTable() {
                   ) : d && fundedThisPeriod(s, now, d.period) ? (
                     <span className="flex flex-col gap-1">
                       <span className="text-soft-charcoal">set aside</span>
-                      <SecretValue handle={s.allocated} unit={symbolOf(s.token)} />
+                      <span className="tabular-nums">{amount(s.allocated, s.token)}</span>
                     </span>
                   ) : (
                     <a href="#payroll" className="underline underline-offset-4">
@@ -254,11 +273,6 @@ function StreamsTable() {
                 </td>
                 <td className="py-3 text-right">
                   <div className="flex justify-end gap-2">
-                    {s.status === StreamStatus.AwaitingPolicy && (
-                      <Button variant="outline" disabled={tx.busy} onClick={() => void resolve(s.id)} className="!px-3 !py-1 text-caption">
-                        Check policy
-                      </Button>
-                    )}
                     {s.status !== StreamStatus.Cancelled && (
                       <Button variant="outline" disabled={tx.busy} onClick={() => void cancel(s.id)} className="!px-3 !py-1 text-caption">
                         Cancel
@@ -273,5 +287,27 @@ function StreamsTable() {
       </div>
       <TxStatus stage={tx.stage} error={tx.error} txHash={tx.hash} />
     </div>
+  );
+}
+
+/** The worker's wallet, or for a private stream the worker this browser paid, with its one-time address */
+function PayeeCell({ payee }: { payee: Address }) {
+  const worker = payeeOf(payee);
+  if (!worker) {
+    return (
+      <span className="font-mono" title={payee}>
+        {shortAddress(payee)}
+      </span>
+    );
+  }
+  return (
+    <span className="flex flex-col gap-0.5">
+      <span className="font-mono" title={worker}>
+        {shortAddress(worker)}
+      </span>
+      <span className="text-mid-grey" title={`Paid at the one-time address ${payee}`}>
+        private · {shortAddress(payee)}
+      </span>
+    </span>
   );
 }

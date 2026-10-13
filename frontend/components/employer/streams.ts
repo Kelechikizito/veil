@@ -1,23 +1,18 @@
 "use client";
 
-import { useCofheClient } from "@cofhe/react";
-import { useCallback } from "react";
 import type { Address, Hex, PublicClient } from "viem";
-import { usePublicClient, useReadContract, useReadContracts } from "wagmi";
+import { useReadContract, useReadContracts } from "wagmi";
 import { useVeil } from "@/hooks/useVeil";
-import type { useTx } from "@/hooks/useTx";
 import { VeilPayrollAbi } from "@/lib/contracts/abis";
-import { decryptForTx } from "@/lib/fhe";
 
 /** Mirrors IVeilPayroll.Status */
-export const StreamStatus = { None: 0, AwaitingPolicy: 1, Pending: 2, Active: 3, Cancelled: 4 } as const;
+export const StreamStatus = { None: 0, Pending: 1, Active: 2, Cancelled: 3 } as const;
 
 export const statusLabel: Record<number, string> = {
   0: "—",
-  1: "Checking policy",
-  2: "Needs approval",
-  3: "Active",
-  4: "Cancelled",
+  1: "Needs approval",
+  2: "Active",
+  3: "Cancelled",
 };
 
 export type StreamRow = {
@@ -25,19 +20,20 @@ export type StreamRow = {
   payer: Address;
   payee: Address;
   token: Address;
-  monthly: Hex;
-  withdrawn: Hex;
+  monthly: bigint;
+  withdrawn: bigint;
+  /** Set aside by the latest payroll run; streams from allocStart to allocEnd */
+  allocated: bigint;
+  /** Set aside in earlier periods (or before a cancel), fully earned */
+  banked: bigint;
   startTime: bigint;
   endTime: bigint;
   status: number;
-  needsApproval: Hex;
-  /** Set aside by the latest payroll run; streams from allocStart to allocEnd */
-  allocated: Hex;
-  /** Set aside in earlier periods (or before a cancel), fully earned */
-  banked: Hex;
   allocStart: bigint;
   /** End of the period `allocated` is for; 0 if none */
   allocEnd: bigint;
+  /** Set on the worker's own stealth streams: the one-time address's private key, kept in memory */
+  stealthKey?: Hex;
 };
 
 /** End of the pay period containing `nowSec`. Mirrors VeilPayroll._periodEnd: fixed windows from time 0. */
@@ -103,54 +99,4 @@ export function useStreamsOfPayer() {
     return r?.status === "success" ? [{ id, ...(r.result as Omit<StreamRow, "id">) }] : [];
   });
   return { rows, isLoading: ids.isLoading || streams.isLoading };
-}
-
-/**
- * Resolves a stream's policy check: publicly decrypts its `needsApproval` bit, then calls
- * `resolvePolicy` with the decrypt signature. Retries the decrypt while the FHE network is
- * still computing the bit (it lands a few seconds after createStream).
- */
-export function useResolvePolicy(tx: ReturnType<typeof useTx>) {
-  const { d } = useVeil();
-  const cofhe = useCofheClient();
-  const publicClient = usePublicClient();
-
-  return useCallback(
-    async (id: bigint) => {
-      if (!d || !publicClient) return;
-      tx.setStage("fhe-processing");
-      const stream = (await publicClient.readContract({
-        address: d.payroll,
-        abi: VeilPayrollAbi,
-        functionName: "getStream",
-        args: [id],
-      })) as Omit<StreamRow, "id">;
-
-      let result: { value: bigint; signature: Hex } | undefined;
-      let lastError: unknown;
-      for (let attempt = 0; attempt < 20 && !result; attempt++) {
-        try {
-          result = await decryptForTx(cofhe, stream.needsApproval);
-        } catch (e) {
-          lastError = e;
-          await new Promise((r) => setTimeout(r, 3000));
-        }
-      }
-      if (!result) {
-        tx.setError(`Policy check didn't finish: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
-        tx.setStage("error");
-        return;
-      }
-
-      const needsApproval = result.value === BigInt(1);
-      await tx.run(() => ({
-        address: d.payroll,
-        abi: VeilPayrollAbi,
-        functionName: "resolvePolicy",
-        args: [id, needsApproval, result.signature],
-      }));
-      return needsApproval;
-    },
-    [d, publicClient, cofhe, tx],
-  );
 }

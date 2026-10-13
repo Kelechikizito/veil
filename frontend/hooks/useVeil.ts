@@ -3,23 +3,18 @@
 import type { Address } from "viem";
 import { useAccount } from "wagmi";
 import { addresses } from "@/lib/contracts/addresses";
-import { tokensFor, type ConfidentialTokenInfo } from "@/lib/tokens";
+import { tokensFor, type TokenInfo } from "@/lib/tokens";
 
 /** Every address in one chain's deployment, as written by DeployScript */
 export type Deployment = {
   payroll: Address;
   approvalPolicy: Address;
   auditRegistry: Address;
-  /** Optional so a deployment from before EmployeeRegistry still loads */
-  employeeRegistry?: Address;
+  employeeRegistry: Address;
   incomeCredential: Address;
-  /** Optional so an older deployment file without it still loads */
-  joinRequests?: Address;
+  joinRequests: Address;
+  stealthRegistry: Address;
   usdc: Address;
-  arb: Address;
-  cusdc: Address;
-  carb: Address;
-  ceth: Address;
   period: number;
   deployBlock: number;
 };
@@ -34,7 +29,7 @@ export function useVeil(): {
   account: Address | undefined;
   chainId: number | undefined;
   d: Deployment | undefined;
-  tokens: ConfidentialTokenInfo[];
+  tokens: TokenInfo[];
 } {
   const { address, chainId } = useAccount();
   return { account: address, chainId, d: deploymentFor(chainId), tokens: tokensFor(chainId) };

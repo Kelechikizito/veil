@@ -14,8 +14,8 @@ export default function ApprovalsPage() {
             <Badge ghost>Approver</Badge>
             <h1 className="text-[44px] leading-[0.97] tracking-[-0.03em] md:text-heading-lg">Salaries waiting for you</h1>
             <p className="text-subheading text-soft-charcoal">
-              An employer named you an approver. Salaries above their hidden limit start only once enough approvers say
-              yes. You never see the salary or the limit.
+              An employer named you an approver. Salaries above their limit start only once enough approvers say
+              yes.
             </p>
           </div>
           <AppGate>
