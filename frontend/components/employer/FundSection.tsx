@@ -155,7 +155,8 @@ function TokenFunding({ token }: { token: TokenInfo }) {
             <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="5000" />
           </Field>
         </div>
-        <Button type="submit" disabled={!parsed || tx.busy}>
+        {/* Wait for the balance and allowance: while they load, the mint and approve steps would be skipped */}
+        <Button type="submit" disabled={!parsed || tx.busy || balance.data === undefined || allowance.data === undefined}>
           Add to payroll
         </Button>
       </form>

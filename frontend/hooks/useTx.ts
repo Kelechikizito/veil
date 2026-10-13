@@ -44,6 +44,10 @@ export function shortError(e: unknown): string {
   if (/VeilPayroll__ExceedsAvailable/.test(text)) {
     return "That's more than has streamed so far. Try a smaller amount.";
   }
+  // OpenZeppelin's ERC20InsufficientBalance, by name or by selector when the ABI doesn't list it
+  if (/ERC20InsufficientBalance|0xe450d38c/.test(text)) {
+    return "Your wallet doesn't hold enough of that token. Refresh the page and try again.";
+  }
   if (/VeilPayroll__ExceedsVault/.test(text)) {
     return "That's more than your vault holds right now.";
   }
