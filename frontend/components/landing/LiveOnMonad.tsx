@@ -6,7 +6,8 @@ import { defaultChain } from "@/lib/chains";
 
 /*
  * "Live on Monad": real numbers and the latest salaries, read from the contract through /api/stats.
- * It shows the point of Veil with live data: every amount is public, every payee is a one-time address.
+ * It shows the point of Veil with live data: every amount is public, and a private salary's payee is a one-time
+ * address nobody can link to the worker. Streams to a worker's own wallet are labelled as not private.
  */
 
 type Stats = {
@@ -21,6 +22,7 @@ type Stats = {
     id: string;
     employer: { address: string; name: string | null };
     paidTo: string;
+    private: boolean;
     monthly: string;
     status: "pending" | "active" | "cancelled" | "none";
   }[];
@@ -65,8 +67,8 @@ export function LiveOnMonad() {
           <Badge ghost>Live on {defaultChain.name}</Badge>
           <h2 className="display-type text-[38px] sm:text-[52px] md:text-display-70">Every salary, in the open</h2>
           <p className="max-w-2xl text-subheading">
-            Read from the contract as you look at it. Every amount is public. Every payee is a one-time address nobody
-            can name.
+            Read from the contract as you look at it. Every amount is public, on purpose. Private salaries go to a
+            one-time address, so nobody can tell whose pay is whose.
           </p>
         </div>
 
@@ -116,15 +118,22 @@ export function LiveOnMonad() {
                         <span className="font-bold">{r.employer.name ?? short(r.employer.address)}</span>
                       </td>
                       <td className="px-6 py-3">
-                        <a
-                          href={`${explorer}/address/${r.paidTo}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-mono underline underline-offset-4"
-                          title="A one-time address. Only the worker's app knows it's theirs."
-                        >
-                          {short(r.paidTo)} ↗
-                        </a>
+                        <span className="flex flex-col gap-0.5">
+                          <a
+                            href={`${explorer}/address/${r.paidTo}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono underline underline-offset-4"
+                            title={
+                              r.private
+                                ? "A one-time address. Only the worker's app knows it's theirs."
+                                : "The worker's own wallet: they hadn't turned on private pay, so this salary is linked to them."
+                            }
+                          >
+                            {short(r.paidTo)} ↗
+                          </a>
+                          <span className="text-carbon/55">{r.private ? "One-time address" : "Own wallet, not private"}</span>
+                        </span>
                       </td>
                       <td className="px-6 py-3 tabular-nums">{money(r.monthly)} USDC</td>
                       <td className="px-6 py-3">

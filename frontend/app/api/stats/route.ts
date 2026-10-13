@@ -4,8 +4,9 @@ import { CORS, apiError, iso, serverClient, serverDeployment, units } from "@/li
 
 /*
  * GET /api/stats: Veil on Monad at a glance, for the landing page's live section and for agents.
- * Reads the latest streams straight from the contract (one multicall). All public onchain:
- * amounts and one-time addresses, never who a salary pays.
+ * Reads the latest streams straight from the contract (one multicall). All public onchain: amounts and payees.
+ * `private` says whether a stream pays a one-time stealth address (nobody can tell whose it is) or a worker's
+ * own wallet (the worker hadn't turned on private pay).
  */
 
 const LATEST = 100; // streams read for the totals
@@ -40,6 +41,12 @@ export async function GET() {
     })) as { result?: { name: string } }[];
     const nameOf = new Map(payers.map((p, i) => [p, orgs[i]?.result?.name || null]));
 
+    const rows = streams.slice(0, ROWS);
+    const announcements = (await client.multicall({
+      contracts: rows.map((_, i) => ({ address: d.payroll, abi: VeilPayrollAbi, functionName: "announcementOf", args: [ids[i]] }) as const),
+      allowFailure: true,
+    })) as { result?: { ephemeralPubKey: `0x${string}` } }[];
+
     const active = streams.filter((s) => s.status === 2);
     const monthly = active.reduce((sum, s) => sum + s.monthly, BigInt(0));
 
@@ -52,10 +59,11 @@ export async function GET() {
         employers: payers.length,
         monthlyStreaming: units(monthly),
         token: "USDC",
-        latest: streams.slice(0, ROWS).map((s, i) => ({
+        latest: rows.map((s, i) => ({
           id: ids[i].toString(),
           employer: { address: s.payer, name: nameOf.get(s.payer) ?? null },
           paidTo: s.payee,
+          private: (announcements[i]?.result?.ephemeralPubKey ?? "0x") !== "0x",
           monthly: units(s.monthly),
           status: STATUS[s.status] ?? "none",
           startedAt: s.startTime > BigInt(0) ? iso(s.startTime) : null,
