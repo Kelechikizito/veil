@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { AnnouncementRow } from "@/app/api/announcements/route";
 import { useCallback } from "react";
 import type { Address, Hex } from "viem";
 import { usePublicClient, useReadContract, useSignMessage } from "wagmi";
@@ -75,9 +76,10 @@ export function useStealthSetup(keys: StealthKeys | undefined) {
 }
 
 /**
- * The stealth streams that belong to the connected worker. Reads every stream's announcement, keeps the ones
- * whose view tag matches (about 1 in 256 strangers' do), then confirms each against its payee address.
- * Fine at demo scale; an indexer (Envio) would replace the full read.
+ * The stealth streams that belong to the connected worker. Matches every announcement against the worker's
+ * viewing key (the view tag rules out about 255 in 256 strangers' streams), then reads only the matches.
+ * Announcements come from Envio HyperSync through /api/announcements; without it, this reads every stream's
+ * announcement over RPC instead.
  */
 export function useStealthStreams(keys: StealthKeys | undefined, pollMs = 15_000) {
   const { d } = useVeil();
@@ -88,6 +90,19 @@ export function useStealthStreams(keys: StealthKeys | undefined, pollMs = 15_000
     refetchInterval: pollMs,
     queryFn: async (): Promise<StealthStreamRow[]> => {
       const payroll = d!.payroll;
+      const indexed = await fetchAnnouncements();
+      if (indexed) {
+        const matches = indexed.flatMap((a) => {
+          const stealthKey = stealthKeyFor(keys!, a.ephemeralPubKey, a.viewTag, a.stealthAddress);
+          return stealthKey ? [{ id: BigInt(a.id), stealthKey }] : [];
+        });
+        if (matches.length === 0) return [];
+        const streams = await publicClient!.multicall({
+          contracts: matches.map((m) => ({ address: payroll, abi: VeilPayrollAbi, functionName: "getStream" as const, args: [m.id] as const })),
+          allowFailure: false,
+        });
+        return matches.map((m, i) => ({ id: m.id, ...(streams[i] as Omit<StreamRow, "id">), stealthKey: m.stealthKey })).reverse();
+      }
       const count = (await publicClient!.readContract({ address: payroll, abi: VeilPayrollAbi, functionName: "streamCount" })) as bigint;
       const mine: StealthStreamRow[] = [];
       for (let start = 1; start <= Number(count); start += BATCH) {
@@ -112,4 +127,15 @@ export function useStealthStreams(keys: StealthKeys | undefined, pollMs = 15_000
       return mine.reverse();
     },
   });
+}
+
+/** Announcements indexed by Envio HyperSync, or undefined when the index isn't available */
+async function fetchAnnouncements(): Promise<AnnouncementRow[] | undefined> {
+  try {
+    const res = await fetch("/api/announcements", { cache: "no-store" });
+    if (!res.ok) return undefined;
+    return ((await res.json()) as { announcements: AnnouncementRow[] }).announcements;
+  } catch {
+    return undefined;
+  }
 }
