@@ -2,7 +2,7 @@
 
 > Salaries stream onchain where nobody can read them, and a worker can prove "I earn at least $2,500" to one landlord without revealing the number.
 
-**Monad Metropolis** · Built on Monad, Privy and World ID
+**Monad Metropolis** · Built on Monad, Privy and passkeys
 
 Veil builds on [Dayze](https://github.com/Kelechikizito/dayze), our earlier confidential payroll on Base Sepolia. The links, deployments and transactions below are still Dayze's until the Monad deploy.
 

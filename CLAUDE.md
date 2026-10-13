@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**Veil**: payroll on Monad for the **Monad Metropolis** hackathon (submission due 2026-10-13). Employers stream salaries per second from a vault; each period they run payroll with a budget, shared across streams in order; salaries above a limit need k-of-n approvers; auditors read the books; workers sign in with Privy (Google or email, gas sponsored), pass a World ID Selfie Check, and issue an expiring income credential ("earns at least $X") to one verifier. `SUMMARY.md` is the short version.
+**Veil**: payroll on Monad for the **Monad Metropolis** hackathon (submission due 2026-10-13). Employers stream salaries per second from a vault; each period they run payroll with a budget, shared across streams in order; salaries above a limit need k-of-n approvers; auditors read the books; workers sign in with Privy (Google or email, gas sponsored), confirm their employer with a passkey (the employer vouches for them too), and issue an expiring income credential ("earns at least $X") to one verifier. `SUMMARY.md` is the short version.
 
 Veil is a port of **Dayze** (`~/hackathon-projects/dayze`, an earlier project on Base Sepolia, built on Fhenix CoFHE). Dayze's `README.md` explains the architecture with permalinks. Disclose that Veil builds on Dayze in the README and the submission.
 
@@ -14,13 +14,13 @@ Veil is a port of **Dayze** (`~/hackathon-projects/dayze`, an earlier project on
 
 - The repo is a clone of Dayze at `068fec9`. The `dayze` remote points at the Dayze repo: **never push to it**. `origin` is the Veil repo.
 - Steps 1 (rename) and 3 (Monad testnet) are done. Contracts, frontend and scripts say Veil; Dayze-era notes, `broadcast/` and `deployments/84532.json` keep the old name. All contracts still use Fhenix CoFHE.
-- **Open decision: privacy on Monad.** CoFHE (all `euint64`/`FHE.*` code, `@cofhe/sdk`) supports only Ethereum Sepolia, Arbitrum Sepolia and Base Sepolia, not Monad. Options: (A) ask Fhenix about Monad support; (B) public salaries plus a ZK (Noir) income proof; (C) public payroll pitched on speed and verified humans. Ask the user before building.
-- Name collisions to address in the pitch: "Veil Protocol" (Chainlink hackathon winner, private DAO payroll) and "VeilPay" (ETHGlobal, confidential payroll). Lead with what they lack: per-second streaming, World ID-verified workers, the expiring income credential.
+- **Open decision: privacy on Monad.** CoFHE (all `euint64`/`FHE.*` code, `@cofhe/sdk`) supports only Ethereum Sepolia, Arbitrum Sepolia and Base Sepolia, not Monad. Options: (A) ask Fhenix about Monad support; (B) public salaries plus a ZK (Noir) income proof; (C) public payroll pitched on speed and verified employees. Ask the user before building.
+- Name collisions to address in the pitch: "Veil Protocol" (Chainlink hackathon winner, private DAO payroll) and "VeilPay" (ETHGlobal, confidential payroll). Lead with what they lack: per-second streaming, passkey-verified employment, the expiring income credential.
 
 ## Port checklist
 
 1. ~~Rename Dayze → Veil everywhere.~~ Done.
-2. Keep these in sync or registration breaks: the EIP-712 domain in `src/HumanRegistry.sol` (`"Veil HumanRegistry"`) and the attest route in `frontend/app/api/world-id/`. New World ID action `veil-register`. New Privy app, or add the new domain, with gas sponsorship on Monad if supported.
+2. ~~World ID~~ Replaced by `EmployeeRegistry`: the employer vouches, the worker confirms with a passkey checked onchain by Monad's P256 precompile (`src/libraries/WebAuthn.sol`, `frontend/lib/passkey.ts`). It proves employment, not that a worker is one unique person, so the UI says "verified employee", never "verified human". Still to do: a new Privy app, or add the new domain, with gas sponsorship on Monad if supported. Optional: a Chainlink CRE workflow that vouches from an HR or KYC source.
 3. ~~Add Monad testnet (chain id 10143).~~ Done: `network = "monad"`, `CHAIN=monad_testnet` and `make deploy-monad`, WMON in the deploy script, and the frontend chain. Base Sepolia stays the default chain (Makefile `CHAIN`, frontend `defaultChain`) until the privacy decision; then switch both. The contracts deploy on Monad, but every encrypted call reverts there.
 4. Apply the privacy decision above.
 5. Deploy, fork-test, export ABIs, browser-test, README, demo video.
@@ -29,10 +29,10 @@ Veil is a port of **Dayze** (`~/hackathon-projects/dayze`, an earlier project on
 
 Foundry project at the root, Next.js app in `frontend/` (npm, not a workspace).
 
-- `src/`: contracts. `VeilPayroll` holds orgs, vaults and streams; `ApprovalPolicy`, `AuditRegistry`, `IncomeCredential`, `HumanRegistry`, `JoinRequests`, and the confidential token wrappers. Interfaces in `src/interfaces/`.
+- `src/`: contracts. `VeilPayroll` holds orgs, vaults and streams; `ApprovalPolicy`, `AuditRegistry`, `IncomeCredential`, `EmployeeRegistry`, `JoinRequests`, and the confidential token wrappers. Interfaces in `src/interfaces/`.
 - `test/`: `unit/`, `fuzz/`, `forks/` (live-chain tests, skipped unless forked), `mocks/`, `utils/`.
 - `script/`: `deployment/DeployScript.s.sol` writes `deployments/<chainId>.json`; `interaction/` backs the Makefile commands.
-- `frontend/`: Next.js 16 App Router. Pages in `app/` (`employer`, `worker`, `approvals`, `verify`, `audit`, `onboarding/*`), World ID API routes in `app/api/world-id/`, transactions through `hooks/useTx.ts`, ABIs and addresses in `lib/contracts/` (generated by `make export-abis`).
+- `frontend/`: Next.js 16 App Router. Pages in `app/` (`employer`, `worker`, `approvals`, `verify`, `audit`, `onboarding/*`), passkeys in `lib/passkey.ts` and `components/Employment.tsx`, transactions through `hooks/useTx.ts`, ABIs and addresses in `lib/contracts/` (generated by `make export-abis`).
 
 ## Commands
 
@@ -45,7 +45,7 @@ forge test -vvv
 forge test --mt <testName> -vvv   # single test
 ```
 
-`make help` lists everything: `make deploy-dry`, `make deploy`, `make export-abis`, `make test-fork`, `make status`, interaction commands. Keystore commands (`make deploy`, `make set-attester`, `cast send --account`) need a TTY, so the user runs them in their own terminal.
+`make help` lists everything: `make deploy-dry`, `make deploy`, `make export-abis`, `make test-fork`, `make status`, interaction commands. Keystore commands (`make deploy`, `make vouch`, `cast send --account`) need a TTY, so the user runs them in their own terminal.
 
 Frontend, from `frontend/`: `npm run dev` (port 3000), `npm run build`, `npx tsc --noEmit`.
 
@@ -57,4 +57,4 @@ Frontend, from `frontend/`: `npm run dev` (port 3000), `npm run build`, `npx tsc
 - Frontend: follow `frontend/DESIGN.md` and `frontend/AGENTS.md` (Next.js 16 differs from older versions). Users are not technical: show friendly errors (`shortError` in `hooks/useTx.ts`), never raw codes.
 - Docs and UI copy: simple, concise English, short sentences, no filler.
 - Commit and push only when asked. One logical change per commit, one plain sentence.
-- Never put the deployer's key in the frontend env. `ATTESTER_PRIVATE_KEY` is a fresh key.
+- Never put the deployer's key in the frontend env.

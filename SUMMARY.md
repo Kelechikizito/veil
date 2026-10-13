@@ -15,8 +15,8 @@ Veil is payroll on Monad. Employers stream salaries to workers second by second,
 ## How it's built
 
 - **Frontend:** Next.js and React, with Privy for sign-in, embedded wallets and gas sponsorship, and viem/wagmi for the chain.
-- **Identity:** World ID Selfie Check, so each worker is one unique human.
-- **Onchain:** Foundry contracts on Monad for payroll, approvals, the human registry, join requests, audits and income credentials.
+- **Identity:** the employer vouches for each worker, and the worker confirms with a passkey (Face ID, fingerprint or PIN), checked onchain. A landlord sees "verified employee of Acme".
+- **Onchain:** Foundry contracts on Monad for payroll, approvals, the employee registry, join requests, audits and income credentials.
 
 ## Status
 

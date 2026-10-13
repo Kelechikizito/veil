@@ -6,7 +6,7 @@ Get a local copy running on Linux, macOS, or Windows.
 
 - **Git** and **Node.js 22+**.
 - **Foundry v1.8.0+**: run `curl -L https://foundry.paradigm.xyz | bash`, then `foundryup`.
-- A **Privy** app and a **World ID** app (Developer Portal) if you need sign-in and the Selfie Check.
+- A **Privy** app if you need sign-in.
 
 **Windows:** run everything inside [WSL2](https://learn.microsoft.com/windows/wsl/install) (Ubuntu), since Foundry has no native Windows support.
 
@@ -26,7 +26,7 @@ cp .env.example .env
 cp frontend/.env.example frontend/.env.local
 ```
 
-Fill in the RPC URLs and the Privy and World ID values. Generate `NULLIFIER_SALT` once with `openssl rand -hex 32` and never change it.
+Fill in the RPC URLs and the Privy app id.
 
 ## 4. Build and test contracts
 
