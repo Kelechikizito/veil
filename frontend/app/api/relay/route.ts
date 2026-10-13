@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { BaseError, ContractFunctionRevertedError, createPublicClient, createWalletClient, http, isAddress, isHex, type Hex } from "viem";
+import { BaseError, ContractFunctionRevertedError, createPublicClient, createWalletClient, encodeFunctionData, http, isAddress, isHex, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { chainFor, isSupportedChainId, rpcUrls } from "@/lib/chains";
 import { IncomeCredentialAbi, VeilPayrollAbi } from "@/lib/contracts/abis";
 import { addresses } from "@/lib/contracts/addresses";
+import { privyRelayer, sendSponsored } from "@/lib/privyServerWallet";
 import type { RelayRequest } from "@/lib/relay";
 
 /*
@@ -11,14 +12,17 @@ import type { RelayRequest } from "@/lib/relay";
  * links to their main wallet. It only sends three functions on Veil's own contracts, each of which checks the
  * payee's signature onchain. It simulates first, so a bad request costs nothing.
  *
- * The relayer key only pays gas. It can't move anyone's pay: every call it sends is authorised by the payee.
+ * It sends from a Privy server wallet with gas sponsored (PRIVY_RELAYER_WALLET_ID), so no relayer key or MON
+ * lives on this server. Without that, it falls back to RELAYER_PRIVATE_KEY, which pays gas itself.
+ * Either way the relayer can't move anyone's pay: every call it sends is authorised by the payee.
  */
 
 type DeploymentAddresses = { payroll?: Hex; incomeCredential?: Hex };
 
 export async function POST(request: Request) {
+  const privy = privyRelayer();
   const key = normalizeKey(process.env.RELAYER_PRIVATE_KEY);
-  if (!key) return config("RELAYER_PRIVATE_KEY must be 32 hex bytes (with or without 0x)");
+  if (!privy && !key) return config("Set PRIVY_RELAYER_WALLET_ID, or RELAYER_PRIVATE_KEY as 32 hex bytes");
 
   let body: RelayRequest;
   try {
@@ -41,11 +45,17 @@ export async function POST(request: Request) {
 
   const chain = chainFor(body.chainId);
   const transport = http(process.env.MONAD_TESTNET_RPC_URL || rpcUrls[chain.id]);
-  const account = privateKeyToAccount(key);
   const publicClient = createPublicClient({ chain, transport });
-  const walletClient = createWalletClient({ chain, transport, account });
 
   try {
+    if (privy) {
+      // Simulate from any address: these calls check the payee's signature, not the sender
+      await publicClient.simulateContract(call as never);
+      const hash = await sendSponsored(privy, chain.id, call.address, encodeFunctionData(call as never));
+      return NextResponse.json({ hash });
+    }
+    const account = privateKeyToAccount(key!);
+    const walletClient = createWalletClient({ chain, transport, account });
     const { request: tx } = await publicClient.simulateContract({ ...call, account } as never);
     const hash = await walletClient.writeContract(tx as never);
     return NextResponse.json({ hash });
