@@ -66,7 +66,8 @@ export function Providers({ children }: { children: ReactNode }) {
     <PrivyProvider
       appId={appId}
       config={{
-        loginMethods: ["email", "google", "wallet"],
+        // The e2e tests log the worker in with Privy's test phone number, so they turn SMS on
+        loginMethods: process.env.NEXT_PUBLIC_E2E === "true" ? ["email", "sms", "google", "wallet"] : ["email", "google", "wallet"],
         defaultChain: privyChains.find((c) => c.id === defaultChain.id) ?? defaultChain,
         supportedChains: privyChains,
         // No confirm pop-ups for embedded wallets: gas is sponsored, and each action already shows its own progress
