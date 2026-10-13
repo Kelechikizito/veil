@@ -10,6 +10,7 @@ import {ApprovalPolicy} from "src/ApprovalPolicy.sol";
 import {AuditRegistry} from "src/AuditRegistry.sol";
 import {DemoToken} from "src/DemoToken.sol";
 import {VeilPayroll} from "src/VeilPayroll.sol";
+import {VeilPayrollAutomation} from "src/VeilPayrollAutomation.sol";
 import {EmployeeRegistry} from "src/EmployeeRegistry.sol";
 import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
 
@@ -132,6 +133,21 @@ contract InteractionsScript is Script {
         payroll.runPayroll(usdc, budget, ids);
         vm.stopBroadcast();
         console.log("Ran payroll for streams:", ids.length);
+    }
+
+    /// @notice Deploys a CRE receiver that runs the signer's USDC payroll, and allows it as payroll operator
+    /// @dev Use Monad testnet's MockKeystoneForwarder for `cre workflow simulate --broadcast`, and the
+    ///      KeystoneForwarder for a deployed workflow
+    /// @param forwarder The CRE forwarder allowed to deliver reports
+    /// @param maxBudget Most one report may set aside, in USDC's 6 decimals
+    function deployAutomation(address forwarder, uint256 maxBudget) external {
+        VeilPayroll payroll = VeilPayroll(_addr("payroll"));
+        vm.startBroadcast();
+        VeilPayrollAutomation automation =
+            new VeilPayrollAutomation(address(payroll), _addr("usdc"), forwarder, maxBudget);
+        payroll.setPayrollOperator(address(automation), true);
+        vm.stopBroadcast();
+        console.log("VeilPayrollAutomation:", address(automation));
     }
 
     /// @notice Withdraws from one of the signer's streams

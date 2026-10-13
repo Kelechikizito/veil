@@ -208,6 +208,15 @@ create-stream: check-chain check-SENDER check-PAYEE check-MONTHLY ## Start a USD
 run-payroll: check-chain check-SENDER check-BUDGET ## Fund this period for all your streams (BUDGET=)
 	forge script $(INTERACT) --sig "runPayroll(uint256)" $(BUDGET) $(BROADCAST)
 
+# Monad testnet's MockKeystoneForwarder, for `cre workflow simulate --broadcast`. A deployed
+# workflow needs the KeystoneForwarder instead: 0xF8344CFd5c43616a4366C34E3EEE75af79a74482.
+FORWARDER  ?= 0xB9F79d863261869B234c481D1f9A7af84AeAd192
+MAX_BUDGET ?= 100000000000
+
+.PHONY: deploy-automation
+deploy-automation: check-chain check-SENDER ## Deploy a CRE receiver for your payroll and allow it to run payroll (FORWARDER= MAX_BUDGET=)
+	forge script $(INTERACT) --sig "deployAutomation(address,uint256)" $(FORWARDER) $(MAX_BUDGET) $(BROADCAST)
+
 .PHONY: withdraw
 withdraw: check-chain check-SENDER check-STREAM check-AMOUNT ## Withdraw your pay (STREAM=1 AMOUNT=)
 	forge script $(INTERACT) --sig "withdraw(uint256,uint256)" $(STREAM) $(AMOUNT) $(BROADCAST)
