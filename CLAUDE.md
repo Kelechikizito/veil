@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Veil is a port of **Dayze** (`~/hackathon-projects/dayze`, an earlier project on Base Sepolia, built on Fhenix CoFHE). Dayze's `README.md` explains the architecture with permalinks. Disclose that Veil builds on Dayze in the README and the submission.
 
-`docs/monad/hackathon-resources.md` is the go-to for Monad links, RPCs and indexers. `docs/monad/tracks-eligibility.md` lists sponsor bounties (Privy beyond auth, Alchemy, Envio, Chainlink CRE, Dynamic). `IDEAS.MD`, `consumer-idea2.md`, `architecture.md`, `TESTING-TODO.md` and `build-guide/` are Dayze-era notes.
+`docs/monad/hackathon-resources.md` is the go-to for Monad links, RPCs and indexers. `docs/monad/tracks-eligibility.md` lists sponsor bounties (Privy beyond auth, Alchemy, Envio, Chainlink CRE, Dynamic). `docs/monad/workshop-notes.md` holds to-dos from the sponsor workshops. `IDEAS.MD`, `consumer-idea2.md`, `architecture.md`, `TESTING-TODO.md` and `build-guide/` are Dayze-era notes.
 
 ## Status (2026-10-12)
 
