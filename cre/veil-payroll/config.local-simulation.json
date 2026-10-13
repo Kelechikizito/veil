@@ -1,0 +1,8 @@
+{
+  "mode": "local-simulation",
+  "schedule": "5 */10 * * * *",
+  "chainSelectorName": "monad-testnet",
+  "payroll": "0xbEDdCB7B043BbF075264C8E642f1161E1c58726B",
+  "token": "0x194b050678eb50923b84fE5aDC8E6f8176D43335",
+  "payer": "0x39366B893c889d089400778301982eee1D92a3e0"
+}

@@ -1,0 +1,10 @@
+{
+  "mode": "production",
+  "schedule": "5 */10 * * * *",
+  "chainSelectorName": "monad-testnet",
+  "payroll": "0xbEDdCB7B043BbF075264C8E642f1161E1c58726B",
+  "token": "0x194b050678eb50923b84fE5aDC8E6f8176D43335",
+  "payer": "0xDBC29E79b2B3b62C015AB598D0bb86681313d90F",
+  "receiver": "0x350784A9f4DD60b80102A3C7665357851A3f1cfD",
+  "gasLimit": "600000"
+}
