@@ -6,18 +6,15 @@ pragma solidity 0.8.25;
 //////////////////////////////////////////////////////////////*/
 import {Script} from "forge-std/Script.sol";
 import {VmSafe} from "forge-std/Vm.sol";
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {IWETH} from "fhenix-confidential-contracts/interfaces/IWETH.sol";
-import {IFHERC20} from "fhenix-confidential-contracts/interfaces/IFHERC20.sol";
-import {ERC20_Harness} from "fhenix-confidential-contracts/test/ERC20_Harness.sol";
-import {ConfidentialToken} from "src/ConfidentialToken.sol";
-import {ConfidentialNative} from "src/ConfidentialNative.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {DemoToken} from "src/DemoToken.sol";
 import {AuditRegistry} from "src/AuditRegistry.sol";
 import {ApprovalPolicy} from "src/ApprovalPolicy.sol";
 import {VeilPayroll} from "src/VeilPayroll.sol";
 import {EmployeeRegistry} from "src/EmployeeRegistry.sol";
 import {IncomeCredential} from "src/IncomeCredential.sol";
 import {JoinRequests} from "src/JoinRequests.sol";
+import {StealthRegistry} from "src/StealthRegistry.sol";
 
 /*//////////////////////////////////////////////////////////////
                 INTERFACES, LIBRARIES, CONTRACT
@@ -26,20 +23,12 @@ import {JoinRequests} from "src/JoinRequests.sol";
 /**
  * @title DeployScript
  * @author Kelechi Kizito Ugwu
- * @notice Deploys and wires every Veil contract on Monad testnet or Base Sepolia.
+ * @notice Deploys and wires every Veil contract, plus a demo USDC anyone can mint.
  * @dev Signer comes from `--account`, never from a private key in env. Writes `deployments/<chainId>.json`.
- *      Env: `DEMO_PERIOD` (optional, seconds; default 30 days),
- *      `WETH` (optional; defaults to the chain's canonical WETH).
+ *      Env: `DEMO_PERIOD` (optional, seconds; default 30 days).
  *      `deploy` is public so fork tests can run the exact same wiring without broadcasting.
  */
 contract DeployScript is Script {
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Thrown on a chain with no known wrapped native token, unless `WETH` is set in env
-    error DeployScript__UnknownWeth(uint256 chainId);
-
     /*//////////////////////////////////////////////////////////////
                            TYPE DECLARATIONS
     //////////////////////////////////////////////////////////////*/
@@ -47,27 +36,14 @@ contract DeployScript is Script {
     /// @notice Every deployed address
     struct Deployment {
         address usdc;
-        address arb;
-        address cusdc;
-        address carb;
-        address ceth;
         address auditRegistry;
         address approvalPolicy;
         address payroll;
         address employeeRegistry;
         address incomeCredential;
         address joinRequests;
+        address stealthRegistry;
     }
-
-    /*//////////////////////////////////////////////////////////////
-                            STATE VARIABLES
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Canonical WETH on Base Sepolia (OP Stack predeploy)
-    address internal constant WETH_BASE_SEPOLIA = 0x4200000000000000000000000000000000000006;
-
-    /// @notice Wrapped MON on Monad testnet
-    address internal constant WMON_MONAD_TESTNET = 0xFb8bf4c1CC7a94c73D209a149eA2AbEa852BC541;
 
     /*//////////////////////////////////////////////////////////////
                            EXTERNAL FUNCTIONS
@@ -78,10 +54,9 @@ contract DeployScript is Script {
     /// @return d The deployed addresses
     function run() external returns (Deployment memory d) {
         uint64 period = uint64(vm.envOr("DEMO_PERIOD", uint256(30 days)));
-        address weth = vm.envOr("WETH", wethFor(block.chainid));
 
         vm.startBroadcast();
-        d = deploy(period, weth);
+        d = deploy(period);
         vm.stopBroadcast();
 
         if (vm.isContext(VmSafe.ForgeContext.ScriptBroadcast)) _write(d, period);
@@ -91,44 +66,20 @@ contract DeployScript is Script {
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deploys and wires everything. The caller (broadcaster or test) becomes the owner.
+    /// @notice Deploys and wires everything. The caller (broadcaster or test) becomes payroll's owner.
     /// @param period Length of one pay period in seconds
-    /// @param weth The chain's WETH, wrapped by cETH
     /// @return d The deployed addresses
-    function deploy(uint64 period, address weth) public returns (Deployment memory d) {
-        // Demo tokens anyone can mint
-        d.usdc = address(new ERC20_Harness("USD Coin", "USDC", 6));
-        d.arb = address(new ERC20_Harness("Arbitrum", "ARB", 18));
-
-        // Confidential wrappers
-        d.cusdc = address(new ConfidentialToken(IERC20(d.usdc), "Confidential USDC", "cUSDC"));
-        d.carb = address(new ConfidentialToken(IERC20(d.arb), "Confidential ARB", "cARB"));
-        d.ceth = address(new ConfidentialNative(IWETH(weth)));
-
-        // Core
+    function deploy(uint64 period) public returns (Deployment memory d) {
+        d.usdc = address(new DemoToken("USD Coin", "USDC", 6));
         d.auditRegistry = address(new AuditRegistry());
         d.approvalPolicy = address(new ApprovalPolicy());
-        d.payroll = address(new VeilPayroll(d.approvalPolicy, d.auditRegistry, period));
+        d.payroll = address(new VeilPayroll(d.approvalPolicy, period));
         d.employeeRegistry = address(new EmployeeRegistry());
         d.incomeCredential = address(new IncomeCredential(d.payroll, d.employeeRegistry));
         d.joinRequests = address(new JoinRequests(d.payroll));
+        d.stealthRegistry = address(new StealthRegistry());
 
-        // Wiring: one-shot setters first, so every stream gets the credential
-        ApprovalPolicy(d.approvalPolicy).setPayroll(d.payroll);
-        VeilPayroll payroll = VeilPayroll(d.payroll);
-        payroll.setCredential(d.incomeCredential);
-        payroll.addToken(IFHERC20(d.cusdc));
-        payroll.addToken(IFHERC20(d.carb));
-        payroll.addToken(IFHERC20(d.ceth));
-    }
-
-    /// @notice Returns the canonical wrapped native token for a chain (WETH, or WMON on Monad)
-    /// @param chainId The chain
-    /// @return The wrapped native token's address
-    function wethFor(uint256 chainId) public pure returns (address) {
-        if (chainId == 10143) return WMON_MONAD_TESTNET;
-        if (chainId == 84532) return WETH_BASE_SEPOLIA;
-        revert DeployScript__UnknownWeth(chainId);
+        VeilPayroll(d.payroll).addToken(IERC20(d.usdc));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -144,16 +95,13 @@ contract DeployScript is Script {
         vm.serializeUint(k, "period", period);
         vm.serializeUint(k, "deployBlock", block.number);
         vm.serializeAddress(k, "usdc", d.usdc);
-        vm.serializeAddress(k, "arb", d.arb);
-        vm.serializeAddress(k, "cusdc", d.cusdc);
-        vm.serializeAddress(k, "carb", d.carb);
-        vm.serializeAddress(k, "ceth", d.ceth);
         vm.serializeAddress(k, "auditRegistry", d.auditRegistry);
         vm.serializeAddress(k, "approvalPolicy", d.approvalPolicy);
         vm.serializeAddress(k, "payroll", d.payroll);
         vm.serializeAddress(k, "employeeRegistry", d.employeeRegistry);
         vm.serializeAddress(k, "incomeCredential", d.incomeCredential);
-        string memory json = vm.serializeAddress(k, "joinRequests", d.joinRequests);
+        vm.serializeAddress(k, "joinRequests", d.joinRequests);
+        string memory json = vm.serializeAddress(k, "stealthRegistry", d.stealthRegistry);
         vm.writeJson(json, string.concat("deployments/", vm.toString(block.chainid), ".json"));
     }
 }

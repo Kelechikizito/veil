@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ebool} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
-
 /**
  * @title IIncomeCredential
  * @author Kelechi Kizito Ugwu
- * @notice One-bit income proofs: "this payee earns >= X of token T per month", readable by one verifier.
- * @dev The threshold is public (the verifier asked for it). The salary and the result bit are not.
+ * @notice Income proofs: "this payee earns >= X of token T per month", issued to one verifier.
+ * @dev Issued, expiring and revocable by the payee. The answer is public onchain.
  */
 interface IIncomeCredential {
     /*//////////////////////////////////////////////////////////////
@@ -19,26 +17,26 @@ interface IIncomeCredential {
         address payee;
         address payer;
         address verifier;
-        address token; // the stream's confidential wrapper; the threshold is in its units
+        address token; // the stream's token; the threshold is in its units
         uint256 streamId;
-        uint64 threshold; // plaintext, 6-decimal units: the verifier asked for it, so it's not secret
+        uint256 threshold; // the monthly amount the verifier asked about
         uint64 issuedAt;
         uint64 expiresAt;
         uint64 streamActiveSince;
         bool revoked;
         bool employeeVerified; // EmployeeRegistry.isVerified(payee, payer) at issue time
-        ebool ok; // encrypted `monthly >= threshold`; only the verifier can decrypt it
+        bool ok; // `monthly >= threshold` at issue time
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Emitted when a payee issues a credential. Never carries the result bit.
+    /// @notice Emitted when a payee issues a credential
     /// @param id The credential id
     /// @param payee The payee who issued it
-    /// @param verifier The only address that can read the result
-    /// @param token The stream's confidential wrapper
+    /// @param verifier Who the credential is for
+    /// @param token The stream's token
     /// @param threshold The monthly amount asked about
     /// @param expiresAt When the credential stops being valid
     event CredentialIssued(
@@ -46,7 +44,7 @@ interface IIncomeCredential {
         address indexed payee,
         address indexed verifier,
         address token,
-        uint64 threshold,
+        uint256 threshold,
         uint64 expiresAt
     );
 
@@ -60,15 +58,40 @@ interface IIncomeCredential {
 
     /// @notice Issues an "earns >= threshold per month" credential to one verifier
     /// @param streamId The caller's active stream
-    /// @param verifier The only address allowed to read the result bit
-    /// @param threshold Plaintext monthly amount the verifier asked about, in the stream token's 6-decimal units
+    /// @param verifier Who the credential is for
+    /// @param threshold Monthly amount the verifier asked about, in the stream token's units
     /// @param expiresAt Timestamp after which the credential is no longer valid
     /// @return id The new credential's id
-    function issue(uint256 streamId, address verifier, uint64 threshold, uint64 expiresAt) external returns (uint256 id);
+    function issue(uint256 streamId, address verifier, uint256 threshold, uint64 expiresAt)
+        external
+        returns (uint256 id);
+
+    /// @notice Issues a credential the payee signed. Anyone can send it, so a stealth payee needs no gas.
+    /// @param streamId The payee's active stream
+    /// @param verifier Who the credential is for
+    /// @param threshold Monthly amount the verifier asked about, in the stream token's units
+    /// @param expiresAt Timestamp after which the credential is no longer valid
+    /// @param deadline Timestamp after which the signature is no longer accepted
+    /// @param signature The payee's EIP-712 signature over `Issue(..., nonce, deadline)`
+    /// @return id The new credential's id
+    function issueWithSig(
+        uint256 streamId,
+        address verifier,
+        uint256 threshold,
+        uint64 expiresAt,
+        uint256 deadline,
+        bytes calldata signature
+    ) external returns (uint256 id);
 
     /// @notice Revokes a credential. Payee only.
     /// @param id The credential to revoke
     function revoke(uint256 id) external;
+
+    /// @notice Revokes a credential the payee signed for. Anyone can send it.
+    /// @param id The credential to revoke
+    /// @param deadline Timestamp after which the signature is no longer accepted
+    /// @param signature The payee's EIP-712 signature over `Revoke(id, nonce, deadline)`
+    function revokeWithSig(uint256 id, uint256 deadline, bytes calldata signature) external;
 
     /*//////////////////////////////////////////////////////////////
                          VIEW & PURE FUNCTIONS

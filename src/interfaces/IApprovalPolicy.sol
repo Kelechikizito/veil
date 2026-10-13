@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ebool, euint64, externalEuint64, sharedEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
-
 /**
  * @title IApprovalPolicy
  * @author Kelechi Kizito Ugwu
- * @notice Per-payer k-of-n approver set plus an encrypted monthly threshold per token.
- * @dev `evaluate` returns `monthly > threshold[token]` as an encrypted bit. Who approved and which
- *      tokens have thresholds are public; the thresholds and amounts never are.
+ * @notice Per-payer k-of-n approver set plus a monthly threshold per token.
+ * @dev Salaries above the threshold need k approvals before payroll activates them.
  */
 interface IApprovalPolicy {
     /*//////////////////////////////////////////////////////////////
@@ -23,8 +20,9 @@ interface IApprovalPolicy {
 
     /// @notice Emitted when a payer sets or replaces their threshold for one token
     /// @param payer The payer that owns the policy
-    /// @param token The confidential wrapper the threshold applies to
-    event ThresholdSet(address indexed payer, address indexed token);
+    /// @param token The token the threshold applies to
+    /// @param threshold The monthly threshold
+    event ThresholdSet(address indexed payer, address indexed token, uint256 threshold);
 
     /// @notice Emitted when an approver signs off on a pending stream
     /// @param payer The payer that owns the stream
@@ -42,18 +40,10 @@ interface IApprovalPolicy {
     /// @param required Approvals needed; must be > 0 and <= approvers.length
     function setPolicy(address[] calldata approvers, uint8 required) external;
 
-    /// @notice Sets the caller's encrypted monthly threshold for one token
-    /// @param token The confidential wrapper the threshold applies to
-    /// @param threshold Encrypted monthly threshold in the token's 6-decimal units, encrypted in the browser
-    /// @param proof Proof that verifies `threshold`
-    function setThreshold(address token, externalEuint64 threshold, bytes calldata proof) external;
-
-    /// @notice Checks whether a monthly amount needs approval. Only callable by VeilPayroll.
-    /// @param payer The payer whose policy applies
-    /// @param token The confidential wrapper the stream pays in
-    /// @param monthly The monthly amount, shared by payroll
-    /// @return needsApproval Encrypted `monthly > threshold[token]`, allowed to the caller
-    function evaluate(address payer, address token, sharedEuint64 monthly) external returns (ebool needsApproval);
+    /// @notice Sets the caller's monthly threshold for one token
+    /// @param token The token the threshold applies to
+    /// @param threshold Monthly threshold in the token's units
+    function setThreshold(address token, uint256 threshold) external;
 
     /// @notice Records the caller's approval of a pending stream
     /// @param payer The payer that owns the stream
@@ -82,7 +72,7 @@ interface IApprovalPolicy {
 
     /// @notice Checks whether the payer has set a threshold for a token
     /// @param payer The payer to look up
-    /// @param token The confidential wrapper to look up
+    /// @param token The token to look up
     /// @return True if a threshold exists
     function hasThreshold(address payer, address token) external view returns (bool);
 
@@ -104,14 +94,17 @@ interface IApprovalPolicy {
     /// @return True if `who` approved `streamId`
     function hasApproved(address payer, uint256 streamId, address who) external view returns (bool);
 
-    /// @notice Returns the handle to the payer's encrypted threshold for a token
-    /// @dev Only the payer (and this contract) can unseal it
+    /// @notice Returns the payer's threshold for a token
     /// @param payer The payer to look up
-    /// @param token The confidential wrapper to look up
-    /// @return The threshold handle; zero if never set
-    function thresholdOf(address payer, address token) external view returns (euint64);
+    /// @param token The token to look up
+    /// @return The threshold; zero if never set
+    function thresholdOf(address payer, address token) external view returns (uint256);
 
-    /// @notice Returns the payroll contract allowed to call `evaluate`
-    /// @return The payroll address; zero until set
-    function payroll() external view returns (address);
+    /// @notice Whether a monthly salary needs approval under the payer's policy
+    /// @dev False with no policy. True with a policy but no threshold for `token` (fail closed).
+    /// @param payer The payer whose policy applies
+    /// @param token The token the stream pays in
+    /// @param monthly The monthly salary
+    /// @return True if `monthly` is above the threshold
+    function needsApproval(address payer, address token, uint256 monthly) external view returns (bool);
 }

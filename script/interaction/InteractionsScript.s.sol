@@ -5,12 +5,10 @@ pragma solidity 0.8.25;
                             IMPORTS
 //////////////////////////////////////////////////////////////*/
 import {Script, console} from "forge-std/Script.sol";
-import {IFHERC20} from "fhenix-confidential-contracts/interfaces/IFHERC20.sol";
-import {ERC20_Harness} from "fhenix-confidential-contracts/test/ERC20_Harness.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ApprovalPolicy} from "src/ApprovalPolicy.sol";
 import {AuditRegistry} from "src/AuditRegistry.sol";
-import {ConfidentialNative} from "src/ConfidentialNative.sol";
-import {ConfidentialToken} from "src/ConfidentialToken.sol";
+import {DemoToken} from "src/DemoToken.sol";
 import {VeilPayroll} from "src/VeilPayroll.sol";
 import {EmployeeRegistry} from "src/EmployeeRegistry.sol";
 import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
@@ -22,11 +20,9 @@ import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
 /**
  * @title InteractionsScript
  * @author Kelechi Kizito Ugwu
- * @notice Every plaintext call into a live Veil deployment, one function each, run with `--sig`.
+ * @notice Every call into a live Veil deployment, one function each, run with `--sig`.
  * @dev Reads addresses from `deployments/<chainId>.json`. The signer comes from `--account`.
- *      Calls that take an encrypted input (fundVault, createStream, setThreshold, withdraw) or need
- *      a decrypt (resolvePolicy) can't run from Forge on a live chain: encryption needs Fhenix's
- *      off-chain ZK verifier. Do those in the app. See the Makefile for the `make` target per function.
+ *      Amounts are raw integers in USDC's 6 decimals. See the Makefile for the `make` target per function.
  */
 contract InteractionsScript is Script {
     /*//////////////////////////////////////////////////////////////
@@ -37,58 +33,16 @@ contract InteractionsScript is Script {
     error InteractionsScript__NotDeployed(uint256 chainId);
 
     /*//////////////////////////////////////////////////////////////
-                            STATE VARIABLES
+                               DEMO MONEY
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Never expires, for `setOperator`
-    uint48 internal constant FOREVER = type(uint48).max;
-
-    /*//////////////////////////////////////////////////////////////
-                       DEMO TOKENS AND SHIELDING
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Mints demo USDC and ARB to the signer. Anyone can mint these test tokens.
-    /// @param usdc Amount in USDC's 6 decimals, e.g. 10000e6
-    /// @param arb Amount in ARB's 18 decimals, e.g. 1000e18
-    function mintDemoTokens(uint256 usdc, uint256 arb) external {
+    /// @notice Mints demo USDC to the signer. Anyone can mint it.
+    /// @param amount Amount in USDC's 6 decimals, e.g. 10000e6
+    function mintDemo(uint256 amount) external {
         vm.startBroadcast();
-        ERC20_Harness(_addr("usdc")).mint(msg.sender, usdc);
-        ERC20_Harness(_addr("arb")).mint(msg.sender, arb);
+        DemoToken(_addr("usdc")).mint(msg.sender, amount);
         vm.stopBroadcast();
-        console.log("Minted USDC (6 dp):", usdc);
-        console.log("Minted ARB (18 dp):", arb);
-    }
-
-    /// @notice Shields the signer's USDC into cUSDC
-    /// @param amount Amount in USDC's 6 decimals
-    function shieldUsdc(uint256 amount) external {
-        _shieldErc20("usdc", "cusdc", amount);
-    }
-
-    /// @notice Shields the signer's ARB into cARB. Anything below 1e12 wei is refunded as dust.
-    /// @param amount Amount in ARB's 18 decimals
-    function shieldArb(uint256 amount) external {
-        _shieldErc20("arb", "carb", amount);
-    }
-
-    /// @notice Shields native ETH into cETH. Anything below 1e12 wei is refunded as dust.
-    /// @param amountWei Amount of ETH in wei, e.g. 0.01 ether = 10000000000000000
-    function shieldEth(uint256 amountWei) external {
-        vm.startBroadcast();
-        ConfidentialNative(payable(_addr("ceth"))).shieldNative{value: amountWei}(msg.sender);
-        vm.stopBroadcast();
-        console.log("Shielded ETH (wei):", amountWei);
-    }
-
-    /// @notice Lets payroll pull the signer's cUSDC, cARB and cETH, so `fundVault` works
-    function setPayrollOperator() external {
-        address payroll = _addr("payroll");
-        vm.startBroadcast();
-        IFHERC20(_addr("cusdc")).setOperator(payroll, FOREVER);
-        IFHERC20(_addr("carb")).setOperator(payroll, FOREVER);
-        IFHERC20(_addr("ceth")).setOperator(payroll, FOREVER);
-        vm.stopBroadcast();
-        console.log("Payroll is an operator for cUSDC, cARB and cETH:", payroll);
+        console.log("Minted USDC (6 dp):", amount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -104,7 +58,19 @@ contract InteractionsScript is Script {
         console.log("Created org:", name);
     }
 
-    /// @notice Adds an auditor who can read the signer's payroll handles from now on
+    /// @notice Approves payroll and moves the signer's USDC into their vault
+    /// @param amount Amount in USDC's 6 decimals
+    function fundVault(uint256 amount) external {
+        VeilPayroll payroll = VeilPayroll(_addr("payroll"));
+        IERC20 usdc = IERC20(_addr("usdc"));
+        vm.startBroadcast();
+        usdc.approve(address(payroll), amount);
+        payroll.fundVault(usdc, amount);
+        vm.stopBroadcast();
+        console.log("Funded vault (6 dp):", amount);
+    }
+
+    /// @notice Adds an auditor to the signer's books
     /// @param auditor The auditor's address
     function addAuditor(address auditor) external {
         vm.startBroadcast();
@@ -113,7 +79,7 @@ contract InteractionsScript is Script {
         console.log("Added auditor:", auditor);
     }
 
-    /// @notice Removes an auditor. Access to handles they already read stays.
+    /// @notice Removes an auditor
     /// @param auditor The auditor's address
     function removeAuditor(address auditor) external {
         vm.startBroadcast();
@@ -122,7 +88,7 @@ contract InteractionsScript is Script {
         console.log("Removed auditor:", auditor);
     }
 
-    /// @notice Sets the signer's k-of-n approvers. The threshold is encrypted, so set it in the app.
+    /// @notice Sets the signer's k-of-n approvers
     /// @param approvers Approver addresses, e.g. "[0xabc...,0xdef...]"
     /// @param required How many approvals a stream above the threshold needs
     function setPolicy(address[] calldata approvers, uint8 required) external {
@@ -133,9 +99,50 @@ contract InteractionsScript is Script {
         console.log("Required:", required);
     }
 
+    /// @notice Sets the monthly USDC salary above which a stream needs approvals
+    /// @param threshold Amount in USDC's 6 decimals
+    function setThreshold(uint256 threshold) external {
+        vm.startBroadcast();
+        ApprovalPolicy(_addr("approvalPolicy")).setThreshold(_addr("usdc"), threshold);
+        vm.stopBroadcast();
+        console.log("Threshold set (6 dp):", threshold);
+    }
+
     /*//////////////////////////////////////////////////////////////
-                         APPROVALS AND STREAMS
+                                STREAMS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Starts a USDC salary stream from the signer to `payee`
+    /// @param payee The worker
+    /// @param monthly Monthly salary in USDC's 6 decimals
+    function createStream(address payee, uint256 monthly) external {
+        vm.startBroadcast();
+        uint256 id = VeilPayroll(_addr("payroll")).createStream(payee, IERC20(_addr("usdc")), monthly);
+        vm.stopBroadcast();
+        console.log("Created stream:", id);
+    }
+
+    /// @notice Funds this period for every Active USDC stream of the signer not yet funded
+    /// @param budget Most to set aside, in USDC's 6 decimals
+    function runPayroll(uint256 budget) external {
+        VeilPayroll payroll = VeilPayroll(_addr("payroll"));
+        IERC20 usdc = IERC20(_addr("usdc"));
+        uint256[] memory ids = _fundable(payroll, usdc, msg.sender);
+        vm.startBroadcast();
+        payroll.runPayroll(usdc, budget, ids);
+        vm.stopBroadcast();
+        console.log("Ran payroll for streams:", ids.length);
+    }
+
+    /// @notice Withdraws from one of the signer's streams
+    /// @param streamId The stream
+    /// @param amount Amount in USDC's 6 decimals
+    function withdraw(uint256 streamId, uint256 amount) external {
+        vm.startBroadcast();
+        VeilPayroll(_addr("payroll")).withdraw(streamId, amount);
+        vm.stopBroadcast();
+        console.log("Withdrew (6 dp):", amount);
+    }
 
     /// @notice Approves a pending stream as one of the payer's approvers
     /// @param payer The employer that owns the stream
@@ -165,28 +172,6 @@ contract InteractionsScript is Script {
         console.log("Cancelled stream:", streamId);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                             OWNER ADMIN
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Allowlists another confidential wrapper. Payroll owner only.
-    /// @param token The wrapper to accept
-    function addToken(address token) external {
-        vm.startBroadcast();
-        VeilPayroll(_addr("payroll")).addToken(IFHERC20(token));
-        vm.stopBroadcast();
-        console.log("Allowlisted token:", token);
-    }
-
-    /// @notice Removes a wrapper from the allowlist. Existing streams keep withdrawing. Payroll owner only.
-    /// @param token The wrapper to remove
-    function removeToken(address token) external {
-        vm.startBroadcast();
-        VeilPayroll(_addr("payroll")).removeToken(IFHERC20(token));
-        vm.stopBroadcast();
-        console.log("Removed token:", token);
-    }
-
     /// @notice Vouches that `worker` works for you. They confirm with a passkey in the app.
     /// @param worker The worker's wallet
     function vouch(address worker) external {
@@ -197,52 +182,77 @@ contract InteractionsScript is Script {
     }
 
     /*//////////////////////////////////////////////////////////////
+                             OWNER ADMIN
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Allowlists another token. Payroll owner only.
+    /// @param token The token to accept
+    function addToken(address token) external {
+        vm.startBroadcast();
+        VeilPayroll(_addr("payroll")).addToken(IERC20(token));
+        vm.stopBroadcast();
+        console.log("Allowlisted token:", token);
+    }
+
+    /// @notice Removes a token from the allowlist. Existing streams keep withdrawing. Payroll owner only.
+    /// @param token The token to remove
+    function removeToken(address token) external {
+        vm.startBroadcast();
+        VeilPayroll(_addr("payroll")).removeToken(IERC20(token));
+        vm.stopBroadcast();
+        console.log("Removed token:", token);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                READ-ONLY
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Prints the deployment's wiring and an account's plaintext state. Sends nothing.
+    /// @notice Prints the deployment's wiring and an account's state. Sends nothing.
     /// @param who The account to look up
     function status(address who) external view {
         VeilPayroll payroll = VeilPayroll(_addr("payroll"));
-        ApprovalPolicy policy = ApprovalPolicy(_addr("approvalPolicy"));
+        IERC20 usdc = IERC20(_addr("usdc"));
 
         console.log("Chain:", block.chainid);
         console.log("Payroll:", address(payroll));
         console.log("  period (s):", payroll.PERIOD());
-        console.log("  policy wired:", policy.payroll() == address(payroll));
-        console.log("  credential wired:", payroll.credential() == _addr("incomeCredential"));
-        console.log("  cUSDC allowlisted:", payroll.s_supportedTokens(IFHERC20(_addr("cusdc"))));
-        console.log("  cARB allowlisted:", payroll.s_supportedTokens(IFHERC20(_addr("carb"))));
-        console.log("  cETH allowlisted:", payroll.s_supportedTokens(IFHERC20(_addr("ceth"))));
+        console.log("  policy wired:", address(payroll.I_APPROVAL_POLICY()) == _addr("approvalPolicy"));
+        console.log("  USDC allowlisted:", payroll.s_supportedTokens(usdc));
 
         console.log("Account:", who);
         IVeilPayroll.Org memory org = payroll.orgOf(who);
         console.log("  org:", org.exists ? org.name : "(none)");
+        console.log("  vault USDC (6 dp):", payroll.vaultOf(who, usdc));
         console.log("  streams as payer:", payroll.streamsOfPayer(who).length);
         console.log("  streams as payee:", payroll.streamsOfPayee(who).length);
-        console.log("  has policy:", policy.hasPolicy(who));
+        console.log("  has policy:", ApprovalPolicy(_addr("approvalPolicy")).hasPolicy(who));
         console.log("  auditors:", AuditRegistry(_addr("auditRegistry")).auditorCount(who));
         console.log("  passkey set:", EmployeeRegistry(_addr("employeeRegistry")).passkeyOf(who).x != bytes32(0));
-        console.log("  USDC (6 dp):", ERC20_Harness(_addr("usdc")).balanceOf(who));
-        console.log("  ARB (18 dp):", ERC20_Harness(_addr("arb")).balanceOf(who));
+        console.log("  USDC (6 dp):", usdc.balanceOf(who));
     }
 
     /*//////////////////////////////////////////////////////////////
-                           INTERNAL FUNCTIONS
+                      INTERNAL VIEW/PURE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Approves a wrapper and shields the signer's underlying tokens
-    /// @param underlyingKey JSON key of the ERC20
-    /// @param wrapperKey JSON key of its wrapper
-    /// @param amount Amount in the ERC20's decimals
-    function _shieldErc20(string memory underlyingKey, string memory wrapperKey, uint256 amount) internal {
-        address underlying = _addr(underlyingKey);
-        address wrapper = _addr(wrapperKey);
-        vm.startBroadcast();
-        ERC20_Harness(underlying).approve(wrapper, amount);
-        ConfidentialToken(wrapper).shield(msg.sender, amount);
-        vm.stopBroadcast();
-        console.log("Shielded into", wrapperKey, amount);
+    /// @notice The payer's Active streams in `token` not yet funded this period
+    /// @param payroll The payroll contract
+    /// @param token The token
+    /// @param payer The payer
+    /// @return ids The stream ids
+    function _fundable(VeilPayroll payroll, IERC20 token, address payer) internal view returns (uint256[] memory ids) {
+        uint256[] memory all = payroll.streamsOfPayer(payer);
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint64 end = payroll.periodEnd(uint64(block.timestamp));
+        ids = new uint256[](all.length);
+        uint256 n;
+        for (uint256 i; i < all.length; ++i) {
+            IVeilPayroll.Stream memory s = payroll.getStream(all[i]);
+            if (s.status == IVeilPayroll.Status.Active && s.token == token && s.allocEnd != end) ids[n++] = all[i];
+        }
+        assembly ("memory-safe") {
+            mstore(ids, n)
+        }
     }
 
     /// @notice Reads one address from deployments/<chainId>.json

@@ -12,33 +12,19 @@ auto_detect_remappings = false
 # pricing, precompiles and 128 KB code size limit. Foundry picks the hardfork on Monad testnet itself.
 network = "monad"
 
-# The optimizer is off by default in Foundry 1.x. Without it ConfidentialNative is 24,693 bytes,
-# over the 24,576-byte EIP-170 limit, and a live deploy fails with CreateContractSizeLimit.
+# The optimizer is off by default in Foundry 1.x
 optimizer = true
 optimizer_runs = 200
-
-# The CoFHE mock coprocessor contracts exceed the EIP-170 24KB limit. So do test
-# contracts: CofheTest alone is ~76KB and each CofheClient adds ~25KB. None of
-# them go to a live chain, so the limit is raised locally. Check real contracts
-# against 24KB with `forge build --sizes`.
-code_size_limit = 300000
-
-# Required by CoFHE: without isolate, encrypted values can be used across calls
-# without the permission checks that a production chain enforces, so tests pass
-# locally and fail on Base Sepolia.
-isolate = true
 
 # The deploy script writes deployments/<chainId>.json; fork tests read it.
 fs_permissions = [{ access = "read-write", path = "./deployments" }]
 
 [rpc_endpoints]
 monad_testnet = "${ALCHEMY_MONAD_TESTNET_RPC_URL}"
-base_sepolia = "${BASE_SEPOLIA_RPC_URL}"
-base_mainnet = "${BASE_MAINNET_RPC_URL}"
+monad_mainnet = "${ALCHEMY_MONAD_MAINNET_RPC_URL}"
 
-# One Etherscan V2 key verifies on Monadscan and Basescan.
+# An Etherscan V2 key verifies on Monadscan
 [etherscan]
 monad_testnet = { key = "${ETHERSCAN_API_KEY}", chain = 10143 }
-base_sepolia = { key = "${ETHERSCAN_API_KEY}", chain = 84532 }
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

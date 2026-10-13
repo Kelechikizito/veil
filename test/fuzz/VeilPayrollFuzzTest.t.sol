@@ -4,6 +4,8 @@ pragma solidity 0.8.25;
 /*//////////////////////////////////////////////////////////////
                             IMPORTS
 //////////////////////////////////////////////////////////////*/
+import {VeilPayroll} from "src/VeilPayroll.sol";
+import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
 import {PayrollTestBase} from "../utils/PayrollTestBase.sol";
 
 /*//////////////////////////////////////////////////////////////
@@ -13,49 +15,61 @@ import {PayrollTestBase} from "../utils/PayrollTestBase.sol";
 /**
  * @title VeilPayrollFuzzTest
  * @author Kelechi Kizito Ugwu
- * @notice Fuzzes payroll runs and `withdraw`: a payee is never paid more than streamed, and a stream
- *         never streams more than its salary, the budget or the vault.
+ * @notice Fuzzes payroll runs and `withdraw`: a payee is never paid more than streamed, a stream never
+ *         streams more than its salary, the budget or the vault, and payroll stays solvent.
  * @dev Abstract: run by `VeilPayrollFuzzTest30Days` and `VeilPayrollFuzzTest600s` below.
  *      The stream is funded at the start of a period, so its allocation is min(salary, budget, vault).
  */
 abstract contract VeilPayrollFuzzTest is PayrollTestBase {
-    /// @notice A withdraw pays `req` if it fits what streamed, else 0. Streaming stops at the allocation.
+    /// @notice What's available matches the allocation streamed so far; more than that can't be withdrawn;
+    ///         payroll always holds every vault plus everything owed
     /// @param monthly Monthly salary
     /// @param budget Payroll budget for the period
     /// @param funded Amount in the vault
     /// @param dt Seconds since payroll ran, up to two periods
     /// @param req Amount requested
-    function testFuzz_neverOverpays(uint64 monthly, uint64 budget, uint64 funded, uint32 dt, uint64 req) public {
-        monthly = uint64(bound(monthly, 1, type(uint64).max));
-        funded = uint64(bound(funded, 1, EMPLOYER_USDC));
+    function testFuzz_neverOverpays(uint256 monthly, uint256 budget, uint256 funded, uint32 dt, uint256 req) public {
+        monthly = bound(monthly, 1, type(uint128).max);
+        funded = bound(funded, 1, EMPLOYER_USDC);
         dt = uint32(bound(dt, 0, 2 * uint256(_period())));
 
-        _fund(tUsdc, funded);
+        _fund(usdc, funded);
         uint256 id = _createFundedStreamWithBudget(monthly, budget);
         vm.warp(block.timestamp + dt);
-        _withdraw(id, req);
 
         uint256 allocation = _min(_min(monthly, budget), funded);
         uint256 elapsed = dt < _period() ? dt : _period();
         uint256 streamed = allocation * elapsed / _period();
-        uint64 expected = req <= streamed ? req : 0;
-        uint64 paid = _aliceBalance(tUsdc);
+        assertEq(payroll.available(id), streamed);
 
-        assertEq(paid, expected);
-        assertLe(paid, allocation);
-        expectPlaintext(payroll.getStream(id).allocated, uint64(allocation));
-        expectPlaintext(payroll.getStream(id).withdrawn, paid);
-        expectPlaintext(payroll.vaultOf(employer, tUsdc), uint64(funded - allocation));
+        req = bound(req, 1, streamed + 1);
+        if (req > streamed) {
+            vm.prank(alice);
+            vm.expectRevert(VeilPayroll.VeilPayroll__ExceedsAvailable.selector);
+            payroll.withdraw(id, req);
+        } else {
+            _withdraw(id, req);
+            assertEq(usdc.balanceOf(alice), req);
+        }
+
+        IVeilPayroll.Stream memory s = payroll.getStream(id);
+        assertEq(s.allocated, allocation);
+        assertEq(payroll.vaultOf(employer, usdc), funded - allocation);
+        assertLe(usdc.balanceOf(alice), allocation);
+        // Solvency: the contract holds the vault plus everything set aside and not yet paid out
+        assertEq(
+            usdc.balanceOf(address(payroll)), payroll.vaultOf(employer, usdc) + s.allocated + s.banked - s.withdrawn
+        );
     }
 
     /// @notice Creates an Active stream at a period start and runs payroll for it with `budget`
     /// @param monthly Monthly salary
     /// @param budget Payroll budget
     /// @return id The stream id
-    function _createFundedStreamWithBudget(uint64 monthly, uint64 budget) internal returns (uint256 id) {
+    function _createFundedStreamWithBudget(uint256 monthly, uint256 budget) internal returns (uint256 id) {
         _warpToPeriodStart();
-        id = _createActiveStream(tUsdc, monthly);
-        _runPayroll(tUsdc, budget, id);
+        id = _createStream(usdc, monthly);
+        _runPayroll(usdc, budget, id);
     }
 
     /// @notice The smaller of two numbers

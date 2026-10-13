@@ -2,7 +2,3 @@ forge-std/=lib/forge-std/src/
 hardhat/=lib/forge-std/src/
 @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
 @openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
-@fhenixprotocol/cofhe-contracts/=lib/cofhe-contracts/contracts/
-@cofhe/mock-contracts/=lib/cofhesdk/packages/mock-contracts/
-@cofhe/foundry-plugin/=lib/cofhesdk/packages/foundry-plugin/contracts/
-fhenix-confidential-contracts/=lib/fhenix-confidential-contracts/contracts/

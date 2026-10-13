@@ -1,27 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ebool, euint64, externalEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
-import {IFHERC20} from "fhenix-confidential-contracts/interfaces/IFHERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title IVeilPayroll
  * @author Kelechi Kizito Ugwu
- * @notice Encrypted salary streams paid from per-payer, per-token confidential vaults.
- * @dev Salaries, vaults, payroll budgets and withdrawals are encrypted. Who pays whom, in which token, is public.
- *      Money flows vault → payroll (once per period, `runPayroll`) → each stream's allocation → the payee.
+ * @notice Salary streams paid per second from per-payer, per-token vaults.
+ * @dev Money flows vault → payroll (once per period, `runPayroll`) → each stream's allocation → the payee.
  *      A stream only ever streams what was set aside for it, so pay can't outrun the money.
+ *      Amounts are public onchain. Stealth streams pay a one-time address (ERC-5564), so nobody but the
+ *      payer and the payee can tell whose salary a stream is. The payee withdraws by signature, through
+ *      a relayer, so their stealth address never needs gas.
  */
 interface IVeilPayroll {
     /*//////////////////////////////////////////////////////////////
                            TYPE DECLARATIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Lifecycle of a stream (AwaitingPolicy and Pending are used from 06)
+    /// @notice Lifecycle of a stream
     enum Status {
         None,
-        AwaitingPolicy,
-        Pending,
+        Pending, // waiting for approvals: the salary is above the payer's threshold
         Active,
         Cancelled
     }
@@ -32,59 +32,80 @@ interface IVeilPayroll {
         bool exists;
     }
 
-    /// @notice One salary stream from a payer to a payee, paid in one confidential token
+    /// @notice One salary stream from a payer to a payee, paid in one token
     struct Stream {
         address payer;
         address payee;
-        IFHERC20 token; // allowlisted wrapper (02); public, the amount isn't
-        euint64 monthly; // encrypted monthly salary, in the token's 6-decimal units
-        euint64 withdrawn;
+        IERC20 token; // allowlisted token
+        uint256 monthly; // monthly salary, in the token's units
+        uint256 withdrawn; // total paid out to the payee
+        uint256 allocated; // set aside by the latest `runPayroll`; streams from allocStart to allocEnd
+        uint256 banked; // set aside in earlier periods (or before a cancel), fully earned
         uint64 startTime; // set when it becomes Active
         uint64 endTime; // set on cancel
-        Status status;
-        ebool needsApproval; // used in 06
-        euint64 allocated; // set aside by the latest `runPayroll`; streams from allocStart to allocEnd
-        euint64 banked; // set aside in earlier periods (or before a cancel), fully earned
         uint64 allocStart; // when `allocated` starts streaming
         uint64 allocEnd; // end of the period `allocated` is for; 0 if none
+        Status status;
+    }
+
+    /// @notice What a payee needs to find a stealth stream: the payer's ephemeral key and the view tag
+    struct StealthAnnouncement {
+        bytes ephemeralPubKey; // 33-byte compressed secp256k1 key
+        bytes1 viewTag; // first byte of the shared secret's hash; lets the payee skip most streams cheaply
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Emitted when the owner allowlists a wrapper
-    /// @param token The wrapper added
-    event TokenAdded(IFHERC20 indexed token);
+    /// @notice Emitted when a stealth stream is created, in ERC-5564's shape so stealth indexers find it
+    /// @param schemeId 1: secp256k1 with view tags
+    /// @param stealthAddress The one-time payee address
+    /// @param caller The payer
+    /// @param ephemeralPubKey The payer's ephemeral public key
+    /// @param metadata The view tag, then the stream id as 32 bytes
+    event Announcement(
+        uint256 indexed schemeId,
+        address indexed stealthAddress,
+        address indexed caller,
+        bytes ephemeralPubKey,
+        bytes metadata
+    );
 
-    /// @notice Emitted when the owner removes a wrapper from the allowlist
-    /// @param token The wrapper removed
-    event TokenRemoved(IFHERC20 indexed token);
+    /// @notice Emitted when the owner allowlists a token
+    /// @param token The token added
+    event TokenAdded(IERC20 indexed token);
+
+    /// @notice Emitted when the owner removes a token from the allowlist
+    /// @param token The token removed
+    event TokenRemoved(IERC20 indexed token);
 
     /// @notice Emitted when a payer registers an org
     /// @param payer The payer
     /// @param name The org name
     event OrgCreated(address indexed payer, string name);
 
-    /// @notice Emitted when a payer funds a vault. Carries no amount.
+    /// @notice Emitted when a payer funds a vault
     /// @param payer The payer
-    /// @param token The wrapper funded
-    event VaultFunded(address indexed payer, IFHERC20 indexed token);
+    /// @param token The token funded
+    /// @param amount The amount credited
+    event VaultFunded(address indexed payer, IERC20 indexed token, uint256 amount);
+
+    /// @notice Emitted when a payer takes unallocated money back out of a vault
+    /// @param payer The payer
+    /// @param token The token
+    /// @param amount The amount taken out
+    event VaultDefunded(address indexed payer, IERC20 indexed token, uint256 amount);
 
     /// @notice Emitted when a stream is created
     /// @param id The stream id
     /// @param payer The payer
     /// @param payee The payee
-    /// @param token The wrapper the stream pays in
-    /// @param monthlyHandle Handle to the encrypted monthly salary
+    /// @param token The token the stream pays in
+    /// @param monthly The monthly salary
     event StreamCreated(
-        uint256 indexed id, address indexed payer, address indexed payee, IFHERC20 token, bytes32 monthlyHandle
+        uint256 indexed id, address indexed payer, address indexed payee, IERC20 token, uint256 monthly
     );
-
-    /// @notice Emitted when a stream asks the policy whether it needs approval
-    /// @param id The stream id
-    /// @param handle Handle to the encrypted `needsApproval` bit; publicly decryptable
-    event PolicyCheckRequested(uint256 indexed id, bytes32 handle);
 
     /// @notice Emitted when a stream needs approvals before it can start
     /// @param id The stream id
@@ -95,25 +116,23 @@ interface IVeilPayroll {
     /// @param startTime When accrual starts
     event StreamActivated(uint256 indexed id, uint64 startTime);
 
-    /// @notice Emitted on every withdraw, even one that pays 0
+    /// @notice Emitted when a payee withdraws
     /// @param id The stream id
-    /// @param withdrawnHandle Handle to the new encrypted total withdrawn
-    event Withdrawn(uint256 indexed id, bytes32 withdrawnHandle);
+    /// @param to Where the money went
+    /// @param amount The amount paid
+    event Withdrawn(uint256 indexed id, address indexed to, uint256 amount);
 
-    /// @notice Emitted when a payer sets money aside for a period. Carries no amounts.
+    /// @notice Emitted when a payer sets money aside for a period
     /// @param payer The payer
-    /// @param token The wrapper paid in
+    /// @param token The token paid in
     /// @param periodEnd End of the period the money is for
     /// @param streams How many streams were funded
-    event PayrollRun(address indexed payer, IFHERC20 indexed token, uint64 periodEnd, uint256 streams);
+    /// @param spent Total set aside
+    event PayrollRun(address indexed payer, IERC20 indexed token, uint64 periodEnd, uint256 streams, uint256 spent);
 
     /// @notice Emitted when a payer cancels a stream
     /// @param id The stream id
     event StreamCancelled(uint256 indexed id);
-
-    /// @notice Emitted once, when the owner sets the credential contract
-    /// @param credential The IncomeCredential contract
-    event CredentialSet(address indexed credential);
 
     /*//////////////////////////////////////////////////////////////
                            EXTERNAL FUNCTIONS
@@ -123,43 +142,47 @@ interface IVeilPayroll {
     /// @param name Org name shown on credentials
     function createOrg(string calldata name) external;
 
-    /// @notice Allowlists a confidential wrapper. Owner only.
-    /// @param token The wrapper to accept
-    function addToken(IFHERC20 token) external;
+    /// @notice Allowlists a token. Owner only.
+    /// @param token The token to accept
+    function addToken(IERC20 token) external;
 
-    /// @notice Removes a wrapper from the allowlist; existing streams keep withdrawing. Owner only.
-    /// @param token The wrapper to remove
-    function removeToken(IFHERC20 token) external;
+    /// @notice Removes a token from the allowlist; existing streams keep withdrawing. Owner only.
+    /// @param token The token to remove
+    function removeToken(IERC20 token) external;
 
-    /// @notice Sets the IncomeCredential contract, which gets access to every new stream's `monthly`.
-    ///         Owner only, and only once.
-    /// @param credential The IncomeCredential contract
-    function setCredential(address credential) external;
+    /// @notice Pulls `amount` of `token` from the caller into their vault for that token
+    /// @dev Caller must first approve payroll for `amount`
+    /// @param token An allowlisted token
+    /// @param amount Amount to fund, in the token's units
+    function fundVault(IERC20 token, uint256 amount) external;
 
-    /// @notice Pulls an encrypted amount of `token` from the caller into their vault for that token
-    /// @dev Caller must first call `token.setOperator(payroll, until)`
-    /// @param token An allowlisted confidential wrapper
-    /// @param amount Encrypted amount to fund, in the token's 6-decimal units
-    /// @param proof Proof that verifies `amount`
-    function fundVault(IFHERC20 token, externalEuint64 amount, bytes calldata proof) external;
+    /// @notice Sends unallocated money from the caller's vault back to them
+    /// @param token The token
+    /// @param amount Amount to take out
+    function defundVault(IERC20 token, uint256 amount) external;
 
-    /// @notice Starts an encrypted salary stream from the caller to `payee`, paid in `token`
-    /// @dev The stream waits in `AwaitingPolicy` until `resolvePolicy` is called
+    /// @notice Starts a salary stream from the caller to `payee`, paid in `token`
+    /// @dev Active right away, or Pending if the payer's policy says the salary needs approval
     /// @param payee The worker being paid
-    /// @param token An allowlisted confidential wrapper
-    /// @param monthly Encrypted monthly salary, in the token's 6-decimal units
-    /// @param proof Proof that verifies `monthly`
+    /// @param token An allowlisted token
+    /// @param monthly Monthly salary, in the token's units
     /// @return id The new stream's id
-    function createStream(address payee, IFHERC20 token, externalEuint64 monthly, bytes calldata proof)
-        external
-        returns (uint256 id);
+    function createStream(address payee, IERC20 token, uint256 monthly) external returns (uint256 id);
 
-    /// @notice Applies the decrypted `needsApproval` bit to a stream: Pending if true, Active if false
-    /// @dev Anyone can call it; the signature proves the result
-    /// @param id The stream to resolve
-    /// @param needsApproval The decrypted bit
-    /// @param sig Decrypt signature over `(handle, needsApproval)`
-    function resolvePolicy(uint256 id, bool needsApproval, bytes calldata sig) external;
+    /// @notice Starts a salary stream to a one-time stealth address, and announces it for the payee to find
+    /// @param stealthPayee The one-time address derived from the payee's meta-address
+    /// @param token An allowlisted token
+    /// @param monthly Monthly salary, in the token's units
+    /// @param ephemeralPubKey The 33-byte compressed ephemeral key used to derive `stealthPayee`
+    /// @param viewTag The first byte of the shared secret's hash
+    /// @return id The new stream's id
+    function createStealthStream(
+        address stealthPayee,
+        IERC20 token,
+        uint256 monthly,
+        bytes calldata ephemeralPubKey,
+        bytes1 viewTag
+    ) external returns (uint256 id);
 
     /// @notice Activates a pending stream once it has enough approvals on the policy
     /// @dev Anyone can call it
@@ -171,17 +194,24 @@ interface IVeilPayroll {
     /// @dev The budget is capped at the vault. Unused budget stays in the vault.
     ///      A stream funded mid-period gets its salary pro rata for the time left.
     ///      Run it again in the same period to fund streams that started after the first run.
-    /// @param token The wrapper to pay in
-    /// @param budget Encrypted most to set aside this period, in the token's 6-decimal units
-    /// @param proof Proof that verifies `budget`
+    /// @param token The token to pay in
+    /// @param budget Most to set aside this period, in the token's units
     /// @param ids Active streams of the caller in `token`, not yet funded this period
-    function runPayroll(IFHERC20 token, externalEuint64 budget, bytes calldata proof, uint256[] calldata ids) external;
+    function runPayroll(IERC20 token, uint256 budget, uint256[] calldata ids) external;
 
-    /// @notice Withdraws up to the streamed, unwithdrawn amount; pays 0 instead of reverting on over-withdrawal
+    /// @notice Withdraws `amount` of what has streamed and not been withdrawn, to the payee
     /// @param id The stream to withdraw from
-    /// @param amount Encrypted amount requested
-    /// @param proof Proof that verifies `amount`
-    function withdraw(uint256 id, externalEuint64 amount, bytes calldata proof) external;
+    /// @param amount Amount requested; must be <= `available(id)`
+    function withdraw(uint256 id, uint256 amount) external;
+
+    /// @notice Withdraws for the payee, who signed it. Anyone can send it, so a stealth payee needs no gas.
+    /// @param id The stream to withdraw from
+    /// @param amount Amount requested; must be <= `available(id)`
+    /// @param to Where the money goes
+    /// @param deadline Timestamp after which the signature is no longer accepted
+    /// @param signature The payee's EIP-712 signature over `Withdraw(id, amount, to, nonce, deadline)`
+    function withdrawWithSig(uint256 id, uint256 amount, address to, uint256 deadline, bytes calldata signature)
+        external;
 
     /// @notice Cancels a stream at any stage. What it streamed stays the payee's; the rest of this
     ///         period's allocation goes back to the vault. Payer only.
@@ -197,14 +227,24 @@ interface IVeilPayroll {
     /// @return The org; `exists` is false if none
     function orgOf(address payer) external view returns (Org memory);
 
-    /// @notice Returns the IncomeCredential contract
-    /// @return The credential address; zero until set
-    function credential() external view returns (address);
-
     /// @notice Returns a stream by id
     /// @param id The stream to look up
     /// @return The stream
     function getStream(uint256 id) external view returns (Stream memory);
+
+    /// @notice Returns what a stream has streamed and not yet paid out
+    /// @param id The stream to look up
+    /// @return The withdrawable amount
+    function available(uint256 id) external view returns (uint256);
+
+    /// @notice Returns a stealth stream's announcement; empty for a plain stream
+    /// @param id The stream to look up
+    /// @return The announcement
+    function announcementOf(uint256 id) external view returns (StealthAnnouncement memory);
+
+    /// @notice Returns how many streams exist; ids run from 1 to this
+    /// @return The stream count
+    function streamCount() external view returns (uint256);
 
     /// @notice Returns the ids of all streams a payer created
     /// @param payer The payer to look up
@@ -216,11 +256,11 @@ interface IVeilPayroll {
     /// @return The stream ids
     function streamsOfPayee(address payee) external view returns (uint256[] memory);
 
-    /// @notice Returns the handle to a payer's encrypted vault balance for one token
+    /// @notice Returns a payer's unallocated vault balance for one token
     /// @param payer The payer to look up
-    /// @param token The wrapper to look up
-    /// @return The vault handle
-    function vaultOf(address payer, IFHERC20 token) external view returns (euint64);
+    /// @param token The token to look up
+    /// @return The balance
+    function vaultOf(address payer, IERC20 token) external view returns (uint256);
 
     /// @notice Returns when the pay period containing `timestamp` ends
     /// @param timestamp Any time

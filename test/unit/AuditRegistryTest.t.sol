@@ -4,10 +4,8 @@ pragma solidity 0.8.25;
 /*//////////////////////////////////////////////////////////////
                             IMPORTS
 //////////////////////////////////////////////////////////////*/
-import {FHE, euint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 import {AuditRegistry} from "src/AuditRegistry.sol";
 import {IAuditRegistry} from "src/interfaces/IAuditRegistry.sol";
-import {AuditHarness} from "../mocks/AuditHarness.sol";
 import {VeilTestBase} from "../utils/VeilTestBase.sol";
 
 /*//////////////////////////////////////////////////////////////
@@ -17,7 +15,7 @@ import {VeilTestBase} from "../utils/VeilTestBase.sol";
 /**
  * @title AuditRegistryTest
  * @author Kelechi Kizito Ugwu
- * @notice Unit tests for `AuditRegistry` and the `AuditAccess` helper on CoFHE mocks.
+ * @notice Unit tests for `AuditRegistry`.
  * @dev Covers add/list/remove, input checks, the cap, per-payer separation,
  *      and sticky access: a removed auditor keeps old handles but not new ones.
  */
@@ -29,20 +27,15 @@ contract AuditRegistryTest is VeilTestBase {
     /// @notice Contract under test
     AuditRegistry internal registry;
 
-    /// @notice Stand-in for payroll that shares handles with auditors
-    AuditHarness internal harness;
-
     /*//////////////////////////////////////////////////////////////
                                  SETUP
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deploys the shared base, the registry and the harness
+    /// @notice Deploys the shared base and the registry
     function setUp() public override {
         super.setUp();
         registry = new AuditRegistry();
-        harness = new AuditHarness(registry);
         vm.label(address(registry), "AuditRegistry");
-        vm.label(address(harness), "AuditHarness");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -174,27 +167,6 @@ contract AuditRegistryTest is VeilTestBase {
 
     /*//////////////////////////////////////////////////////////////
                               STICKY ACCESS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice 4. A removed auditor keeps access to old handles but not to new ones (known risk, §8)
-    function test_removedAuditorKeepsOldHandlesOnly() public {
-        vm.prank(employer);
-        registry.addAuditor(alice);
-
-        euint64 oldHandle = harness.createHandle(employer, 1);
-        assertTrue(FHE.isAllowed(oldHandle, alice));
-        assertFalse(FHE.isAllowed(oldHandle, bob));
-
-        vm.prank(employer);
-        registry.removeAuditor(alice);
-
-        euint64 newHandle = harness.createHandle(employer, 2);
-        assertTrue(FHE.isAllowed(oldHandle, alice)); // sticky: FHE.allow can't be undone
-        assertFalse(FHE.isAllowed(newHandle, alice));
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                   FUZZ
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Any valid auditor can be added and removed, leaving the set empty

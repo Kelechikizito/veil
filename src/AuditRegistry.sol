@@ -7,9 +7,8 @@ import {IAuditRegistry} from "src/interfaces/IAuditRegistry.sol";
 /**
  * @title AuditRegistry
  * @author Kelechi Kizito Ugwu
- * @notice Each payer keeps a small set of auditors who may read their payroll handles.
- * @dev Only answers "who are the auditors?". Payroll owns the handles, so payroll calls `FHE.allow`.
- *      Removing an auditor only stops access to handles created afterwards.
+ * @notice Each payer keeps a small set of auditors who check their books.
+ * @dev Only answers "who are the auditors?". The auditor view reads payroll directly.
  */
 contract AuditRegistry is IAuditRegistry {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -37,7 +36,7 @@ contract AuditRegistry is IAuditRegistry {
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Most auditors a payer can have. Payroll loops over the set on every handle update.
+    /// @notice Most auditors a payer can have
     uint256 public constant MAX_AUDITORS = 5;
 
     /// @notice Each payer's auditor set

@@ -6,7 +6,6 @@ pragma solidity 0.8.25;
 //////////////////////////////////////////////////////////////*/
 import {Test} from "forge-std/Test.sol";
 import {ApprovalPolicy} from "src/ApprovalPolicy.sol";
-import {AuditRegistry} from "src/AuditRegistry.sol";
 import {VeilPayroll} from "src/VeilPayroll.sol";
 import {JoinRequests} from "src/JoinRequests.sol";
 import {IJoinRequests} from "src/interfaces/IJoinRequests.sol";
@@ -18,7 +17,7 @@ import {IJoinRequests} from "src/interfaces/IJoinRequests.sol";
 /**
  * @title JoinRequestsTest
  * @author Kelechi Kizito Ugwu
- * @notice Unit tests for `JoinRequests`. No FHE: payroll's constructor and `createOrg` are plaintext.
+ * @notice Unit tests for `JoinRequests`.
  */
 contract JoinRequestsTest is Test {
     /*//////////////////////////////////////////////////////////////
@@ -42,7 +41,7 @@ contract JoinRequestsTest is Test {
 
     /// @notice Deploys payroll and the requests contract, and gives the employer an org
     function setUp() public {
-        payroll = new VeilPayroll(address(new ApprovalPolicy()), address(new AuditRegistry()), 600);
+        payroll = new VeilPayroll(address(new ApprovalPolicy()), 600);
         requests = new JoinRequests(address(payroll));
         vm.prank(employer);
         payroll.createOrg("Acme Labs");

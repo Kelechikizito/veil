@@ -7,14 +7,12 @@
 #   --account  chooses the keystore that SIGNS
 #   --sender   sets msg.sender INSIDE the script
 # Foundry infers neither from the other. If they disagree, the simulation runs as one address
-# and the broadcast signs as another, so ownership of payroll, policy and the human registry
+# and the broadcast signs as another, so ownership of payroll
 # ends up on the wrong key. `make check-deployer` compares them.
 
 ##@ Configuration
 
-# Base Sepolia stays the default until the contracts run on Monad: CoFHE isn't live there yet.
-# Use CHAIN=monad_testnet for Monad.
-CHAIN       ?= base_sepolia
+CHAIN       ?= monad_testnet
 ACCOUNT     ?= sepolia-acc
 SENDER      ?= $(shell grep -E '^DEPLOYER=' .env 2>/dev/null | cut -d= -f2)
 
@@ -23,7 +21,6 @@ SENDER      ?= $(shell grep -E '^DEPLOYER=' .env 2>/dev/null | cut -d= -f2)
 DEMO_PERIOD ?= 600
 
 # Chain ids, for the deployments/<chainId>.json files
-CHAIN_ID_base_sepolia     := 84532
 CHAIN_ID_monad_testnet    := 10143
 CHAIN_ID                  := $(CHAIN_ID_$(CHAIN))
 
@@ -33,7 +30,7 @@ DEPLOY_SCRIPT := script/deployment/DeployScript.s.sol
 BROADCAST     := --rpc-url $(CHAIN) --account $(ACCOUNT) --sender $(SENDER) --broadcast
 READONLY      := --rpc-url $(CHAIN) --sender $(SENDER)
 
-# Etherscan V2 verification on Monadscan or Basescan. The key is ETHERSCAN_API_KEY in .env (a V2 key
+# Etherscan V2 verification on Monadscan. The key is ETHERSCAN_API_KEY in .env (a V2 key
 # covers every chain) and foundry.toml's [etherscan] section passes it, so --verify needs no key here.
 VERIFY        := --verify
 
@@ -52,7 +49,7 @@ check-%:
 .PHONY: check-chain
 check-chain:
 	@if [ -z "$(CHAIN_ID)" ]; then \
-		echo "error: CHAIN must be monad_testnet or base_sepolia (got '$(CHAIN)')"; \
+		echo "error: CHAIN must be monad_testnet (got '$(CHAIN)')"; \
 		exit 1; \
 	fi
 
@@ -88,10 +85,9 @@ build: ## Compile
 sizes: ## Compile and print contract sizes against the 24KB limit
 	forge build --sizes
 
-# foundry.toml raises code_size_limit for the CoFHE mocks, so forge never enforces EIP-170 itself.
-# This checks the contracts that actually go onchain against the real 24,576-byte limit.
-DEPLOYED := ApprovalPolicy AuditRegistry ConfidentialNative ConfidentialToken VeilPayroll ERC20ConfidentialLib \
-            ERC20_Harness EmployeeRegistry IncomeCredential JoinRequests
+# Monad allows 128 KB, but staying under Ethereum's 24,576 bytes keeps the contracts portable.
+DEPLOYED := ApprovalPolicy AuditRegistry DemoToken VeilPayroll EmployeeRegistry IncomeCredential JoinRequests \
+            StealthRegistry
 
 .PHONY: check-sizes
 check-sizes: ## Fail if any deployed contract is over the 24,576-byte EIP-170 limit
@@ -104,7 +100,7 @@ check-sizes: ## Fail if any deployed contract is over the 24,576-byte EIP-170 li
 			if (bad) { print "error: " bad " contract(s) over 24,576 bytes"; exit 1 } }'
 
 .PHONY: test
-test: ## Run the test suite on CoFHE mocks (fork tests skip themselves)
+test: ## Run the test suite (fork tests skip themselves)
 	forge test -vvv
 
 .PHONY: coverage
@@ -115,12 +111,10 @@ coverage: ## Line and branch coverage summary (target: 80% lines on src/)
 clean: ## Delete build artifacts and the fork cache
 	forge clean
 
-##@ Fork tests — real CoFHE TaskManager, no gas spent
+##@ Fork tests — Monad testnet, no gas spent
 
-# Runs the real deploy script against a fork, then checks deployments/<chainId>.json if it exists.
-#
-#   make test-fork                    # Base Sepolia
-#   make test-fork CHAIN=monad_testnet
+# Runs the real deploy script and a full payroll cycle on a fork, then checks
+# deployments/<chainId>.json if it exists.
 
 .PHONY: test-fork
 test-fork: check-chain ## Run the fork tests on CHAIN
@@ -128,13 +122,13 @@ test-fork: check-chain ## Run the fork tests on CHAIN
 
 ##@ Checkpoint 8 — deploy
 
-# One script deploys and wires all eleven contracts, then writes deployments/<chainId>.json.
+# One script deploys and wires all eight contracts, then writes deployments/<chainId>.json.
 # Check, dry-run, deploy, export, re-test:
 #
 #   make check-deployer
 #   make balance
 #   make deploy-dry
-#   make deploy                       # same as make deploy-base
+#   make deploy
 #   make export-abis
 #   make test-fork
 
@@ -148,7 +142,7 @@ check-deployer: check-SENDER ## Confirm the ACCOUNT keystore signs as SENDER (as
 	fi
 
 .PHONY: balance
-balance: check-chain check-SENDER ## Show SENDER's native balance (ETH or MON) on CHAIN
+balance: check-chain check-SENDER ## Show SENDER's MON on CHAIN
 	@echo "$(SENDER) on $(CHAIN): $$(cast balance $(SENDER) --ether --rpc-url $(CHAIN))"
 
 .PHONY: deploy-dry
@@ -161,16 +155,6 @@ deploy-dry: check-chain check-SENDER ## Simulate the whole deploy on CHAIN, free
 deploy: check-chain check-SENDER check-sizes ## Deploy, wire and verify everything on CHAIN
 	DEMO_PERIOD=$(DEMO_PERIOD) forge script $(DEPLOY_SCRIPT) $(BROADCAST) $(VERIFY) -vvvv || \
 		{ rm -f deployments/$(CHAIN_ID).json; echo "deploy failed: removed deployments/$(CHAIN_ID).json"; exit 1; }
-
-.PHONY: deploy-base
-deploy-base: ## Deploy to Base Sepolia (same as make deploy)
-	$(MAKE) deploy CHAIN=base_sepolia
-
-# The contracts deploy on Monad, but every encrypted call reverts there until CoFHE runs on Monad
-# or the privacy decision in CLAUDE.md replaces it. About 5.5 MON.
-.PHONY: deploy-monad
-deploy-monad: ## Deploy to Monad testnet (encrypted calls revert there for now)
-	$(MAKE) deploy CHAIN=monad_testnet
 
 # Verification runs after the transactions land, so a failure here leaves deployed but
 # unverified contracts. Nothing to redeploy, just re-run this. It reads the addresses from the
@@ -188,46 +172,45 @@ deployment: check-chain ## Print CHAIN's deployed addresses
 export-abis: build ## Copy ABIs and every chain's addresses into frontend/lib/contracts/
 	script/export-abis.sh
 
-##@ Interactions — plaintext calls into CHAIN's deployment
+##@ Interactions — calls into CHAIN's deployment
 
 # script/interaction/InteractionsScript.s.sol, one function per target. Reads deployments/<chainId>.json,
-# so deploy first. Encrypted calls (fundVault, createStream, setThreshold, withdraw) and resolvePolicy
-# need Fhenix's off-chain encryption or decryption: do those in the app.
+# so deploy first. Amounts are raw integers in USDC's 6 decimals: 3000000000 is 3,000 USDC.
 #
-#   make mint-demo                        # 10,000 USDC + 1,000 ARB to you
-#   make shield-usdc AMOUNT=5000000000    # 5,000 USDC → cUSDC (6 decimals)
-#   make set-operator                     # let payroll pull your confidential tokens
+#   make mint-demo                        # 10,000 USDC to you
 #   make create-org NAME="Acme Labs"
-#   make set-policy APPROVERS="[0xabc...,0xdef...]" REQUIRED=2
+#   make fund-vault AMOUNT=5000000000
+#   make create-stream PAYEE=0x... MONTHLY=3000000000
+#   make run-payroll BUDGET=5000000000
 #   make status                           # read-only, no password
-#
-# Amounts are raw integers in the token's decimals. Add CHAIN=monad_testnet for Monad.
 
 INTERACT := script/interaction/InteractionsScript.s.sol
 USDC     ?= 10000000000
-ARB      ?= 1000000000000000000000
-ETH_WEI  ?= 10000000000000000
 WHO      ?= $(SENDER)
 
 .PHONY: mint-demo
-mint-demo: check-chain check-SENDER ## Mint demo USDC and ARB to you (USDC=, ARB= raw amounts)
-	forge script $(INTERACT) --sig "mintDemoTokens(uint256,uint256)" $(USDC) $(ARB) $(BROADCAST)
+mint-demo: check-chain check-SENDER ## Mint demo USDC to you (USDC= raw amount, default 10,000)
+	forge script $(INTERACT) --sig "mintDemo(uint256)" $(USDC) $(BROADCAST)
 
-.PHONY: shield-usdc
-shield-usdc: check-chain check-SENDER check-AMOUNT ## Shield USDC into cUSDC (AMOUNT, 6 decimals)
-	forge script $(INTERACT) --sig "shieldUsdc(uint256)" $(AMOUNT) $(BROADCAST)
+.PHONY: fund-vault
+fund-vault: check-chain check-SENDER check-AMOUNT ## Move your USDC into your payroll vault (AMOUNT)
+	forge script $(INTERACT) --sig "fundVault(uint256)" $(AMOUNT) $(BROADCAST)
 
-.PHONY: shield-arb
-shield-arb: check-chain check-SENDER check-AMOUNT ## Shield ARB into cARB (AMOUNT, 18 decimals)
-	forge script $(INTERACT) --sig "shieldArb(uint256)" $(AMOUNT) $(BROADCAST)
+.PHONY: set-threshold
+set-threshold: check-chain check-SENDER check-THRESHOLD ## Monthly salary above which streams need approval (THRESHOLD)
+	forge script $(INTERACT) --sig "setThreshold(uint256)" $(THRESHOLD) $(BROADCAST)
 
-.PHONY: shield-eth
-shield-eth: check-chain check-SENDER ## Shield native ETH into cETH (ETH_WEI, default 0.01 ETH)
-	forge script $(INTERACT) --sig "shieldEth(uint256)" $(ETH_WEI) $(BROADCAST)
+.PHONY: create-stream
+create-stream: check-chain check-SENDER check-PAYEE check-MONTHLY ## Start a USDC salary (PAYEE=0x... MONTHLY=)
+	forge script $(INTERACT) --sig "createStream(address,uint256)" $(PAYEE) $(MONTHLY) $(BROADCAST)
 
-.PHONY: set-operator
-set-operator: check-chain check-SENDER ## Let payroll pull your cUSDC, cARB and cETH (needed before funding)
-	forge script $(INTERACT) --sig "setPayrollOperator()" $(BROADCAST)
+.PHONY: run-payroll
+run-payroll: check-chain check-SENDER check-BUDGET ## Fund this period for all your streams (BUDGET=)
+	forge script $(INTERACT) --sig "runPayroll(uint256)" $(BUDGET) $(BROADCAST)
+
+.PHONY: withdraw
+withdraw: check-chain check-SENDER check-STREAM check-AMOUNT ## Withdraw your pay (STREAM=1 AMOUNT=)
+	forge script $(INTERACT) --sig "withdraw(uint256,uint256)" $(STREAM) $(AMOUNT) $(BROADCAST)
 
 .PHONY: create-org
 create-org: check-chain check-SENDER check-NAME ## Register as an employer (NAME="Acme Labs")
@@ -258,11 +241,11 @@ cancel-stream: check-chain check-SENDER check-STREAM ## Cancel one of your strea
 	forge script $(INTERACT) --sig "cancelStream(uint256)" $(STREAM) $(BROADCAST)
 
 .PHONY: add-token
-add-token: check-chain check-SENDER check-TOKEN ## Allowlist another wrapper, owner only (TOKEN=0x...)
+add-token: check-chain check-SENDER check-TOKEN ## Allowlist another token, owner only (TOKEN=0x...)
 	forge script $(INTERACT) --sig "addToken(address)" $(TOKEN) $(BROADCAST)
 
 .PHONY: remove-token
-remove-token: check-chain check-SENDER check-TOKEN ## Remove a wrapper from the allowlist, owner only (TOKEN=0x...)
+remove-token: check-chain check-SENDER check-TOKEN ## Remove a token from the allowlist, owner only (TOKEN=0x...)
 	forge script $(INTERACT) --sig "removeToken(address)" $(TOKEN) $(BROADCAST)
 
 .PHONY: vouch

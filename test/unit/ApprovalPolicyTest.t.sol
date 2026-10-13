@@ -4,11 +4,8 @@ pragma solidity 0.8.25;
 /*//////////////////////////////////////////////////////////////
                             IMPORTS
 //////////////////////////////////////////////////////////////*/
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {FHE, ebool, euint64, externalEuint64, sharedEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 import {ApprovalPolicy} from "src/ApprovalPolicy.sol";
 import {IApprovalPolicy} from "src/interfaces/IApprovalPolicy.sol";
-import {PayrollHarness} from "../mocks/PayrollHarness.sol";
 import {VeilTestBase} from "../utils/VeilTestBase.sol";
 
 /*//////////////////////////////////////////////////////////////
@@ -18,9 +15,8 @@ import {VeilTestBase} from "../utils/VeilTestBase.sol";
 /**
  * @title ApprovalPolicyTest
  * @author Kelechi Kizito Ugwu
- * @notice Unit tests for `ApprovalPolicy` on CoFHE mocks.
- * @dev `PayrollHarness` stands in for payroll, so `evaluate` can be tested before `VeilPayroll` exists.
- *      Amounts are in 6-decimal units: 10_000e6 is 10,000 cUSDC, 1e6 is 1 cETH.
+ * @notice Unit tests for `ApprovalPolicy`.
+ * @dev USDC amounts are in 6 decimals: 10_000e6 is 10,000 USDC.
  */
 contract ApprovalPolicyTest is VeilTestBase {
     /*//////////////////////////////////////////////////////////////
@@ -30,9 +26,6 @@ contract ApprovalPolicyTest is VeilTestBase {
     /// @notice Contract under test
     ApprovalPolicy internal policy;
 
-    /// @notice Stand-in for payroll, the only caller allowed to use `evaluate`
-    PayrollHarness internal harness;
-
     /// @notice A stream id used in approval tests
     uint256 internal constant STREAM_ID = 1;
 
@@ -40,121 +33,69 @@ contract ApprovalPolicyTest is VeilTestBase {
                                  SETUP
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deploys the shared base, the policy and the harness, and wires the harness as payroll
+    /// @notice Deploys the shared base and the policy
     function setUp() public override {
         super.setUp();
         policy = new ApprovalPolicy();
-        harness = new PayrollHarness(policy);
-        policy.setPayroll(address(harness));
         vm.label(address(policy), "ApprovalPolicy");
-        vm.label(address(harness), "PayrollHarness");
     }
 
     /*//////////////////////////////////////////////////////////////
                                THRESHOLDS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice 1. `setThreshold` stores the encrypted value; only the payer can read it
+    /// @notice 1. `setThreshold` stores the value per payer and token
     function test_setThreshold() public {
-        (externalEuint64 handle, bytes memory proof) = employerClient.createExternalEuint64(10_000e6, address(policy));
-        vm.expectEmit(true, true, false, false, address(policy));
-        emit IApprovalPolicy.ThresholdSet(employer, address(cusdc));
-        vm.prank(employer);
-        policy.setThreshold(address(cusdc), handle, proof);
+        vm.expectEmit(true, true, false, true, address(policy));
+        emit IApprovalPolicy.ThresholdSet(employer, address(usdc), 10_000e6);
+        _setThreshold(address(usdc), 10_000e6);
 
-        assertTrue(policy.hasThreshold(employer, address(cusdc)));
-        assertFalse(policy.hasThreshold(employer, address(ceth)));
-
-        euint64 threshold = policy.thresholdOf(employer, address(cusdc));
-        expectPlaintext(threshold, uint64(10_000e6));
-        assertTrue(FHE.isAllowed(threshold, employer));
-        assertFalse(FHE.isAllowed(threshold, bob));
+        assertTrue(policy.hasThreshold(employer, address(usdc)));
+        assertFalse(policy.hasThreshold(employer, address(eurc)));
+        assertEq(policy.thresholdOf(employer, address(usdc)), 10_000e6);
+        assertEq(policy.thresholdOf(bob, address(usdc)), 0);
     }
 
     /// @notice 1b. A threshold for the zero token reverts
     function test_setThreshold_revertsOnZeroToken() public {
-        (externalEuint64 handle, bytes memory proof) = employerClient.createExternalEuint64(1, address(policy));
         vm.prank(employer);
         vm.expectRevert(ApprovalPolicy.ApprovalPolicy__ZeroAddress.selector);
-        policy.setThreshold(address(0), handle, proof);
+        policy.setThreshold(address(0), 1);
     }
 
     /*//////////////////////////////////////////////////////////////
-                                EVALUATE
+                             NEEDS APPROVAL
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice 2. Above the threshold needs approval; below or equal doesn't (it's `gt`)
-    function test_evaluate_comparesAgainstThreshold() public {
+    /// @notice 2. Above the threshold needs approval; at or below doesn't
+    function test_needsApproval_comparesAgainstThreshold() public {
         _setTwoOfTwoPolicy();
-        _setThreshold(address(cusdc), 10_000e6);
-
-        expectPlaintext(_evaluate(address(cusdc), 12_000e6), true);
-        expectPlaintext(_evaluate(address(cusdc), 8_000e6), false);
-        expectPlaintext(_evaluate(address(cusdc), 10_000e6), false);
+        _setThreshold(address(usdc), 10_000e6);
+        assertTrue(policy.needsApproval(employer, address(usdc), 12_000e6));
+        assertFalse(policy.needsApproval(employer, address(usdc), 8_000e6));
+        assertFalse(policy.needsApproval(employer, address(usdc), 10_000e6));
     }
 
-    /// @notice 3. With no policy, nothing needs approval, even with a threshold set
-    function test_evaluate_noPolicyIsFalse() public {
-        _setThreshold(address(cusdc), 10_000e6);
-
-        expectPlaintext(_evaluate(address(cusdc), 50_000e6), false);
+    /// @notice 3. With no policy nothing needs approval, even with a threshold
+    function test_needsApproval_noPolicyIsFalse() public {
+        _setThreshold(address(usdc), 10_000e6);
+        assertFalse(policy.needsApproval(employer, address(usdc), 50_000e6));
     }
 
-    /// @notice 4. With a policy but no threshold for the token, approval is needed (fail closed)
-    function test_evaluate_missingThresholdFailsClosed() public {
+    /// @notice 4. A policy but no threshold for the token fails closed
+    function test_needsApproval_missingThresholdFailsClosed() public {
         _setTwoOfTwoPolicy();
-        _setThreshold(address(cusdc), 10_000e6);
-
-        expectPlaintext(_evaluate(address(ceth), 1), true);
+        _setThreshold(address(usdc), 10_000e6);
+        assertTrue(policy.needsApproval(employer, address(eurc), 1));
     }
 
-    /// @notice 5. Thresholds are per token: 1 cETH is under a 2 cETH threshold, whatever cUSDC's is
-    function test_evaluate_thresholdsArePerToken() public {
+    /// @notice 5. Thresholds are per token
+    function test_needsApproval_thresholdsArePerToken() public {
         _setTwoOfTwoPolicy();
-        _setThreshold(address(cusdc), 10_000e6);
-        _setThreshold(address(ceth), 2e6);
-
-        expectPlaintext(_evaluate(address(ceth), 1e6), false);
-        expectPlaintext(_evaluate(address(ceth), 3e6), true);
-    }
-
-    /// @notice 5b. The result is allowed to payroll, so payroll can use it in later transactions
-    function test_evaluate_resultAllowedToPayroll() public {
-        _setTwoOfTwoPolicy();
-        _setThreshold(address(cusdc), 10_000e6);
-
-        ebool result = _evaluate(address(cusdc), 12_000e6);
-        assertTrue(FHE.isAllowed(result, address(harness)));
-        assertFalse(FHE.isAllowed(result, bob));
-    }
-
-    /// @notice 6. Only payroll can call `evaluate`
-    function test_evaluate_revertsForNonPayroll() public {
-        vm.prank(bob);
-        vm.expectRevert(ApprovalPolicy.ApprovalPolicy__NotPayroll.selector);
-        policy.evaluate(employer, address(cusdc), sharedEuint64.wrap(bytes32(0)));
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                               SET PAYROLL
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice 6b. Payroll is set once, by the owner, and never to zero
-    function test_setPayroll_ownerOnlyAndOnce() public {
-        ApprovalPolicy fresh = new ApprovalPolicy();
-
-        vm.prank(bob);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
-        fresh.setPayroll(address(harness));
-
-        vm.expectRevert(ApprovalPolicy.ApprovalPolicy__ZeroAddress.selector);
-        fresh.setPayroll(address(0));
-
-        fresh.setPayroll(address(harness));
-        assertEq(fresh.payroll(), address(harness));
-
-        vm.expectRevert(ApprovalPolicy.ApprovalPolicy__PayrollAlreadySet.selector);
-        fresh.setPayroll(bob);
+        _setThreshold(address(usdc), 10_000e6);
+        _setThreshold(address(eurc), 2e6);
+        assertFalse(policy.needsApproval(employer, address(eurc), 1e6));
+        assertTrue(policy.needsApproval(employer, address(eurc), 3e6));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -281,20 +222,11 @@ contract ApprovalPolicyTest is VeilTestBase {
         policy.setPolicy(approvers, 2);
     }
 
-    /// @notice Encrypts `value` as the employer and sets it as the threshold for `token`
-    /// @param token The confidential wrapper
-    /// @param value Threshold in 6-decimal units
-    function _setThreshold(address token, uint64 value) internal {
-        (externalEuint64 handle, bytes memory proof) = employerClient.createExternalEuint64(value, address(policy));
+    /// @notice Sets the employer's threshold for `token`
+    /// @param token The token
+    /// @param value Threshold in the token's units
+    function _setThreshold(address token, uint256 value) internal {
         vm.prank(employer);
-        policy.setThreshold(token, handle, proof);
-    }
-
-    /// @notice Asks the policy, through the harness, whether the employer's salary needs approval
-    /// @param token The confidential wrapper the salary is paid in
-    /// @param monthly Monthly salary in 6-decimal units
-    /// @return The encrypted answer
-    function _evaluate(address token, uint64 monthly) internal returns (ebool) {
-        return harness.evaluate(employer, token, monthly);
+        policy.setThreshold(token, value);
     }
 }

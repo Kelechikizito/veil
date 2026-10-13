@@ -4,9 +4,8 @@ pragma solidity 0.8.25;
 /**
  * @title IAuditRegistry
  * @author Kelechi Kizito Ugwu
- * @notice Lets each payer choose which auditors may read their payroll handles.
- * @dev A plain registry: it only answers "who are the auditors?". The contract that owns a
- *      handle must call `FHE.allow` itself, so payroll does the allowing.
+ * @notice Lets each payer choose which auditors check their books.
+ * @dev A plain registry: it only answers "who are the auditors?".
  */
 interface IAuditRegistry {
     /*//////////////////////////////////////////////////////////////
@@ -32,7 +31,6 @@ interface IAuditRegistry {
     function addAuditor(address auditor) external;
 
     /// @notice Removes an auditor from the caller's (payer's) auditor set
-    /// @dev Removal only affects future handles; access already granted stays (see §8)
     /// @param auditor The address to remove
     function removeAuditor(address auditor) external;
 

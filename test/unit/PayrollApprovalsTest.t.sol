@@ -4,7 +4,6 @@ pragma solidity 0.8.25;
 /*//////////////////////////////////////////////////////////////
                             IMPORTS
 //////////////////////////////////////////////////////////////*/
-import {FHE, ebool, euint64, externalEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 import {VeilPayroll} from "src/VeilPayroll.sol";
 import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
 import {PayrollTestBase} from "../utils/PayrollTestBase.sol";
@@ -16,51 +15,34 @@ import {PayrollTestBase} from "../utils/PayrollTestBase.sol";
 /**
  * @title PayrollApprovalsTest
  * @author Kelechi Kizito Ugwu
- * @notice Tests the payroll ↔ ApprovalPolicy flow: policy check, resolve, k-of-n approval, activate.
- * @dev The employer requires 2 of 2 approvers for cUSDC salaries above 5,000/month.
+ * @notice Payroll and the approval policy together: salaries above the threshold wait for k approvals.
+ * @dev Acme's policy: bob and carol approve, 2 of 2, threshold 10,000 USDC a month.
  */
 contract PayrollApprovalsTest is PayrollTestBase {
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The employer's hidden cUSDC threshold
-    uint64 internal constant THRESHOLD = 5000e6;
+    /// @notice Second approver
+    address internal carol = makeAddr("carol");
 
-    /// @notice A salary under the threshold
-    uint64 internal constant LOW = 3000e6;
-
-    /// @notice A salary over the threshold; accrues 200 per `DAY`
-    uint64 internal constant HIGH = 6000e6;
-
-    /// @notice 1/30 of the period
-    uint64 internal constant DAY = 1 days;
-
-    /// @notice The employer's two approvers
-    address internal approver1;
-    address internal approver2;
+    /// @notice Acme's threshold
+    uint256 internal constant THRESHOLD = 10_000e6;
 
     /*//////////////////////////////////////////////////////////////
                                  SETUP
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Sets a 2-of-2 policy with a 5,000 cUSDC threshold and funds the vault
+    /// @notice Sets Acme's 2-of-2 policy and its USDC threshold
     function setUp() public override {
         super.setUp();
-        approver1 = makeAddr("approver1");
-        approver2 = makeAddr("approver2");
-
         address[] memory approvers = new address[](2);
-        approvers[0] = approver1;
-        approvers[1] = approver2;
-        vm.prank(employer);
+        approvers[0] = bob;
+        approvers[1] = carol;
+        vm.startPrank(employer);
         policy.setPolicy(approvers, 2);
-
-        (externalEuint64 h, bytes memory p) = employerClient.createExternalEuint64(THRESHOLD, address(policy));
-        vm.prank(employer);
-        policy.setThreshold(address(cusdc), h, p);
-
-        _fund(tUsdc, EMPLOYER_USDC);
+        policy.setThreshold(address(usdc), THRESHOLD);
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -69,140 +51,75 @@ contract PayrollApprovalsTest is PayrollTestBase {
 
     /// @inheritdoc PayrollTestBase
     function _period() internal pure override returns (uint64) {
-        return 30 days;
-    }
-
-    /// @notice Returns a stream's status
-    /// @param id The stream
-    /// @return The status
-    function _status(uint256 id) internal view returns (IVeilPayroll.Status) {
-        return payroll.getStream(id).status;
-    }
-
-    /// @notice Both approvers approve stream `id`
-    /// @param id The stream
-    function _approveBoth(uint256 id) internal {
-        vm.prank(approver1);
-        policy.approve(employer, id);
-        vm.prank(approver2);
-        policy.approve(employer, id);
-    }
-
-    /// @notice Asserts that alice can't withdraw from stream `id`
-    /// @param id The stream
-    function _expectWithdrawReverts(uint256 id) internal {
-        (externalEuint64 h, bytes memory p) = _encrypt(aliceClient, 1);
-        vm.prank(alice);
-        vm.expectRevert(VeilPayroll.VeilPayroll__NotWithdrawable.selector);
-        payroll.withdraw(id, h, p);
+        return 600;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  TESTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice 1. Under the threshold: AwaitingPolicy → resolve(false) → Active, starting at resolve time
-    function test_underThreshold_activatesOnResolve() public {
-        uint256 id = _createStream(tUsdc, LOW);
-        assertEq(uint8(_status(id)), uint8(IVeilPayroll.Status.AwaitingPolicy));
-        _expectWithdrawReverts(id);
-
-        vm.warp(block.timestamp + 1 hours); // decryption takes time on a live network
-        (bool needsApproval, bytes memory sig) = _decryptPolicyBit(id);
-        assertFalse(needsApproval);
-
-        vm.expectEmit(true, false, false, true, address(payroll));
-        emit IVeilPayroll.StreamActivated(id, uint64(block.timestamp));
-        payroll.resolvePolicy(id, needsApproval, sig);
-
-        assertEq(uint8(_status(id)), uint8(IVeilPayroll.Status.Active));
-        assertEq(payroll.getStream(id).startTime, block.timestamp);
+    /// @notice 1. A salary at or under the threshold starts Active
+    function test_underThreshold_activates() public {
+        uint256 id = _createStream(usdc, THRESHOLD);
+        assertEq(uint8(payroll.getStream(id).status), uint8(IVeilPayroll.Status.Active));
     }
 
-    /// @notice 2. Over the threshold: resolve(true) → Pending; needs 2 of 2 approvals to activate
+    /// @notice 2. A salary above the threshold waits for 2 approvals, then anyone activates it
     function test_overThreshold_needsApprovals() public {
-        uint256 id = _createStream(tUsdc, HIGH);
-        (bool needsApproval, bytes memory sig) = _decryptPolicyBit(id);
-        assertTrue(needsApproval);
-
         vm.expectEmit(true, false, false, false, address(payroll));
-        emit IVeilPayroll.StreamPending(id);
-        payroll.resolvePolicy(id, needsApproval, sig);
-        assertEq(uint8(_status(id)), uint8(IVeilPayroll.Status.Pending));
-        _expectWithdrawReverts(id);
+        emit IVeilPayroll.StreamPending(1);
+        uint256 id = _createStream(usdc, THRESHOLD + 1);
+        assertEq(uint8(payroll.getStream(id).status), uint8(IVeilPayroll.Status.Pending));
 
-        vm.expectRevert(VeilPayroll.VeilPayroll__NotEnoughApprovals.selector);
-        payroll.activateApproved(id);
-
-        vm.prank(approver1);
+        vm.prank(bob);
         policy.approve(employer, id);
         vm.expectRevert(VeilPayroll.VeilPayroll__NotEnoughApprovals.selector);
         payroll.activateApproved(id);
 
-        vm.prank(approver2);
+        vm.prank(carol);
         policy.approve(employer, id);
         payroll.activateApproved(id);
-        assertEq(uint8(_status(id)), uint8(IVeilPayroll.Status.Active));
+        IVeilPayroll.Stream memory s = payroll.getStream(id);
+        assertEq(uint8(s.status), uint8(IVeilPayroll.Status.Active));
+        assertEq(s.startTime, block.timestamp);
 
         vm.expectRevert(VeilPayroll.VeilPayroll__NotPending.selector);
         payroll.activateApproved(id);
     }
 
-    /// @notice 3. Nothing streams while Pending; once active and funded, pay streams from the payroll run
+    /// @notice 3. A pending stream can't be funded or withdrawn from
     function test_noAccrualWhilePending() public {
-        _warpToPeriodStart();
-        uint256 id = _createStream(tUsdc, HIGH);
-        _resolve(id);
+        _fund(usdc, EMPLOYER_USDC);
+        uint256 id = _createStream(usdc, THRESHOLD + 1);
+        uint256[] memory ids = new uint256[](1);
+        ids[0] = id;
 
-        vm.warp(block.timestamp + DAY);
-        _approveBoth(id);
-        payroll.activateApproved(id);
-        _runPayroll(tUsdc, HIGH, id);
+        vm.prank(employer);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotActive.selector);
+        payroll.runPayroll(usdc, EMPLOYER_USDC, ids);
 
-        _withdraw(id, 1); // nothing accrued yet
-        assertEq(_aliceBalance(tUsdc), 0);
-
-        vm.warp(block.timestamp + DAY);
-        _withdraw(id, 200e6 + 1); // more than one day's pay
-        assertEq(_aliceBalance(tUsdc), 0);
-        _withdraw(id, 200e6);
-        assertEq(_aliceBalance(tUsdc), 200e6);
+        vm.prank(alice);
+        vm.expectRevert(VeilPayroll.VeilPayroll__NotWithdrawable.selector);
+        payroll.withdraw(id, 1);
+        assertEq(payroll.available(id), 0);
     }
 
-    /// @notice 4. Cancelling a Pending stream blocks activation, and it never accrues
+    /// @notice 4. A pending stream can be cancelled, and ends at time 0
     function test_cancelPending() public {
-        uint256 id = _createStream(tUsdc, HIGH);
-        _resolve(id);
-        _approveBoth(id);
-
+        uint256 id = _createStream(usdc, THRESHOLD + 1);
         vm.prank(employer);
         payroll.cancelStream(id);
         IVeilPayroll.Stream memory s = payroll.getStream(id);
         assertEq(uint8(s.status), uint8(IVeilPayroll.Status.Cancelled));
-        assertEq(s.endTime, s.startTime);
-
-        vm.expectRevert(VeilPayroll.VeilPayroll__NotPending.selector);
-        payroll.activateApproved(id);
-
-        vm.warp(block.timestamp + 10 * DAY);
-        _withdraw(id, 1);
-        assertEq(_aliceBalance(tUsdc), 0);
+        assertEq(s.endTime, 0);
     }
 
-    /// @notice 5. Only the policy bit is public; the salary is not
-    function test_onlyPolicyBitIsPublic() public {
-        uint256 id = _createStream(tUsdc, HIGH);
-        IVeilPayroll.Stream memory s = payroll.getStream(id);
-
-        // Anyone can decrypt the bit without a permit
-        (, uint256 bit,) = bobClient.decryptForTx_withoutACP(ebool.unwrap(s.needsApproval));
-        assertEq(bit, 1);
-
-        // ...but not the salary
-        vm.expectRevert();
-        bobClient.decryptForTx_withoutACP(euint64.unwrap(s.monthly));
-
-        // The policy only had the salary for the length of the `evaluate` call
-        assertFalse(FHE.isAllowed(s.monthly, address(policy)));
+    /// @notice 5. A token with no threshold always needs approval (fail closed)
+    function test_missingThresholdFailsClosed() public {
+        _mint(weth, 1);
+        uint256 id;
+        vm.prank(employer);
+        id = payroll.createStream(alice, weth, 1);
+        assertEq(uint8(payroll.getStream(id).status), uint8(IVeilPayroll.Status.Pending));
     }
 }

@@ -4,7 +4,9 @@ pragma solidity 0.8.25;
 /*//////////////////////////////////////////////////////////////
                             IMPORTS
 //////////////////////////////////////////////////////////////*/
-import {FHE, ebool} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+import {Nonces} from "@openzeppelin/contracts/utils/Nonces.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
 import {IEmployeeRegistry} from "src/interfaces/IEmployeeRegistry.sol";
 import {IIncomeCredential} from "src/interfaces/IIncomeCredential.sol";
@@ -16,16 +18,14 @@ import {IIncomeCredential} from "src/interfaces/IIncomeCredential.sol";
 /**
  * @title IncomeCredential
  * @author Kelechi Kizito Ugwu
- * @notice A payee proves "I earn >= X of token T per month" to one verifier. The verifier learns one bit.
- * @dev Compares the stream's stored encrypted `monthly` against a plaintext threshold, so there's no rounding.
- *      Payroll must call `setCredential(this)` before streams are created, so this contract can read `monthly`.
+ * @notice A payee proves "I earn >= X of token T per month" to one verifier.
+ * @dev Compares the stream's `monthly` against the threshold at issue time, so there's no rounding.
  *      Honest limits:
- *      - Expiry ends validity. It can't make a verifier forget a bit they already decrypted.
+ *      - The answer, and the salary behind it, are public onchain. A ZK credential will hide both.
  *      - The result is as of issuance. A later salary change doesn't update it. Short expiries keep it honest.
- *      - It proves what a payroll contract pays, not who the employer is.
  *      - One credential covers one stream in one token. "Across all streams" would need prices.
  */
-contract IncomeCredential is IIncomeCredential {
+contract IncomeCredential is IIncomeCredential, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -45,11 +45,25 @@ contract IncomeCredential is IIncomeCredential {
     /// @notice Thrown when revoking a credential that is already revoked
     error IncomeCredential__AlreadyRevoked();
 
+    /// @notice Thrown when a signature's deadline has passed
+    error IncomeCredential__Expired();
+
+    /// @notice Thrown when a signature isn't the payee's
+    error IncomeCredential__BadSignature();
+
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Payroll, which owns the streams and shares `monthly` with this contract
+    /// @notice EIP-712 typehash for a signed issue
+    bytes32 private constant ISSUE_TYPEHASH = keccak256(
+        "Issue(uint256 streamId,address verifier,uint256 threshold,uint64 expiresAt,uint256 nonce,uint256 deadline)"
+    );
+
+    /// @notice EIP-712 typehash for a signed revoke
+    bytes32 private constant REVOKE_TYPEHASH = keccak256("Revoke(uint256 id,uint256 nonce,uint256 deadline)");
+
+    /// @notice Payroll, which owns the streams
     IVeilPayroll public immutable I_PAYROLL;
 
     /// @notice Employee registry, read at issue time for the "verified employee" flag
@@ -71,10 +85,10 @@ contract IncomeCredential is IIncomeCredential {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Sets payroll and the human registry
+    /// @notice Sets payroll and the employee registry
     /// @param payroll The payroll contract
     /// @param employeeRegistry The employee registry
-    constructor(address payroll, address employeeRegistry) {
+    constructor(address payroll, address employeeRegistry) EIP712("Veil IncomeCredential", "1") {
         if (payroll == address(0)) revert IncomeCredential__ZeroAddress();
         if (employeeRegistry == address(0)) revert IncomeCredential__ZeroAddress();
         I_PAYROLL = IVeilPayroll(payroll);
@@ -86,25 +100,68 @@ contract IncomeCredential is IIncomeCredential {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IIncomeCredential
-    /// @dev `ok` is allowed only to the verifier. The payee already knows their salary.
-    function issue(uint256 streamId, address verifier, uint64 threshold, uint64 expiresAt)
+    function issue(uint256 streamId, address verifier, uint256 threshold, uint64 expiresAt)
         external
+        returns (uint256 id)
+    {
+        id = _issue(msg.sender, streamId, verifier, threshold, expiresAt);
+    }
+
+    /// @inheritdoc IIncomeCredential
+    function issueWithSig(
+        uint256 streamId,
+        address verifier,
+        uint256 threshold,
+        uint64 expiresAt,
+        uint256 deadline,
+        bytes calldata signature
+    ) external returns (uint256 id) {
+        address payee = I_PAYROLL.getStream(streamId).payee;
+        bytes32 structHash =
+            keccak256(abi.encode(ISSUE_TYPEHASH, streamId, verifier, threshold, expiresAt, _useNonce(payee), deadline));
+        _checkSignature(payee, structHash, deadline, signature);
+        id = _issue(payee, streamId, verifier, threshold, expiresAt);
+    }
+
+    /// @inheritdoc IIncomeCredential
+    function revoke(uint256 id) external {
+        _revoke(msg.sender, id);
+    }
+
+    /// @inheritdoc IIncomeCredential
+    function revokeWithSig(uint256 id, uint256 deadline, bytes calldata signature) external {
+        address payee = s_credentials[id].payee;
+        _checkSignature(
+            payee, keccak256(abi.encode(REVOKE_TYPEHASH, id, _useNonce(payee), deadline)), deadline, signature
+        );
+        _revoke(payee, id);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Issues a credential on `payee`'s stream
+    /// @param payee Who is issuing: the caller, or the signer of a relayed issue
+    /// @param streamId The payee's active stream
+    /// @param verifier Who the credential is for
+    /// @param threshold Monthly amount asked about
+    /// @param expiresAt When it stops being valid
+    /// @return id The new credential's id
+    function _issue(address payee, uint256 streamId, address verifier, uint256 threshold, uint64 expiresAt)
+        internal
         returns (uint256 id)
     {
         if (verifier == address(0)) revert IncomeCredential__ZeroAddress();
         // forge-lint: disable-next-line(block-timestamp)
         if (expiresAt <= block.timestamp) revert IncomeCredential__BadExpiry();
         IVeilPayroll.Stream memory s = I_PAYROLL.getStream(streamId);
-        if (s.payee != msg.sender) revert IncomeCredential__NotPayee();
+        if (s.payee != payee) revert IncomeCredential__NotPayee();
         if (s.status != IVeilPayroll.Status.Active) revert IncomeCredential__StreamNotActive();
-
-        ebool ok = FHE.gte(s.monthly, FHE.asEuint64(threshold));
-        FHE.allowThis(ok);
-        FHE.allow(ok, verifier);
 
         id = ++s_credentialCount;
         s_credentials[id] = Credential({
-            payee: msg.sender,
+            payee: payee,
             payer: s.payer,
             verifier: verifier,
             token: address(s.token),
@@ -115,22 +172,39 @@ contract IncomeCredential is IIncomeCredential {
             expiresAt: expiresAt,
             streamActiveSince: s.startTime,
             revoked: false,
-            employeeVerified: I_EMPLOYEE_REGISTRY.isVerified(msg.sender, s.payer),
-            ok: ok
+            employeeVerified: I_EMPLOYEE_REGISTRY.isVerified(payee, s.payer),
+            ok: s.monthly >= threshold
         });
-        s_payeeCredentials[msg.sender].push(id);
+        s_payeeCredentials[payee].push(id);
         s_verifierCredentials[verifier].push(id);
 
-        emit CredentialIssued(id, msg.sender, verifier, address(s.token), threshold, expiresAt);
+        emit CredentialIssued(id, payee, verifier, address(s.token), threshold, expiresAt);
     }
 
-    /// @inheritdoc IIncomeCredential
-    function revoke(uint256 id) external {
+    /// @notice Revokes `payee`'s credential
+    /// @param payee Who is revoking: the caller, or the signer of a relayed revoke
+    /// @param id The credential
+    function _revoke(address payee, uint256 id) internal {
         Credential storage c = s_credentials[id];
-        if (c.payee != msg.sender) revert IncomeCredential__NotPayee();
+        if (c.payee != payee) revert IncomeCredential__NotPayee();
         if (c.revoked) revert IncomeCredential__AlreadyRevoked();
         c.revoked = true;
         emit CredentialRevoked(id);
+    }
+
+    /// @notice Reverts unless `signature` is `signer`'s over the typed struct, before the deadline
+    /// @param signer Who must have signed
+    /// @param structHash The EIP-712 struct hash
+    /// @param deadline When the signature expires
+    /// @param signature The signature
+    function _checkSignature(address signer, bytes32 structHash, uint256 deadline, bytes calldata signature)
+        internal
+        view
+    {
+        // forge-lint: disable-next-line(block-timestamp)
+        if (block.timestamp > deadline) revert IncomeCredential__Expired();
+        (address recovered, ECDSA.RecoverError err,) = ECDSA.tryRecover(_hashTypedDataV4(structHash), signature);
+        if (err != ECDSA.RecoverError.NoError || recovered != signer) revert IncomeCredential__BadSignature();
     }
 
     /*//////////////////////////////////////////////////////////////

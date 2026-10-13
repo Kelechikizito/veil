@@ -4,9 +4,6 @@ pragma solidity 0.8.25;
 /*//////////////////////////////////////////////////////////////
                             IMPORTS
 //////////////////////////////////////////////////////////////*/
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {FHE, ebool, externalEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
-import {VeilPayroll} from "src/VeilPayroll.sol";
 import {EmployeeRegistry} from "src/EmployeeRegistry.sol";
 import {IncomeCredential} from "src/IncomeCredential.sol";
 import {IVeilPayroll} from "src/interfaces/IVeilPayroll.sol";
@@ -22,8 +19,8 @@ import {PayrollTestBase} from "../utils/PayrollTestBase.sol";
 /**
  * @title IncomeCredentialTest
  * @author Kelechi Kizito Ugwu
- * @notice Unit tests for `IncomeCredential` on CoFHE mocks, with the 600s demo period.
- * @dev Alice is paid 3,000 cUSDC/month by the employer. `verifier` is a landlord asking about her income.
+ * @notice Unit tests for `IncomeCredential`, with the 600s demo period.
+ * @dev Alice is paid 3,000 USDC/month by the employer. `verifier` is a landlord asking about her income.
  */
 contract IncomeCredentialTest is PayrollTestBase {
     /*//////////////////////////////////////////////////////////////
@@ -43,7 +40,7 @@ contract IncomeCredentialTest is PayrollTestBase {
     address internal verifier;
 
     /// @notice Alice's monthly salary
-    uint64 internal constant MONTHLY = 3000e6;
+    uint256 internal constant MONTHLY = 3000e6;
 
     /// @notice Alice's stream
     uint256 internal streamId;
@@ -59,11 +56,10 @@ contract IncomeCredentialTest is PayrollTestBase {
 
         employeeRegistry = new EmployeeRegistry();
         credential = new IncomeCredential(address(payroll), address(employeeRegistry));
-        payroll.setCredential(address(credential));
         vm.label(address(employeeRegistry), "EmployeeRegistry");
         vm.label(address(credential), "IncomeCredential");
 
-        streamId = _createActiveStream(tUsdc, MONTHLY);
+        streamId = _createStream(usdc, MONTHLY);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -79,15 +75,15 @@ contract IncomeCredentialTest is PayrollTestBase {
     /// @param id The stream
     /// @param threshold The monthly amount asked about
     /// @return The credential id
-    function _issue(uint256 id, uint64 threshold) internal returns (uint256) {
+    function _issue(uint256 id, uint256 threshold) internal returns (uint256) {
         vm.prank(alice);
         return credential.issue(id, verifier, threshold, uint64(block.timestamp + 1 hours));
     }
 
-    /// @notice Returns a credential's encrypted result
+    /// @notice Returns a credential's result
     /// @param id The credential
-    /// @return The result handle
-    function _ok(uint256 id) internal view returns (ebool) {
+    /// @return The result
+    function _ok(uint256 id) internal view returns (bool) {
         return credential.get(id).ok;
     }
 
@@ -107,25 +103,25 @@ contract IncomeCredentialTest is PayrollTestBase {
 
     /// @notice 1. 3,000/month passes 2,500 and exactly 3,000, fails 4,000
     function test_issue_comparesMonthly() public {
-        expectPlaintext(_ok(_issue(streamId, 2500e6)), true);
-        expectPlaintext(_ok(_issue(streamId, 4000e6)), false);
-        expectPlaintext(_ok(_issue(streamId, MONTHLY)), true); // no rounding: compares stored monthly
+        assertTrue(_ok(_issue(streamId, 2500e6)));
+        assertFalse(_ok(_issue(streamId, 4000e6)));
+        assertTrue(_ok(_issue(streamId, MONTHLY))); // no rounding: compares stored monthly
     }
 
-    /// @notice 2. 1 cETH/month passes 0.5 cETH; the credential stores token = cETH
-    function test_issue_lowUnitToken() public {
-        uint256 ethStream = _createActiveStream(tEth, 1e6);
-        uint256 id = _issue(ethStream, 5e5);
+    /// @notice 2. 1 WETH/month passes 0.5 WETH; the credential stores token = WETH
+    function test_issue_otherToken() public {
+        uint256 ethStream = _createStream(weth, 1 ether);
+        uint256 id = _issue(ethStream, 0.5 ether);
 
-        expectPlaintext(_ok(id), true);
-        assertEq(credential.get(id).token, address(ceth));
+        assertTrue(_ok(id));
+        assertEq(credential.get(id).token, address(weth));
     }
 
     /// @notice 2b. `issue` stores the stream's details and emits the event without the result
     function test_issue_storesDetails() public {
         uint64 expiresAt = uint64(block.timestamp + 1 hours);
         vm.expectEmit(true, true, true, true, address(credential));
-        emit IIncomeCredential.CredentialIssued(1, alice, verifier, address(cusdc), 2500e6, expiresAt);
+        emit IIncomeCredential.CredentialIssued(1, alice, verifier, address(usdc), 2500e6, expiresAt);
         vm.prank(alice);
         uint256 id = credential.issue(streamId, verifier, 2500e6, expiresAt);
 
@@ -142,20 +138,6 @@ contract IncomeCredentialTest is PayrollTestBase {
 
         assertEq(credential.credentialsOf(alice)[0], id);
         assertEq(credential.credentialsFor(verifier)[0], id);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                  ACL
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice 3. Only the verifier can read the result; not bob, the payer or the payee
-    function test_issue_resultOnlyForVerifier() public {
-        ebool ok = _ok(_issue(streamId, 2500e6));
-
-        assertTrue(FHE.isAllowed(ok, verifier));
-        assertFalse(FHE.isAllowed(ok, bob));
-        assertFalse(FHE.isAllowed(ok, employer));
-        assertFalse(FHE.isAllowed(ok, alice));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -185,12 +167,10 @@ contract IncomeCredentialTest is PayrollTestBase {
         approvers[0] = bob;
         vm.prank(employer);
         policy.setPolicy(approvers, 1);
-        (externalEuint64 h, bytes memory p) = employerClient.createExternalEuint64(1000e6, address(policy));
         vm.prank(employer);
-        policy.setThreshold(address(cusdc), h, p);
+        policy.setThreshold(address(usdc), 1000e6);
 
-        uint256 pending = _createStream(tUsdc, MONTHLY);
-        _resolve(pending);
+        uint256 pending = _createStream(usdc, MONTHLY);
         assertEq(uint8(payroll.getStream(pending).status), uint8(IVeilPayroll.Status.Pending));
 
         vm.prank(alice);
@@ -289,22 +269,5 @@ contract IncomeCredentialTest is PayrollTestBase {
         uint256 verified = _issue(streamId, 2500e6);
         assertTrue(credential.get(verified).employeeVerified);
         assertFalse(credential.get(before).employeeVerified); // stored at issue time
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                              PAYROLL HOOK
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice 10. `setCredential` is owner-only and one-shot; new streams share `monthly` with it
-    function test_setCredential() public {
-        assertEq(payroll.credential(), address(credential));
-        assertTrue(FHE.isAllowed(payroll.getStream(streamId).monthly, address(credential)));
-
-        vm.prank(bob);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
-        payroll.setCredential(bob);
-
-        vm.expectRevert(VeilPayroll.VeilPayroll__CredentialAlreadySet.selector);
-        payroll.setCredential(bob);
     }
 }

@@ -17,7 +17,7 @@ import {Passkeys} from "../utils/Passkeys.sol";
 /**
  * @title EmployeeRegistryTest
  * @author Kelechi Kizito Ugwu
- * @notice Unit tests for `EmployeeRegistry` and the `WebAuthn` checks behind `confirm`. No FHE.
+ * @notice Unit tests for `EmployeeRegistry` and the `WebAuthn` checks behind `confirm`.
  * @dev Passkey signatures are real P256 signatures from Forge's cheatcodes, verified by the precompile.
  */
 contract EmployeeRegistryTest is Test {

@@ -16,7 +16,7 @@ import {WebAuthn} from "src/libraries/WebAuthn.sol";
  * @author Kelechi Kizito Ugwu
  * @notice Marks wallets as verified employees: the employer vouches, the worker confirms with a passkey.
  * @dev Anyone can vouch. A vouch only means something when it comes from the wallet that pays the worker,
- *      which `IncomeCredential` checks. No owner, no attester, no FHE.
+ *      which `IncomeCredential` checks. No owner and no attester.
  */
 contract EmployeeRegistry is IEmployeeRegistry {
     /*//////////////////////////////////////////////////////////////
