@@ -23,7 +23,7 @@ export function EmployerMock() {
   return (
     <div ref={ref} className={frame}>
       <div className="flex items-center justify-between">
-        <span className="text-mid-grey">Stream #14 · cUSDC</span>
+        <span className="text-mid-grey">Stream #14 · USDC</span>
         <span
           className={`rounded-lg px-2 py-0.5 transition-colors duration-300 ${
             active ? "bg-gloss-black text-gloss-white" : "border-[1.5px] border-gloss-black"
@@ -34,9 +34,7 @@ export function EmployerMock() {
       </div>
       <div className="mt-4 flex items-baseline justify-between">
         <span>Monthly</span>
-        <span className="font-mono">
-          <Ciphertext plain="12,000.00" revealed />
-        </span>
+        <span className="font-mono">12,000.00</span>
       </div>
       <div className="mt-4 flex gap-1.5">
         {[0, 1].map((i) => (
@@ -53,7 +51,7 @@ export function EmployerMock() {
   );
 }
 
-/** Worker: a landlord asks one question and gets one encrypted bit back */
+/** Worker: a landlord asks one question and gets an answer checked against the live salary stream */
 export function CredentialMock() {
   const { ref, inView } = useInView<HTMLDivElement>(0.4);
   const reduced = useReducedMotion();
@@ -66,7 +64,7 @@ export function CredentialMock() {
       <div className="flex items-center justify-between">
         <span className="text-mid-grey">Credential #7 · expires in 14 days</span>
       </div>
-      <p className="mt-4 text-body">Does Alice earn at least 2,500 cUSDC a month?</p>
+      <p className="mt-4 text-body">Does Alice earn at least 2,500 USDC a month?</p>
       <div className="mt-4 flex items-center justify-between">
         <span className="text-mid-grey">Landlord sees</span>
         <span
@@ -77,12 +75,12 @@ export function CredentialMock() {
           {answered ? "Yes" : phase === 1 ? "checking…" : "—"}
         </span>
       </div>
-      <p className="mt-2 text-mid-grey">Not the salary. Just the answer.</p>
+      <p className="mt-2 text-mid-grey">Checked against her live salary. She can revoke it.</p>
     </div>
   );
 }
 
-/** Auditor: ledger rows decrypt one by one for the appointed auditor */
+/** Auditor: one-time addresses resolve to names, one by one, from the employer's payee list */
 export function AuditorMock() {
   const { ref, inView } = useInView<HTMLDivElement>(0.4);
   const reduced = useReducedMotion();
@@ -90,7 +88,7 @@ export function AuditorMock() {
     ["Alice", "3,000.00"],
     ["Bola", "4,250.00"],
     ["Chen", "12,000.00"],
-  ];
+  ] as const;
   const [shown, setShown] = useState(0);
   useInterval(() => setShown((n) => (n >= rows.length + 2 ? 0 : n + 1)), 800, inView);
   const revealedCount = reduced ? rows.length : Math.min(shown, rows.length);
@@ -104,8 +102,8 @@ export function AuditorMock() {
       <ul className="mt-3">
         {rows.map(([name, amount], i) => (
           <li key={name} className="flex items-baseline justify-between border-t-[1.5px] border-gloss-black/10 py-2">
-            <span>{name}</span>
-            <Ciphertext plain={amount} revealed={i < revealedCount} />
+            <Ciphertext plain={name} revealed={i < revealedCount} />
+            <span className="tabular-nums">{amount}</span>
           </li>
         ))}
       </ul>

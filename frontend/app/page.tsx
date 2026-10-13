@@ -18,16 +18,16 @@ import { Badge, ButtonLink, Section } from "@/components/ui";
 const roles: { eyebrow: string; title: string; body: string; href: string; cta: string; mock: ReactNode }[] = [
   {
     eyebrow: "Employers",
-    title: "Run payroll in the open. Keep the numbers closed.",
-    body: "Fund a vault, set a hidden approval threshold, and stream salaries in cUSDC, cARB or cETH.",
+    title: "Run payroll in the open. Keep who earns what to yourself.",
+    body: "Fund a vault, set an approval threshold, and stream USDC salaries to one-time addresses.",
     href: "/onboarding/employer",
     cta: "Set up an org",
     mock: <EmployerMock />,
   },
   {
     eyebrow: "Workers",
-    title: "Get paid by the second. Prove it only when you choose.",
-    body: "Withdraw any amount, and show a landlord “I earn at least X” without showing your salary.",
+    title: "Get paid by the second. Stay unlinked.",
+    body: "Withdraw to any address without paying gas, and show a landlord “I earn at least X” when you choose.",
     href: "/onboarding/employee",
     cta: "Open your pay",
     mock: <CredentialMock />,
@@ -35,29 +35,33 @@ const roles: { eyebrow: string; title: string; body: string; href: string; cta: 
   {
     eyebrow: "Auditors",
     title: "The full ledger, for the one person who should read it.",
-    body: "An employer appoints you. You read every salary and balance, and export the month as CSV.",
+    body: "An employer appoints you and hands you the payee list. You see every salary and who it pays, and export the month as CSV.",
     href: "/audit",
     cta: "Auditor view",
     mock: <AuditorMock />,
   },
 ];
 
-const privateItems = ["Salaries", "Vault balances", "Withdrawals", "Approval thresholds", "Income credential answers"];
+const privateItems = ["Which salary is whose", "Who withdraws, and where to", "A worker's wallet and its history"];
 const publicItems = [
-  "Who pays whom, and in which token",
-  "When a stream starts, and when it stops",
-  "Whether a salary needed approval",
-  "Which auditors an employer appointed",
+  "Every amount: salaries, budgets, withdrawals",
+  "Which employer pays, and when payroll runs",
+  "Which workers an employer vouched for",
+  "Income proofs a worker chooses to issue",
 ];
 
 const steps = [
-  { n: "01", title: "Shield", body: "Wrap USDC, ARB or ETH into a confidential token. Balances become ciphertext." },
-  { n: "02", title: "Stream", body: "Fund your vault and create encrypted salary streams. Pay accrues every second." },
-  { n: "03", title: "Approve", body: "Salaries above your hidden threshold wait for k of your n approvers." },
-  { n: "04", title: "Withdraw and prove", body: "Workers withdraw any amount and issue one-bit income credentials that expire." },
+  { n: "01", title: "Fund", body: "Move USDC into your payroll vault. On testnet, the USDC is minted for you." },
+  { n: "02", title: "Stream", body: "Each salary goes to a fresh one-time address. Pay accrues every second." },
+  { n: "03", title: "Approve", body: "Salaries above your threshold wait for k of your n approvers." },
+  { n: "04", title: "Withdraw and prove", body: "Workers withdraw to any address without gas, and issue income proofs that expire." },
 ];
 
 const roadmap = [
+  {
+    title: "Zero-knowledge income proofs",
+    body: "Prove “I earn at least X” without showing which salary is yours or how much it pays.",
+  },
   {
     title: "Invite by email",
     body: "Type an employee's email and Veil sends them your invite link. The address is used once and never stored.",
@@ -80,12 +84,12 @@ export default function Home() {
         <SiteHeader overlay />
         <div className="relative z-10 mx-auto flex w-full max-w-[1200px] flex-col gap-8 px-6 pt-32 pb-16 md:pb-20">
           <h1 className="max-w-4xl font-classic text-[56px] leading-[0.92] font-normal tracking-[-0.03em] md:text-display lg:text-[112px]">
-            <RiseWords text="Payroll nobody else can read." />
+            <RiseWords text="Payroll nobody can trace to you." />
           </h1>
           <div className="fade-up" style={{ animationDelay: "500ms" }}>
             <p className="max-w-xl text-subheading text-pure-white/85">
-              Salaries stream onchain by the second. Every amount stays encrypted. Everyone can see payroll ran. Only the
-              right people see the numbers.
+              Salaries stream onchain by the second, to one-time addresses. Everyone can see payroll ran. Only you know
+              which salary is yours.
             </p>
           </div>
           <div className="fade-up" style={{ animationDelay: "650ms" }}>
@@ -102,7 +106,7 @@ export default function Home() {
             <h2 className={sectionHeading}>Pay that moves while you watch.</h2>
             <p className="max-w-md text-subheading text-soft-charcoal">
               Your salary accrues every second and you can withdraw any of it, any time. Flip the card to see what the
-              rest of the world gets: ciphertext.
+              rest of the world gets: a salary paid to someone they can&apos;t name.
             </p>
           </Reveal>
           <Reveal delay={150}>
@@ -118,13 +122,13 @@ export default function Home() {
             <span className={statNumber}>
               <CountUp to={0} />
             </span>
-            <span className="max-w-[16rem]">salary amounts readable on the block explorer</span>
+            <span className="max-w-[16rem]">gas a worker pays to withdraw. Veil covers it.</span>
           </Reveal>
           <Reveal delay={120} className="flex flex-col gap-4">
             <span className={statNumber}>
-              <CountUp to={1} suffix=" bit" />
+              <CountUp to={1} suffix=" tap" />
             </span>
-            <span className="max-w-[16rem]">all a landlord learns from an income credential</span>
+            <span className="max-w-[16rem]">to confirm your employer, with Face ID or your fingerprint</span>
           </Reveal>
           <Reveal delay={240} className="flex flex-col gap-4">
             <span className={statNumber}>
@@ -140,10 +144,10 @@ export default function Home() {
         <div className="flex flex-col gap-14">
           <Reveal className="flex max-w-3xl flex-col gap-6">
             <Badge ghost>Same transactions</Badge>
-            <h2 className={sectionHeading}>Public ledger. Private numbers.</h2>
+            <h2 className={sectionHeading}>Public amounts. Private people.</h2>
             <p className="max-w-xl text-subheading text-soft-charcoal">
-              Every withdrawal lands onchain. On the explorer its amount is a handle to a ciphertext. In Alice&apos;s app
-              it&apos;s a number.
+              Every payment lands onchain, amount and all. On the explorer it goes to a one-time address. Only
+              Alice&apos;s app knows it&apos;s hers.
             </p>
           </Reveal>
           <ChainVsYou />
@@ -186,12 +190,13 @@ export default function Home() {
             <Badge ghost>What&apos;s private</Badge>
             <h2 className={sectionHeading}>Honest about the edges.</h2>
             <p className="text-subheading text-soft-charcoal">
-              A chain has to show that money moved. Veil hides how much, and says exactly what it doesn&apos;t hide.
+              A chain shows that money moved, and how much. Veil hides who it moved to, and says exactly what it
+              doesn&apos;t hide.
             </p>
           </Reveal>
           <div className="grid gap-10 sm:grid-cols-2">
             {[
-              { label: "Encrypted", items: privateItems },
+              { label: "Hidden", items: privateItems },
               { label: "Public", items: publicItems },
             ].map((col, c) => (
               <div key={col.label} className="flex flex-col gap-4">

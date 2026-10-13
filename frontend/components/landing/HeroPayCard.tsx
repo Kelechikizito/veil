@@ -6,8 +6,8 @@ import { useInterval, useReducedMotion } from "@/hooks/useMotion";
 
 /*
  * The hero's live product mock: a worker's pay, ticking by the second.
- * Every few seconds it flips to what a block explorer sees: the same card, all ciphertext.
- * Illustrative numbers: 3,000 cUSDC a month, a 30-day period.
+ * Every few seconds it flips to what a block explorer sees: the same pay, to a one-time address nobody can name.
+ * Illustrative numbers: 3,000 USDC a month, a 30-day period.
  */
 
 const MONTHLY = 3000;
@@ -71,7 +71,8 @@ export function HeroPayCard() {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-caption">
           <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-gloss-black" />
-          Streaming · Acme Labs
+          Streaming · Acme Labs →{" "}
+          <Ciphertext plain="you" revealed={revealed} minLength={10} />
         </div>
         <div role="tablist" aria-label="Who is looking" className="flex rounded-pill bg-gloss-white p-1 text-caption">
           {(["you", "explorer"] as const).map((v) => (
@@ -93,41 +94,35 @@ export function HeroPayCard() {
       <div className="mt-8 flex flex-col gap-2">
         <span className="text-caption text-mid-grey">Earned this month</span>
         <div className="flex min-h-[64px] items-baseline gap-2 font-classic text-[52px] leading-none tracking-[-0.03em] md:text-[64px]">
-          {revealed ? (
-            <span className="tabular-nums">
-              {whole}
-              <span className="text-mid-grey">.{fraction}</span>
-            </span>
-          ) : (
-            <Ciphertext plain={whole} revealed={false} minLength={14} className="text-[28px] md:text-[34px]" />
-          )}
-          <span className="font-grotesk text-subheading">cUSDC</span>
+          <span className="tabular-nums">
+            {whole}
+            <span className="text-mid-grey">.{fraction}</span>
+          </span>
+          <span className="font-grotesk text-subheading">USDC</span>
         </div>
       </div>
 
-      <div className={`mt-6 transition-opacity duration-500 ${revealed ? "opacity-100" : "opacity-20"}`}>
+      <div className="mt-6">
         <Sparkline />
       </div>
 
       <dl className="mt-6 grid grid-cols-3 gap-4 border-t-[1.5px] border-gloss-black pt-5">
         {[
-          ["Monthly", money(MONTHLY)],
-          ["Withdrawn", money(900)],
-          ["Vault", "funded"],
-        ].map(([label, value]) => (
-          <div key={label} className="flex flex-col gap-1">
+          ["Monthly", money(MONTHLY), false],
+          ["Withdrawn", money(900), false],
+          ["Paid to", "Alice", true],
+        ].map(([label, value, hidden]) => (
+          <div key={label as string} className="flex flex-col gap-1">
             <dt className="text-caption text-mid-grey">{label}</dt>
-            <dd className="text-body">
-              <Ciphertext plain={value} revealed={revealed} />
-            </dd>
+            <dd className="text-body">{hidden ? <Ciphertext plain={value as string} revealed={revealed} /> : value}</dd>
           </div>
         ))}
       </dl>
 
       <p className="mt-6 text-caption text-soft-charcoal">
         {revealed
-          ? "Decrypted in your browser. Only you, your employer and their auditor can do this."
-          : "What everyone else sees onchain: handles, not amounts."}
+          ? "Only you, your employer and their auditor know this salary is yours."
+          : "What everyone else sees onchain: real pay, to a one-time address they can't link to anyone."}
       </p>
     </div>
   );

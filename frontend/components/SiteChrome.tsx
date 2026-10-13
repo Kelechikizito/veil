@@ -6,7 +6,7 @@ import { Container } from "./ui";
 export function AnnouncementBar() {
   return (
     <div className="bg-gloss-black py-3 text-center text-caption text-gloss-white">
-      Testnet demo · Salaries are encrypted with Fhenix CoFHE ·{" "}
+      Testnet demo on Monad ·{" "}
       <a href="#private" className="underline underline-offset-4">
         What stays private →
       </a>
@@ -59,8 +59,7 @@ export function SiteFooter() {
         <div className="flex flex-col gap-3">
           <span className="font-classic text-heading">Veil</span>
           <p className="max-w-sm text-caption text-mid-grey">
-            Confidential payroll on Base Sepolia. Built with Fhenix CoFHE. Not audited; don&apos;t use
-            real funds.
+            Payroll on Monad testnet. Not audited; don&apos;t use real funds.
           </p>
         </div>
         <nav className="flex flex-wrap gap-x-8 gap-y-3 text-caption">
@@ -76,8 +75,8 @@ export function SiteFooter() {
           <Link href="/audit" className="hover:text-pure-white/70">
             Auditor view
           </Link>
-          <a href="https://cofhe-docs.fhenix.zone" className="hover:text-pure-white/70">
-            Fhenix CoFHE
+          <a href="https://docs.monad.xyz" className="hover:text-pure-white/70">
+            Monad
           </a>
         </nav>
       </Container>

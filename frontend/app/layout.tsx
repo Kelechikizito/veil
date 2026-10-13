@@ -18,9 +18,9 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Veil — confidential payroll",
+  title: "Veil — payroll by the second",
   description:
-    "Stream salaries onchain without publishing them. Salaries, balances and withdrawals stay encrypted with Fhenix CoFHE.",
+    "Stream salaries by the second on Monad. Employers vouch for workers, workers confirm with a passkey, and income proofs expire.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

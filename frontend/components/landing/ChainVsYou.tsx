@@ -6,14 +6,14 @@ import { useInView, useInterval, useReducedMotion } from "@/hooks/useMotion";
 
 /*
  * Two ledgers side by side: the block explorer's view and Alice's.
- * Rows land one at a time; the left column's amounts never resolve, the right column's do.
+ * Rows land one at a time. Amounts are the same on both sides; only Alice's side can name the payee.
  */
 
-const TXS = [
-  { action: "withdraw", who: "Alice", amount: "412.50 cUSDC", age: "12s" },
-  { action: "fundVault", who: "Acme Labs", amount: "18,000.00 cUSDC", age: "1m" },
-  { action: "withdraw", who: "Alice", amount: "96.10 cUSDC", age: "6m" },
-  { action: "createStream", who: "Acme Labs → Alice", amount: "3,000.00 / month", age: "2d" },
+const TXS: { action: string; from: string; to?: string; amount: string; age: string }[] = [
+  { action: "withdrawWithSig", from: "Payroll", to: "Alice's exchange", amount: "412.50 USDC", age: "12s" },
+  { action: "fundVault", from: "Acme Labs", amount: "18,000.00 USDC", age: "1m" },
+  { action: "withdrawWithSig", from: "Payroll", to: "Alice", amount: "96.10 USDC", age: "6m" },
+  { action: "createStealthStream", from: "Acme Labs", to: "Alice", amount: "3,000.00 / month", age: "2d" },
 ];
 
 function Ledger({ title, caption, revealed, shown }: { title: string; caption: string; revealed: boolean; shown: number }) {
@@ -33,10 +33,16 @@ function Ledger({ title, caption, revealed, shown }: { title: string; caption: s
           >
             <span className="font-mono text-caption">{tx.action}</span>
             <span className="text-caption text-mid-grey">{tx.age} ago</span>
-            <span className={`text-caption ${revealed ? "text-soft-charcoal" : "text-gloss-white/70"}`}>{tx.who}</span>
-            <span className="text-right text-body">
-              <Ciphertext plain={tx.amount} revealed={revealed && i < shown} />
+            <span className={`text-caption ${revealed ? "text-soft-charcoal" : "text-gloss-white/70"}`}>
+              {tx.from}
+              {tx.to && (
+                <>
+                  {" → "}
+                  <Ciphertext plain={tx.to} revealed={revealed && i < shown} />
+                </>
+              )}
             </span>
+            <span className="text-right text-body tabular-nums">{tx.amount}</span>
           </li>
         ))}
       </ul>
@@ -55,7 +61,7 @@ export function ChainVsYou() {
 
   return (
     <div ref={ref} className="grid gap-4 md:grid-cols-2">
-      <Ledger title="Basescan" caption="What the chain shows" revealed={false} shown={count} />
+      <Ledger title="MonadVision" caption="What the chain shows" revealed={false} shown={count} />
       <Ledger title="Alice's app" caption="What Alice sees" revealed shown={count} />
     </div>
   );
