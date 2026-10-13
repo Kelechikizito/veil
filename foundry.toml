@@ -20,7 +20,8 @@ optimizer_runs = 200
 fs_permissions = [{ access = "read-write", path = "./deployments" }]
 
 [rpc_endpoints]
-monad_testnet = "${ALCHEMY_MONAD_TESTNET_RPC_URL}"
+# Monad's public RPC: forge scripts get HTTP 503 from Alchemy's Monad testnet endpoint
+monad_testnet = "${MONAD_RPC_URL}"
 monad_mainnet = "${ALCHEMY_MONAD_MAINNET_RPC_URL}"
 
 # An Etherscan V2 key verifies on Monadscan
