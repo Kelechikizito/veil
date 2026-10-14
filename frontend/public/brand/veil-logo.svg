@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 512" role="img" aria-label="Veil">
+  <style>@import url('https://fonts.googleapis.com/css2?family=Bowlby+One&amp;display=swap');</style>
+  <g>
+    <circle cx="256" cy="256" r="244" fill="#ffffff" stroke="#000000" stroke-width="12"/>
+    <circle cx="256" cy="168" r="74" fill="#ffd731" stroke="#000000" stroke-width="12"/>
+    <circle cx="256" cy="168" r="44" fill="none" stroke="#000000" stroke-width="8" stroke-dasharray="2 14" stroke-linecap="round"/>
+    <path d="M96 150 C150 140 210 170 256 196 L256 432 C200 352 128 262 96 150 Z" fill="#4da2ff" stroke="#000000" stroke-width="12" stroke-linejoin="round"/>
+    <path d="M416 150 C362 140 302 170 256 196 L256 432 C312 352 384 262 416 150 Z" fill="#e9ccff" stroke="#000000" stroke-width="12" stroke-linejoin="round"/>
+    <path d="M150 190 C178 250 212 320 248 392" fill="none" stroke="#000000" stroke-width="6" stroke-linecap="round" opacity="0.55"/>
+    <path d="M362 190 C334 250 300 320 264 392" fill="none" stroke="#000000" stroke-width="6" stroke-linecap="round" opacity="0.55"/>
+  </g>
+  <text x="560" y="350" font-family="'Bowlby One', 'Arial Black', sans-serif" font-size="260" fill="#000000" letter-spacing="-6">Veil</text>
+</svg>
