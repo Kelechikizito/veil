@@ -23,11 +23,11 @@ Ada works for Acme Labs at 3,000 USDC a month. On testnet a "month" is 10 minute
 1. **Ada signs up with her email.** Privy gives her a wallet. She never sees a seed phrase or pays gas.
 2. **She turns on private pay.** One signature derives her stealth keys, and she publishes a public "meta-address" in `StealthRegistry`.
 3. **She confirms she works for Acme with Face ID.** Her passkey signs a challenge, and Monad's P256 precompile checks it onchain. Acme vouches for her from its console. With both, she is a "verified employee of Acme".
-4. **Acme starts her stream.** The browser derives a fresh one-time address from Ada's meta-address, and the salary streams to that address. Onchain, the stream pays an address nobody has seen before. Nothing links it to Ada's wallet.
+4. **Acme starts her stream.** The browser derives a fresh one-time address from Ada's meta-address, and the salary streams to that address. Onchain, the stream pays an address nobody has seen before, and nothing links it to Ada's wallet.
 5. **Payroll runs every period, on its own.** A Chainlink CRE workflow checks Acme's streams each period and sends a signed report with the budget they need; Acme's receiver contract runs payroll with it, capped by a limit Acme set onchain. Acme can also run it by hand with a budget. Each stream gets `min(salary for the rest of the period, budget left)`, in table order. A 4,000 budget across two 3,000 streams gives 3,000 and 1,000. A stream only streams what was set aside, so pay never outruns the money.
 6. **Ada finds her pay.** Her app fetches every stream announcement from Envio HyperSync and matches them against her viewing key, so it only reads the streams meant for her. Her balance ticks up every second, with no transactions.
 7. **Ada withdraws, gas-free.** The one-time address has no MON, and funding it from her main wallet would link the two. So she signs the withdrawal, and Veil's relayer, a Privy server wallet with sponsored gas, sends it. The money goes wherever she chose.
-8. **Ada proves her income.** Her landlord asks for at least 2,500 a month. Ada issues a credential that names the landlord and expires in 7 days. The landlord opens a link and sees: yes, it meets the threshold, paid by Acme Labs, active since, expires at.
+8. **Ada proves her income.** Her landlord asks for at least 2,500 a month. Ada issues a credential that names the landlord and expires in 7 days. The landlord opens a link that shows whether her salary meets the threshold, that Acme Labs pays it, how long it has been active, and when the credential expires.
 
 Salaries above an employer's limit wait for k-of-n approvers before they start. Auditors the employer appoints can read the books.
 
@@ -51,10 +51,10 @@ sequenceDiagram
 
 ## What makes this different
 
-- **Against public streaming payroll** (Sablier-style streams): every salary is readable by anyone who knows a worker's wallet. Veil pays each stream to a fresh one-time address ([ERC-5564](https://eips.ethereum.org/EIPS/eip-5564)), so a block explorer shows a salary but not whose it is.
-- **Against stealth payments alone:** a one-time address has no gas, so the usual fix is to fund it, which links it straight back to you. Veil's payee signs an EIP-712 withdrawal and a relayer sends it. The signature binds the amount, destination, nonce and deadline, so the relayer can't redirect the money.
-- **Against "verified human" checks:** a landlord doesn't care that you're a unique person. They care that you work where you say. Veil records both sides: the employer vouches and the worker confirms with a passkey, checked onchain by Monad's P256 precompile.
-- **Against payslips:** a credential is issued to one named verifier, expires, and can be revoked. It answers "at least $X?" with yes or no, and it reads the live stream, so it can't be backdated or forged.
+- **Compared with public streaming payroll** (Sablier-style streams), where anyone who knows a worker's wallet can read their salary: Veil pays each stream to a fresh one-time address ([ERC-5564](https://eips.ethereum.org/EIPS/eip-5564)), so a block explorer shows a salary but not whose it is.
+- **Compared with stealth payments alone:** a one-time address has no gas, and the usual fix is to fund it, which links it back to you. Veil's payee signs an EIP-712 withdrawal and a relayer sends it. The signature binds the amount, destination, nonce and deadline, so the relayer can't redirect the money.
+- **Compared with "verified human" checks:** a landlord needs to know where you work more than that you're a unique person. Veil records both sides of employment: the employer vouches, and the worker confirms with a passkey that Monad's P256 precompile checks onchain.
+- **Compared with payslips:** a credential goes to one named verifier, expires, and can be revoked. It answers "at least $X?" with yes or no from the live stream, so it can't be backdated or forged.
 
 ## Architecture
 
@@ -98,10 +98,10 @@ Next.js 16 with wagmi and viem. Every transaction goes through [`hooks/useTx.ts`
 
 ## How Veil uses each sponsor
 
-**Monad** runs everything. Its P256 precompile is what lets the contract check a worker's Face ID passkey onchain ([`WebAuthn.sol#L64-L81`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/libraries/WebAuthn.sol#L64-L81)), and fast, cheap blocks make per-second pay and gas-free withdrawals practical.
+**Monad** runs all of Veil's contracts. Its P256 precompile lets the contract check a worker's Face ID passkey onchain ([`WebAuthn.sol#L64-L81`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/src/libraries/WebAuthn.sol#L64-L81)), and fast, cheap blocks make per-second pay and gas-free withdrawals practical.
 
-**Privy** is how people get in and why nobody pays gas.
-- Workers and employers sign in with email or Google, and Privy creates a wallet for them. No seed phrase, no extension ([`app/providers.tsx`](frontend/app/providers.tsx)).
+**Privy** handles sign-in, wallets and gas.
+- Workers and employers sign in with email or Google, and Privy creates a wallet for them, with no seed phrase or browser extension ([`app/providers.tsx`](frontend/app/providers.tsx)).
 - Every transaction they make is gas-sponsored by Privy, with no confirm pop-ups ([`hooks/useTx.ts#L130-L140`](https://github.com/Kelechikizito/veil/blob/078972fb002e166149079d052312494888da3d75/frontend/hooks/useTx.ts#L130-L140)).
 - The relayer that sends workers' private withdrawals is a Privy server wallet owned by the app, also gas-sponsored. No private key or MON sits on our server ([`lib/privyServerWallet.ts`](frontend/lib/privyServerWallet.ts), [`app/api/relay/route.ts`](frontend/app/api/relay/route.ts#L51-L56)).
 
@@ -143,7 +143,7 @@ The `veil-payroll` workflow, run with `cre workflow simulate --broadcast` on Mon
 
 ### Gas-free payroll and a relayed withdrawal through Privy
 
-An employer wallet with no MON, then a payee who signs and never sends a transaction:
+An employer wallet with no MON ran a payroll cycle, then a payee withdrew by signing a message, without sending a transaction themselves:
 
 | Step | What it proves | Transaction |
 |---|---|---|
@@ -244,8 +244,8 @@ What the tests hold to:
 
 ## Why Monad
 
-- **Passkeys onchain.** The P256 precompile at `0x100` makes a WebAuthn check one cheap call, so "the worker confirmed with Face ID" is something the contract checks, not something a server claims.
-- **Fast blocks make relayed withdrawals feel direct.** With 400 ms blocks, the round trip through the relayer is short enough that the worker just sees the money arrive, without ever touching gas.
+- **Passkeys onchain.** The P256 precompile at `0x100` makes a WebAuthn check one cheap call, so the contract itself verifies that the worker confirmed with Face ID.
+- **Fast finality makes relayed withdrawals feel direct.** Monad produces a block every 300 ms and finalizes in 600 ms, so a withdrawal sent through the relayer arrives about as fast as a direct one.
 - **Per-second payroll needs cheap, frequent actions.** Withdrawing whenever you like, one credential per landlord and a payroll run every period are only reasonable on a fast, low-fee chain.
 
 ## Tech stack
@@ -266,7 +266,7 @@ What the tests hold to:
 
 - **A ZK income credential.** Prove `salary >= threshold` for a stream you own without revealing which stream or the salary, and carry the "verified employee" bit through the stealth address.
 - **A deployed CRE workflow per employer**, created from the console, so scheduled payroll needs no setup beyond one click.
-- **Employer verification.** Attach an organisation attestation, so a credential proves which company runs the payroll, not just which address.
+- **Employer verification.** Attach an organisation attestation, so a credential proves which company runs the payroll as well as which address pays it.
 
 ## Built on Dayze
 
