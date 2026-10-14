@@ -67,8 +67,8 @@ export function LiveOnMonad() {
           <Badge ghost>Live on {defaultChain.name}</Badge>
           <h2 className="display-type text-[38px] sm:text-[52px] md:text-display-70">Every salary, in the open</h2>
           <p className="max-w-2xl text-subheading">
-            Read from the contract as you look at it. Every amount is public, on purpose. Private salaries go to a
-            one-time address, so nobody can tell whose pay is whose.
+            Read from the contract as you look at it. Every amount is public by design. Private salaries go to
+            one-time addresses, so nobody can tell whose pay is whose.
           </p>
         </div>
 

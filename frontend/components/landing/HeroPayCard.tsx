@@ -123,7 +123,7 @@ export function HeroPayCard() {
       <p className="mt-6 text-caption text-carbon/70">
         {revealed
           ? "Only you, your employer and their auditor know this salary is yours."
-          : "What everyone else sees onchain: real pay, to a one-time address they can't link to anyone."}
+          : "What everyone else sees onchain: a real salary paid to a one-time address they can't link to anyone."}
       </p>
     </div>
   );

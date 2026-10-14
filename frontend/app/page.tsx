@@ -28,7 +28,7 @@ const roles: {
 }[] = [
   {
     eyebrow: "Employers",
-    title: "Run payroll in the open. Keep who earns what to yourself.",
+    title: "Run payroll onchain without showing who earns what.",
     body: "Fund a vault, set an approval threshold, and stream USDC salaries to one-time addresses.",
     href: "/onboarding/employer",
     cta: "Set up an org",
@@ -38,8 +38,8 @@ const roles: {
   },
   {
     eyebrow: "Workers",
-    title: "Get paid by the second. Stay unlinked.",
-    body: "Withdraw to any address without paying gas, and show a landlord “I earn at least X” when you choose.",
+    title: "Get paid every second at an address only you can link to you.",
+    body: "Withdraw to any address without paying gas, and show a landlord that you earn at least a set amount.",
     href: "/onboarding/employee",
     cta: "Open your pay",
     mock: <CredentialMock />,
@@ -48,8 +48,8 @@ const roles: {
   },
   {
     eyebrow: "Auditors",
-    title: "The full ledger, for the one person who should read it.",
-    body: "An employer appoints you and hands you the payee list. You see every salary and who it pays, and export the month as CSV.",
+    title: "Read every salary and who it pays.",
+    body: "An employer appoints you and gives you the payee list. You can see every salary and export the month as a CSV.",
     href: "/audit",
     cta: "Auditor view",
     mock: <AuditorMock />,
@@ -81,25 +81,25 @@ const steps: { n: string; title: string; body: string; dot: string }[] = [
 const roadmap: { title: string; body: string; sticker: StickerKind }[] = [
   {
     title: "Zero-knowledge income proofs",
-    body: "Prove “I earn at least X” without showing which salary is yours or how much it pays.",
+    body: "Prove you earn at least a set amount without showing which salary is yours or how much it pays.",
     sticker: "lock",
   },
   {
     title: "Invite by email",
-    body: "Type an employee's email and Veil sends them your invite link. The address is used once and never stored.",
+    body: "Type an employee's email and Veil sends them your invite link. Veil uses the address once and doesn't store it.",
     sticker: "star",
   },
   {
     title: "Pay notifications",
-    body: "An email when your stream starts or is approved. It says your pay started, never how much.",
+    body: "An email when your stream starts or is approved. It tells you your pay started without saying how much.",
     sticker: "clock",
   },
 ];
 
 const stats: { value: string; caption: string; sticker: StickerKind; rotate: number }[] = [
-  { value: "0", caption: "gas a worker pays to withdraw. Veil covers it.", sticker: "coin", rotate: -12 },
+  { value: "0", caption: "MON a worker needs to withdraw, because Veil pays the gas", sticker: "coin", rotate: -12 },
   { value: "1 tap", caption: "to confirm your employer, with Face ID or your fingerprint", sticker: "key", rotate: 10 },
-  { value: "86,400", caption: "times a day your pay moves. It accrues every second.", sticker: "clock", rotate: -6 },
+  { value: "86,400", caption: "seconds in a day, and your pay grows in each one", sticker: "clock", rotate: -6 },
 ];
 
 /** Section display headlines: Lateral, crushed leading. Full-width ones go bigger than ones in a column. */
@@ -135,8 +135,8 @@ export default function Home() {
           <Sticker kind="check" size={88} rotate={-8} className="absolute bottom-[30%] left-[8%] hidden lg:block" />
           <Sticker kind="wallet" size={104} rotate={16} className="absolute right-[7%] bottom-[24%] hidden lg:block" />
           <p className="max-w-2xl text-subheading md:text-heading-sm">
-            Salaries stream onchain by the second, to one-time addresses. Everyone can see payroll ran. Only you know
-            which salary is yours.
+            Salaries stream onchain every second to one-time addresses. Anyone can see that payroll ran, but only you
+            know which salary is yours.
           </p>
           <div className="flex flex-col items-center gap-4">
             <RoleButtons />
@@ -167,8 +167,8 @@ export default function Home() {
             <Badge ghost>Live · by the second</Badge>
             <h2 className={sectionHeading}>Pay that moves while you watch</h2>
             <p className="max-w-md text-subheading">
-              Your salary accrues every second and you can withdraw any of it, any time. Flip the card to see what the
-              rest of the world gets: a salary paid to someone they can&apos;t name.
+              Your salary accrues every second, and you can withdraw what you&apos;ve earned at any time. Flip the card
+              to see what everyone else sees: a salary paid to an address they can&apos;t link to you.
             </p>
             <Sticker kind="clock" size={96} rotate={10} className="absolute -top-10 right-[8%] hidden md:block" />
           </div>
@@ -194,11 +194,11 @@ export default function Home() {
         <div className="flex flex-col gap-14">
           <div className="relative flex max-w-4xl flex-col gap-6">
             <Badge ghost>Same transactions</Badge>
-            <h2 className={wideHeading}>Public amounts. Private people.</h2>
+            <h2 className={wideHeading}>Public amounts, private payees</h2>
             <Sticker kind="eye" size={88} rotate={-10} className="absolute -top-6 -right-6 hidden md:block" />
             <p className="max-w-xl text-subheading">
-              Every payment lands onchain, amount and all. On the explorer it goes to a one-time address. Only
-              Alice&apos;s app knows it&apos;s hers.
+              Every payment is onchain with its amount. A block explorer shows it going to a one-time address, and only
+              Alice&apos;s app knows that address is hers.
             </p>
           </div>
           <ChainVsYou />
@@ -210,10 +210,9 @@ export default function Home() {
         <div className="grid gap-14 lg:grid-cols-[1fr_1.4fr]">
           <div className="relative flex flex-col gap-6">
             <Badge ghost>What&apos;s private</Badge>
-            <h2 className={sectionHeading}>Honest about the edges</h2>
+            <h2 className={sectionHeading}>What Veil hides, and what stays public</h2>
             <p className="text-subheading">
-              A chain shows that money moved, and how much. Veil hides who it moved to, and says exactly what it
-              doesn&apos;t hide.
+              A blockchain shows that money moved and how much. Veil hides who received it. Here is the full list.
             </p>
             <div aria-hidden className="relative h-24">
               <Sticker kind="lock" size={84} rotate={-10} className="absolute left-0" />
@@ -244,7 +243,7 @@ export default function Home() {
       <section id="roles" className="relative isolate overflow-hidden bg-sky-wash py-20 md:py-28">
         <Ribbon variant="arc" className="-z-10 !h-[300px]" />
         <Container className="flex flex-col gap-14">
-          <h2 className={`max-w-5xl ${wideHeading}`}>Three people. Three views of one payroll.</h2>
+          <h2 className={`max-w-5xl ${wideHeading}`}>One payroll, three roles</h2>
           <div className="grid gap-4 md:grid-cols-3">
             {roles.map((r) => (
               <article

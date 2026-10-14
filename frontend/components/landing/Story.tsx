@@ -22,23 +22,23 @@ const leaks: { failure: string; why: string; fix: string; how: string; sticker: 
     failure: "Your salary lands in your wallet",
     why: "On a public chain, anyone who learns your address sees your pay, your savings and everything you buy.",
     fix: "Each salary goes to a one-time address",
-    how: "Stealth payees (ERC-5564). Only your app can tell the address is yours. Withdrawals are relayed, so gas never links it back.",
+    how: "Veil uses stealth addresses (ERC-5564), so only your app can tell the address is yours. A relayer pays the gas when you withdraw, so funding the address can't link it back to you.",
     sticker: "eye",
     fill: "bg-lavender",
   },
   {
     failure: "Anyone can claim a job",
-    why: "An address is not an employee. Nothing onchain says the person paid really works there.",
-    fix: "Employment both sides confirm",
-    how: "The employer vouches. The worker confirms with a passkey, checked onchain by Monad's P256 precompile.",
+    why: "A wallet address doesn't say who employs its owner, so a payment alone proves nothing about the job.",
+    fix: "Employment that both sides confirm",
+    how: "The employer vouches for the worker, and the worker confirms with a passkey that Monad's P256 precompile checks onchain.",
     sticker: "key",
     fill: "bg-mint-pop",
   },
   {
     failure: "Proving income means a payslip",
-    why: "Landlords ask for bank statements. They learn your exact pay, your employer and more.",
+    why: "Landlords ask for bank statements, which show your exact pay, your employer and much more.",
     fix: "A yes-or-no proof that expires",
-    how: "“Earns at least X”, checked against your live salary, for one verifier, until a date you pick. You can revoke it.",
+    how: "The proof answers “earns at least X” from your live salary, for one verifier, until a date you pick. You can revoke it.",
     sticker: "lock",
     fill: "bg-sky-wash",
   },
@@ -51,7 +51,7 @@ export function Leaks() {
         <div className="flex max-w-4xl flex-col gap-6">
           <Badge ghost>The problem</Badge>
           <h2 className={wide}>Onchain payroll leaks in three places</h2>
-          <p className="max-w-xl text-subheading">A public ledger is great for books. It is terrible for the people on them.</p>
+          <p className="max-w-xl text-subheading">A public ledger keeps good books, but it also exposes the people being paid.</p>
         </div>
         <ul className="grid gap-4 lg:grid-cols-3">
           {leaks.map((l) => (
@@ -87,7 +87,7 @@ const states: { name: string; when: string; body: string; worker: string; fill: 
   {
     name: "Needs approval",
     when: "Above the employer's limit",
-    body: "The salary waits for k of the employer's n approvers. Nothing streams yet. Small salaries skip this.",
+    body: "The salary waits for k of the employer's n approvers and doesn't stream until they approve. Salaries under the limit skip this step.",
     worker: "Worker sees: waiting for approvers",
     fill: "bg-lavender",
     sticker: "clock",
@@ -95,7 +95,7 @@ const states: { name: string; when: string; body: string; worker: string; fill: 
   {
     name: "Active",
     when: "Approved, or below the limit",
-    body: "Each period the employer runs payroll with a budget. Pay accrues every second, and the worker withdraws any of it, any time.",
+    body: "Each period the employer runs payroll with a budget. Pay accrues every second, and the worker can withdraw what they've earned at any time.",
     worker: "Worker sees: pay ticking up, withdraw and prove",
     fill: "bg-paper-white",
     sticker: "coin",
@@ -103,7 +103,7 @@ const states: { name: string; when: string; body: string; worker: string; fill: 
   {
     name: "Cancelled",
     when: "The employer stops it",
-    body: "Streaming stops. What the worker already earned stays theirs, and they can still withdraw it. Proofs stop being valid.",
+    body: "Streaming stops, but the worker keeps what they already earned and can still withdraw it. Their income proofs stop being valid.",
     worker: "Worker sees: final balance to withdraw",
     fill: "bg-soft-mist",
     sticker: "check",
@@ -117,7 +117,7 @@ export function SalaryStates() {
         <div className="flex max-w-4xl flex-col gap-6">
           <Badge ghost>The lifecycle</Badge>
           <h2 className={heading}>One salary, three states</h2>
-          <p className="max-w-xl text-subheading">The contract decides every move. No one has to be online for pay to keep streaming.</p>
+          <p className="max-w-xl text-subheading">The contract enforces each state, so pay keeps streaming without anyone online to run it.</p>
         </div>
         <ol className="grid items-stretch gap-4 lg:grid-cols-[1fr_auto_1fr_auto_1fr]">
           {states.map((s, i) => (
@@ -156,20 +156,20 @@ const pillars: { name: string; line: string; points: string[]; fill: string; sti
     name: "Monad",
     line: "Fast, cheap blocks make per-second pay practical.",
     points: [
-      "Salaries accrue every second and withdraw any time, for cents.",
-      "Passkeys are checked onchain by the P256 precompile (EIP-7951), so a worker confirms with Face ID.",
-      "Room for real contracts: Monad allows 128 KB of code.",
+      "Blocks every 300 ms and finality in 600 ms, so a withdrawal lands almost as soon as you press the button.",
+      "The P256 precompile (EIP-7951) checks passkeys onchain, so a worker confirms their employer with Face ID.",
+      "Low fees let a worker withdraw whenever they like and issue a proof for each landlord.",
     ],
     fill: "bg-electric-blue",
     sticker: "star",
   },
   {
     name: "Privy",
-    line: "People who've never used crypto get paid without noticing it.",
+    line: "People who have never used crypto can get paid with just an email address.",
     points: [
-      "Sign in with Google or email. A wallet is made for you.",
-      "Gas is sponsored through EIP-7702, so workers never need MON.",
-      "An employer can run several orgs, one embedded wallet each.",
+      "Sign in with Google or email, and Privy creates a wallet for you.",
+      "Privy sponsors the gas, so workers never need to hold MON.",
+      "An employer can run several organisations from one login, each in its own wallet.",
     ],
     fill: "bg-sunburst",
     sticker: "wallet",
@@ -182,8 +182,8 @@ export function BuiltOn() {
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-14 px-4 md:px-10">
         <div className="flex max-w-4xl flex-col gap-6">
           <Badge ghost>Built on</Badge>
-          <h2 className={heading}>Neither is a nice-to-have</h2>
-          <p className="max-w-xl text-subheading">Take either away and Veil stops working for the people it&apos;s for.</p>
+          <h2 className={heading}>What Monad and Privy make possible</h2>
+          <p className="max-w-xl text-subheading">Veil depends on both to work for people who have never used crypto.</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           {pillars.map((p) => (
@@ -227,7 +227,7 @@ export function ContractsGrid() {
           </h2>
           <p className="max-w-xl text-subheading">
             {deployed === CONTRACTS.length
-              ? "Every one is live. Open any of them on the explorer."
+              ? "All of them are live. Open any one on the explorer."
               : deployed === 0
                 ? "Deploying soon. Addresses appear here as soon as they're live."
                 : `${deployed} of ${CONTRACTS.length} are live.`}
@@ -281,10 +281,10 @@ export function ClosingCta() {
       <Sticker kind="check" size={80} rotate={12} className="absolute right-[8%] bottom-12 hidden md:block" />
       <div className="mx-auto flex w-full max-w-[1440px] flex-col items-center gap-8 px-4 text-center md:px-10">
         <h2 className="display-type max-w-[16ch] text-[40px] sm:text-[56px] md:text-display-110">
-          Set it up once. Then pay just streams.
+          Set it up once, and pay streams every second
         </h2>
         <p className="label-type rounded-pills border border-carbon bg-paper-white px-4 py-2 text-caption uppercase">
-          Takes about five minutes
+          Setup takes about five minutes.
         </p>
         <RoleButtons />
         <ButtonLink href="/verify" variant="outline">
